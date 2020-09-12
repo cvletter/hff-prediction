@@ -1,5 +1,5 @@
 import pandas as pd
-import numpy as np
+import datetime
 
 
 def rawdata_processing(data_loc):
@@ -130,9 +130,30 @@ def make_pivot(aggregated_data, weekly=True, date_table=[]):
     return pivoted_data.set_index('eerste_dag_week', inplace=False)
 
 
+def find_active_products(raw_product_ts, eval_week='2020-08-31'):
+    eval_data = raw_product_ts.loc[eval_week].T
+    eval_data.drop('week_jaar', inplace=True)
+    all_active_products = eval_data.index
+    active_sold_products = eval_data.dropna(how='all').index
+    active_not_sold_products = list(set(all_active_products) - set(active_sold_products))
+
+    return raw_product_ts[active_sold_products], raw_product_ts[active_not_sold_products]
+
+
+def select_products_to_predict(active_sold_products, min_obs=70, eval_week='2020-08-31'):
+    eval_date = datetime.datetime.strptime(eval_week, "%Y-%m-%d")
+    end_date = eval_date - datetime.timedelta(weeks=min_obs)
+    fitting_window = active_sold_products.loc[end_date:eval_date]
+    obs_count = pd.DataFrame(fitting_window.count())
+    obs_count.columns = ['count']
+
+    series_to_model = obs_count[obs_count['count'] >= 70].index
+    series_not_to_model = obs_count[obs_count['count'] < 70].index
+
+    return active_sold_products[series_to_model], active_sold_products[series_not_to_model]
+
 
 # Run functions
-
 RAW_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/Betellingen met HF-artikel.xlsx'
 PRODUCT_STATUS = '/Users/cornelisvletter/Google Drive/HFF/Data/productstatus.xlsx'
 
@@ -142,7 +163,7 @@ raw_product_status = product_status_processing(data_loc=PRODUCT_STATUS)
 raw_data_app = add_product_status(sales_data = raw_data_proc, product_status=raw_product_status)
 raw_data_filtered = data_filtering(unfiltered_data=raw_data_proc)
 data_aggregated_weekly = data_aggregation(raw_data_filtered, weekly=True)
-data_aggregated_daily = data_aggregation(raw_data_filtered, weekly=False)
-
-data_pivot_daily = make_pivot(data_aggregated_daily, weekly=False)
 data_pivot_weekly = make_pivot(data_aggregated_weekly, weekly=True, date_table=date_table)
+
+data_sold_products, data_not_sold_products = find_active_products(raw_product_ts=data_pivot_weekly)
+data_to_model, data_not_to_model = select_products_to_predict(data_sold_products)
