@@ -1,13 +1,8 @@
 import pandas as pd
 import numpy as np
 
-RAW_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/Betellingen met HF-artikel.xlsx'
-PRODUCT_STATUS = '/Users/cornelisvletter/Google Drive/HFF/Data/productstatus.xlsx'
-
-raw_data = pd.read_excel(RAW_DATA)
 
 def rawdata_processing(data_loc):
-
     raw_data = pd.read_excel(data_loc,
                              dtype={'Consumentgroep': str,
                                     'Inkooprecept':str,
@@ -55,7 +50,14 @@ def rawdata_processing(data_loc):
                      'organisatie',
                      'consumentgroep_nr']]
 
-raw_data_proc = rawdata_processing(data_loc=RAW_DATA)
+def create_datetable(raw_data_processed):
+    date_cols = raw_data_processed[['week_jaar', 'besteldatum']]
+    date_table =  pd.DataFrame(date_cols.groupby(['week_jaar'],
+                                               as_index=False).agg({'besteldatum': 'min'})).set_index('week_jaar')
+    date_table.columns = ['eerste_dag_week']
+
+    return date_table
+
 
 def product_status_processing(data_loc):
     raw_product_status = pd.read_excel(data_loc,
@@ -74,6 +76,7 @@ def product_status_processing(data_loc):
 
     return raw_product_status
 
+
 def add_product_status(sales_data, product_status):
 
     sales_tmp = sales_data.set_index('inkooprecept_nr', inplace=False)
@@ -82,8 +85,6 @@ def add_product_status(sales_data, product_status):
 
     return sales_tmp.reset_index(inplace=False)
 
-raw_product_status = product_status_processing(data_loc=PRODUCT_STATUS)
-raw_data_app = add_product_status(sales_data = raw_data_proc, product_status=raw_product_status)
 
 def data_filtering(unfiltered_data):
 
@@ -103,17 +104,45 @@ def data_filtering(unfiltered_data):
 
     return filter_4
 
-raw_data_filtered = data_filtering(unfiltered_data=raw_data_proc)
-
 
 def data_aggregation(unaggregated_data, weekly=True):
 
-    agg_col = ['week_jaar' if weekly else 'besteldatum']
+    agg_col = 'week_jaar' if weekly else 'besteldatum'
+    data_cols = [agg_col, 'inkooprecept_naam', 'inkooprecept_nr', 'ce_besteld']
+
+    ungrouped_data = unaggregated_data[data_cols]
+
+    return pd.DataFrame(ungrouped_data.groupby([agg_col, 'inkooprecept_naam', 'inkooprecept_nr'],
+                                               as_index=False).agg({'ce_besteld': 'sum'}))
 
 
-        unaggregated_data_week = unaggregated_da
+def make_pivot(aggregated_data, weekly=True, date_table=[]):
+
+    data_granularity = 'week_jaar' if weekly else 'besteldatum'
+
+    pivoted_data = pd.DataFrame(aggregated_data.pivot(index=data_granularity,
+                                       columns='inkooprecept_naam',
+                                       values='ce_besteld'))
+    if weekly:
+        pivoted_data['eerste_dag_week'] = date_table['eerste_dag_week']
+
+    pivoted_data.reset_index(inplace=True)
+    return pivoted_data.set_index('eerste_dag_week', inplace=False)
 
 
 
-product_state = pd.read_excel(PRODUCT_STATE,sheet_name='Blad2')
+# Run functions
 
+RAW_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/Betellingen met HF-artikel.xlsx'
+PRODUCT_STATUS = '/Users/cornelisvletter/Google Drive/HFF/Data/productstatus.xlsx'
+
+raw_data_proc = rawdata_processing(data_loc=RAW_DATA)
+date_table = create_datetable(raw_data_proc)
+raw_product_status = product_status_processing(data_loc=PRODUCT_STATUS)
+raw_data_app = add_product_status(sales_data = raw_data_proc, product_status=raw_product_status)
+raw_data_filtered = data_filtering(unfiltered_data=raw_data_proc)
+data_aggregated_weekly = data_aggregation(raw_data_filtered, weekly=True)
+data_aggregated_daily = data_aggregation(raw_data_filtered, weekly=False)
+
+data_pivot_daily = make_pivot(data_aggregated_daily, weekly=False)
+data_pivot_weekly = make_pivot(data_aggregated_weekly, weekly=True, date_table=date_table)
