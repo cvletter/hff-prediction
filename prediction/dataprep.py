@@ -197,8 +197,8 @@ date_table = create_datetable(raw_data_proc)
 raw_product_status = product_status_processing(data_loc=PRODUCT_STATUS)
 raw_data_app = add_product_status(sales_data = raw_data_proc, product_status=raw_product_status)
 raw_data_filtered = data_filtering(unfiltered_data=raw_data_app, su_filter=True)
-# data_aggregated_weekly = data_aggregation(raw_data_filtered, weekly=True)
-# data_pivot_weekly = make_pivot(data_aggregated_weekly, weekly=True, date_table=date_table)
+data_aggregated_weekly = data_aggregation(raw_data_filtered, weekly=True)
+data_pivot_weekly = make_pivot(data_aggregated_weekly, weekly=True, date_table=date_table)
 
 data_aggregated_su_daily = data_aggregation(raw_data_filtered, weekly=False, su=True)
 data_aggregated_daily = data_aggregation(raw_data_filtered, weekly=False, su=False)
@@ -212,3 +212,28 @@ data_pivot_weekly = make_pivot(data_aggregated_weekly, weekly=True, date_table=d
 
 data_sold_products, data_not_sold_products = find_active_products(raw_product_ts=data_pivot_weekly)
 data_to_model, data_not_to_model = select_products_to_predict(data_sold_products)
+
+def product_correlations(order_data):
+    order_data.drop('week_jaar', inplace=True, errors='ignore')
+    return order_data.corr(method='pearson', min_periods=30)
+
+daily_order_corr = product_correlations(order_data=data_pivot_daily)
+weekly_order_corr = product_correlations(order_data=data_pivot_weekly)
+
+def create_lags(input_data, n_lags=4):
+    data_lags = input_data.copy(deep=True)
+
+    data_lags.drop('week_jaar', axis=1, inplace=True, errors='ignore')
+    data_lags.sort_index(ascending=False, inplace=True)
+
+    for lag in range(1, n_lags+1):
+        for product in data_lags.columns:
+            lag_name = "{}_lag_{}".format(product, lag)
+            data_lags[lag_name] = data_lags[product].shift(-lag)
+
+    data_lags[data_lags.columns.sort_values()]
+
+    return data_lags[data_lags.columns.sort_values()]
+
+test_lags = create_lags(input_data=data_pivot_daily, n_lags=1)
+corr_lags = product_correlations(order_data=test_lags)
