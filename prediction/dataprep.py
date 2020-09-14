@@ -2,7 +2,22 @@ import pandas as pd
 import datetime
 
 
-def rawdata_processing(data_loc):
+def add_weekyear(data, date_colname='besteldatum'):
+
+    set_date = False
+    if data.index.name == date_colname:
+        set_date = True
+        data.reset_index(inplace=True)
+
+    week_num= data['besteldatum'].apply(lambda x: x.isocalendar()[1])
+    year_val = data['besteldatum'].apply(lambda x: x.isocalendar()[0])
+    data['week_jaar'] = week_num.astype(str) + "-" + year_val.astype(str)
+
+    if set_date:
+        data.set_index(date_colname, inplace=True)
+
+
+def raw_data_processing(data_loc):
     raw_data = pd.read_excel(data_loc,
                              dtype={'Consumentgroep': str,
                                     'Inkooprecept':str,
@@ -50,9 +65,10 @@ def rawdata_processing(data_loc):
                      'organisatie',
                      'consumentgroep_nr']]
 
+
 def create_datetable(raw_data_processed):
     date_cols = raw_data_processed[['week_jaar', 'besteldatum']]
-    date_table =  pd.DataFrame(date_cols.groupby(['week_jaar'],
+    date_table = pd.DataFrame(date_cols.groupby(['week_jaar'],
                                                as_index=False).agg({'besteldatum': 'min'})).set_index('week_jaar')
     date_table.columns = ['eerste_dag_week']
 
@@ -86,15 +102,16 @@ def add_product_status(sales_data, product_status):
     return sales_tmp.reset_index(inplace=False)
 
 
-def data_filtering(unfiltered_data):
+def data_filtering(unfiltered_data, su_filter=True):
 
     print("Unfiltered data: {} lines".format(len(unfiltered_data)))
 
     filter_1 = unfiltered_data[(unfiltered_data['consumentgroep_nr'].between(14, 16, inclusive=True))]
     print("Bul, rol, aankoop data: {} lines".format(len(filter_1)))
 
-    filter_2 = filter_1[(filter_1['superunielid'] == 'Superunie')]
-    print("Bestellingen Superunie leden: {} lines".format(len(filter_2)))
+    if su_filter:
+        filter_2 = filter_1[(filter_1['superunielid'] == 'Superunie')]
+        print("Bestellingen Superunie leden: {} lines".format(len(filter_2)))
 
     filter_3 = filter_2[filter_2['besteldatum'] >= pd.Timestamp(year=2018, month=8, day=1)]
     print("Bestellingen na 01/08/2018: {} lines".format(len(filter_3)))
@@ -105,15 +122,25 @@ def data_filtering(unfiltered_data):
     return filter_4
 
 
-def data_aggregation(unaggregated_data, weekly=True):
+def data_aggregation(unaggregated_data, weekly=True, su=False):
 
-    agg_col = 'week_jaar' if weekly else 'besteldatum'
-    data_cols = [agg_col, 'inkooprecept_naam', 'inkooprecept_nr', 'ce_besteld']
+    time_agg = 'week_jaar' if weekly else 'besteldatum'
+    product_agg = 'ce_besteld'
 
-    ungrouped_data = unaggregated_data[data_cols]
+    group_cols = [time_agg, 'inkooprecept_naam', 'inkooprecept_nr']
 
-    return pd.DataFrame(ungrouped_data.groupby([agg_col, 'inkooprecept_naam', 'inkooprecept_nr'],
-                                               as_index=False).agg({'ce_besteld': 'sum'}))
+    if su:
+        group_cols += ['organisatie']
+
+    selected_cols = [product_agg] + group_cols
+
+    ungrouped_data = unaggregated_data[selected_cols]
+    aggregated_data = ungrouped_data.groupby(group_cols, as_index=False).agg({product_agg: 'sum'})
+
+    if not weekly:
+        add_weekyear(data=aggregated_data)
+
+    return aggregated_data
 
 
 def make_pivot(aggregated_data, weekly=True, date_table=[]):
@@ -125,9 +152,16 @@ def make_pivot(aggregated_data, weekly=True, date_table=[]):
                                        values='ce_besteld'))
     if weekly:
         pivoted_data['eerste_dag_week'] = date_table['eerste_dag_week']
+        pivoted_data.reset_index(inplace=True)
+        pivoted_data.set_index('eerste_dag_week', inplace=True)
+    else:
+        pivoted_data.reset_index(inplace=True)
+        week_nr = pivoted_data['besteldatum'].apply(lambda x: x.isocalendar()[1])
+        jaar = pivoted_data['besteldatum'].apply(lambda x: x.isocalendar()[0])
+        pivoted_data['week_jaar'] = (week_nr.astype(str) + "-" + jaar.astype(str)).astype(str)
+        pivoted_data.set_index('besteldatum', inplace=True)
 
-    pivoted_data.reset_index(inplace=True)
-    return pivoted_data.set_index('eerste_dag_week', inplace=False)
+    return pivoted_data
 
 
 def find_active_products(raw_product_ts, eval_week='2020-08-31'):
@@ -147,22 +181,33 @@ def select_products_to_predict(active_sold_products, min_obs=70, eval_week='2020
     obs_count = pd.DataFrame(fitting_window.count())
     obs_count.columns = ['count']
 
-    series_to_model = obs_count[obs_count['count'] >= 70].index
-    series_not_to_model = obs_count[obs_count['count'] < 70].index
+    series_to_model = obs_count[obs_count['count'] >= min_obs].index
+    series_not_to_model = obs_count[obs_count['count'] < min_obs].index
 
     return active_sold_products[series_to_model], active_sold_products[series_not_to_model]
 
 
-# Run functions
+if __name__ == '__main__':
+    # Run functions
 RAW_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/Betellingen met HF-artikel.xlsx'
 PRODUCT_STATUS = '/Users/cornelisvletter/Google Drive/HFF/Data/productstatus.xlsx'
 
-raw_data_proc = rawdata_processing(data_loc=RAW_DATA)
+raw_data_proc = raw_data_processing(data_loc=RAW_DATA)
 date_table = create_datetable(raw_data_proc)
 raw_product_status = product_status_processing(data_loc=PRODUCT_STATUS)
 raw_data_app = add_product_status(sales_data = raw_data_proc, product_status=raw_product_status)
-raw_data_filtered = data_filtering(unfiltered_data=raw_data_proc)
-data_aggregated_weekly = data_aggregation(raw_data_filtered, weekly=True)
+raw_data_filtered = data_filtering(unfiltered_data=raw_data_app, su_filter=True)
+# data_aggregated_weekly = data_aggregation(raw_data_filtered, weekly=True)
+# data_pivot_weekly = make_pivot(data_aggregated_weekly, weekly=True, date_table=date_table)
+
+data_aggregated_su_daily = data_aggregation(raw_data_filtered, weekly=False, su=True)
+data_aggregated_daily = data_aggregation(raw_data_filtered, weekly=False, su=False)
+
+data_pivot_daily = make_pivot(data_aggregated_daily, weekly=False, date_table=date_table)
+
+data_aggregated_su_daily.to_csv('daily_orders_per_product_su.csv', sep="|", index=False)
+data_pivot_daily.to_csv('daily_orders_per_product.csv', sep="|")
+
 data_pivot_weekly = make_pivot(data_aggregated_weekly, weekly=True, date_table=date_table)
 
 data_sold_products, data_not_sold_products = find_active_products(raw_product_ts=data_pivot_weekly)
