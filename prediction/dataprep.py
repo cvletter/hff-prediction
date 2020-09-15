@@ -9,8 +9,8 @@ def add_weekyear(data, date_colname='besteldatum'):
         set_date = True
         data.reset_index(inplace=True)
 
-    week_num= data['besteldatum'].apply(lambda x: x.isocalendar()[1])
-    year_val = data['besteldatum'].apply(lambda x: x.isocalendar()[0])
+    week_num= data[date_colname].apply(lambda x: x.isocalendar()[1])
+    year_val = data[date_colname].apply(lambda x: x.isocalendar()[0])
     data['week_jaar'] = week_num.astype(str) + "-" + year_val.astype(str)
 
     if set_date:
@@ -64,6 +64,25 @@ def raw_data_processing(data_loc):
                      'superunielid',
                      'organisatie',
                      'consumentgroep_nr']]
+
+
+def weer_data_processing(data_loc, weekly=True):
+    raw_weer_data = pd.read_csv(data_loc, sep=";")
+
+    raw_weer_data.columns = ['date', 'temperatuur_gem', 'temperatuur_min',
+                             'temperatuur_max', 'zonuren', 'neerslag_duur', 'neerslag_mm']
+
+    raw_weer_data['date'] = pd.to_datetime(raw_weer_data['date'], format='%Y%m%d')
+    raw_weer_data.set_index('date', inplace=True)
+
+    raw_weer_data = raw_weer_data / 10
+    add_weekyear(data=raw_weer_data, date_colname='date')
+
+    # Nog afmaken
+    if weekly:
+        pass
+
+    return raw_weer_data
 
 
 def create_datetable(raw_data_processed):
@@ -187,10 +206,18 @@ def select_products_to_predict(active_sold_products, min_obs=70, eval_week='2020
     return active_sold_products[series_to_model], active_sold_products[series_not_to_model]
 
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
     # Run functions
+
 RAW_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/Betellingen met HF-artikel.xlsx'
 PRODUCT_STATUS = '/Users/cornelisvletter/Google Drive/HFF/Data/productstatus.xlsx'
+WEER_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/knmi_200913_debilt.csv'
+
+
+
+
+
+weer_data = weer_data_processing(data_loc=WEER_DATA)
 
 raw_data_proc = raw_data_processing(data_loc=RAW_DATA)
 date_table = create_datetable(raw_data_proc)
