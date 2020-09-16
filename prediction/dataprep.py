@@ -241,7 +241,7 @@ if __name__ == '__main__':
     RAW_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/Betellingen met HF-artikel.xlsx'
     PRODUCT_STATUS = '/Users/cornelisvletter/Google Drive/HFF/Data/productstatus.xlsx'
     WEER_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/knmi_200913_debilt.csv'
-    SAVE_LOC =  '/Users/cornelisvletter/Google Drive/HFF/Data/Prepared'
+    SAVE_LOC = '/Users/cornelisvletter/Google Drive/HFF/Data/Prepared'
 
 
 

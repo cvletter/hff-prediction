@@ -2,7 +2,7 @@ import datetime
 
 def save_to_csv(data, file_name, folder):
     current_time = datetime.datetime.now()
-    set_timestamp = "{}{}{}-{}{}".format(current_time.year,
+    set_timestamp = "{}{}{}_{}{}".format(current_time.year,
                                          current_time.month,
                                          current_time.day,
                                          current_time.hour,
