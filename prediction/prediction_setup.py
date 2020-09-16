@@ -50,21 +50,23 @@ def create_lags(input_data, n_lags=2):
     return data_lags[data_lags.columns.sort_values()][:-2]
 
 
-def first_difference_data(undifferenced_data, delta=1):
+def first_difference_data(undifferenced_data, delta=1, scale=True):
 
     undifferenced_data.sort_index(ascending=True, inplace=True)
     differenced_data = undifferenced_data.diff(periods=delta)
     differenced_data.sort_index(ascending=False, inplace=True)
     undifferenced_data.sort_index(ascending=False, inplace=True)
-    diff_pct_data = differenced_data / undifferenced_data.shift(-1)
 
-    return diff_pct_data.iloc[:-delta]
+    if scale:
+        differenced_data = differenced_data / undifferenced_data.shift(-1)
+
+    return differenced_data[:-delta]
 
 
 def create_ar_model_setup(y, difference=True, lags=2):
 
     if difference:
-        y = first_difference_data(undifferenced_data=y, delta=1)
+        y = first_difference_data(undifferenced_data=y, delta=1, scale=False)
 
     return y[:-2], create_lags(input_data=y, n_lags=lags)
 
