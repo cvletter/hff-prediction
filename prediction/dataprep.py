@@ -1,43 +1,44 @@
 import pandas as pd
 import datetime
+import prediction.general_purpose_functions as gf
 
 
-def add_weekyear(data, date_colname='besteldatum'):
-
+def add_week_year(data, date_name='besteldatum'):
     set_date = False
-    if data.index.name == date_colname:
+
+    if data.index.name == date_name:
         set_date = True
         data.reset_index(inplace=True)
 
-    week_num= data[date_colname].apply(lambda x: x.isocalendar()[1])
-    year_val = data[date_colname].apply(lambda x: x.isocalendar()[0])
+    week_num = data[date_name].apply(lambda x: x.isocalendar()[1])
+    year_val = data[date_name].apply(lambda x: x.isocalendar()[0])
     data['week_jaar'] = week_num.astype(str) + "-" + year_val.astype(str)
 
     if set_date:
-        data.set_index(date_colname, inplace=True)
+        data.set_index(date_name, inplace=True)
 
 
-def raw_data_processing(data_loc):
-    raw_data = pd.read_excel(data_loc,
+def order_data_processing(order_data_loc):
+    raw_data = pd.read_excel(order_data_loc,
                              dtype={'Consumentgroep': str,
-                                    'Inkooprecept':str,
+                                    'Inkooprecept': str,
                                     'VerkString': str,
                                     'SU': str,
                                     'Organisatie': str,
                                     'Weekjaar': str,
                                     'Week': str,
-                                    'Datum' : str,
+                                    'Datum': str,
                                     'Besteld #CE': int})
 
-    raw_data.rename(columns={'ConsumentGroep' : 'consumentgroep',
-                             'InkoopRecept' : 'inkooprecept',
-                             'VerkString' : 'verkoopartikel',
-                             'SU' : 'superunielid',
-                             'Organisatie' : 'organisatie',
-                             'Weekjaar' : 'weekjaar',
-                             'Week' : 'week',
-                             'Datum' : 'besteldatum',
-                             'Besteld #CE' : 'ce_besteld'},
+    raw_data.rename(columns={'ConsumentGroep': 'consumentgroep',
+                             'InkoopRecept': 'inkooprecept',
+                             'VerkString': 'verkoopartikel',
+                             'SU': 'superunielid',
+                             'Organisatie': 'organisatie',
+                             'Weekjaar': 'weekjaar',
+                             'Week': 'week',
+                             'Datum': 'besteldatum',
+                             'Besteld #CE': 'ce_besteld'},
                     errors="raise",
                     inplace=True)
 
@@ -50,9 +51,7 @@ def raw_data_processing(data_loc):
     raw_data['verkoopartikel_nr'] = raw_data['verkoopartikel_nr'].astype(int)
     raw_data['inkooprecept_nr'] = raw_data['inkooprecept_nr'].astype(int)
 
-    raw_data['weeknummer'] = raw_data['besteldatum'].apply(lambda x: x.isocalendar()[1])
-    raw_data['jaar'] = raw_data['besteldatum'].apply(lambda x: x.isocalendar()[0])
-    raw_data['week_jaar'] = raw_data['weeknummer'].astype(str) + "-" + raw_data['jaar'].astype(str)
+    add_week_year(data=raw_data, date_name='besteldatum')
 
     return raw_data[['besteldatum',
                      'week_jaar',
@@ -66,8 +65,8 @@ def raw_data_processing(data_loc):
                      'consumentgroep_nr']]
 
 
-def weer_data_processing(data_loc, weekly=True):
-    raw_weer_data = pd.read_csv(data_loc, sep=";")
+def weer_data_processing(weer_data_loc, weekly=True):
+    raw_weer_data = pd.read_csv(weer_data_loc, sep=";")
 
     raw_weer_data.columns = ['date', 'temperatuur_gem', 'temperatuur_min',
                              'temperatuur_max', 'zonuren', 'neerslag_duur', 'neerslag_mm']
@@ -76,26 +75,46 @@ def weer_data_processing(data_loc, weekly=True):
     raw_weer_data.set_index('date', inplace=True)
 
     raw_weer_data = raw_weer_data / 10
-    add_weekyear(data=raw_weer_data, date_colname='date')
+    add_week_year(data=raw_weer_data, date_name='date')
 
-    # Nog afmaken
     if weekly:
-        pass
+        raw_weer_data.reset_index(inplace=True)
+        raw_weer_data = raw_weer_data.groupby('week_jaar', as_index=False).agg({
+            'temperatuur_gem': 'mean',
+            'temperatuur_min': 'min',
+            'temperatuur_max': 'max',
+            'zonuren': 'mean',
+            'neerslag_duur': 'sum',
+            'neerslag_mm': 'sum',
+            })
+
+        raw_weer_data.columns = ['date', 'temperatuur_gem', 'temperatuur_min',
+                                 'temperatuur_max', 'zonuren', 'neerslag_duur', 'neerslag_mm']
 
     return raw_weer_data
 
 
-def create_datetable(raw_data_processed):
-    date_cols = raw_data_processed[['week_jaar', 'besteldatum']]
-    date_table = pd.DataFrame(date_cols.groupby(['week_jaar'],
+def first_day_week_table(processed_order_data):
+
+    date_cols = processed_order_data[['week_jaar', 'besteldatum']]
+    day_to_week_table = pd.DataFrame(date_cols.groupby(['week_jaar'],
                                                as_index=False).agg({'besteldatum': 'min'})).set_index('week_jaar')
-    date_table.columns = ['eerste_dag_week']
+    day_to_week_table.columns = ['eerste_dag_week']
 
-    return date_table
+    return day_to_week_table
 
 
-def product_status_processing(data_loc):
-    raw_product_status = pd.read_excel(data_loc,
+def add_first_day_week(add_to, source_table, week_col_name='week_jaar'):
+
+    if not add_to.index.name == week_col_name:
+        add_to.reset_index(inplace=True, errors='ignore')
+        add_to.set_index(week_col_name, inplace=True)
+
+    add_to['eerste_dag_week'] = source_table['eerste_dag_week']
+
+
+def product_status_processing(product_data_loc):
+    raw_product_status = pd.read_excel(product_data_loc,
                                        sheet_name='Blad2',
                                        dtype={'Nummer': str,
                                               'Omschrijving': str,
@@ -109,16 +128,30 @@ def product_status_processing(data_loc):
 
     raw_product_status['inkooprecept_nr'] = raw_product_status['inkooprecept_nr'].astype(int)
 
+    raw_product_status.set_index('inkooprecept_nr', inplace=True)
+
     return raw_product_status
 
 
-def add_product_status(sales_data, product_status):
+def add_product_status(order_data_processed, product_status_processed, join_col='inkooprecept_nr'):
 
-    sales_tmp = sales_data.set_index('inkooprecept_nr', inplace=False)
-    product_tmp = product_status.set_index('inkooprecept_nr', inplace=False)
-    sales_tmp['inkooprecept_geblokkeerd'] = product_tmp['geblokkeerd']
+    order_data_processed.reset_index(inplace=True)
+    order_data_processed.set_index(join_col, inplace=True)
 
-    return sales_tmp.reset_index(inplace=False)
+    reset_product_index = False
+    product_index = product_status_processed.index.name
+
+    if not product_index == join_col:
+        reset_product_index = True
+        product_status_processed.reset_index(inplace=True)
+        product_status_processed.set_index(join_col, inplace=True)
+
+    order_data_processed['inkooprecept_geblokkeerd'] = product_status_processed['geblokkeerd']
+
+    if reset_product_index:
+        product_status_processed.set_index(product_index, inplace=True)
+
+    order_data_processed.reset_index(inplace=True)
 
 
 def data_filtering(unfiltered_data, su_filter=True):
@@ -141,8 +174,7 @@ def data_filtering(unfiltered_data, su_filter=True):
     return filter_4
 
 
-def data_aggregation(unaggregated_data, weekly=True, su=False):
-
+def data_aggregation(filtered_data, weekly=True, su=False):
     time_agg = 'week_jaar' if weekly else 'besteldatum'
     product_agg = 'ce_besteld'
 
@@ -153,39 +185,37 @@ def data_aggregation(unaggregated_data, weekly=True, su=False):
 
     selected_cols = [product_agg] + group_cols
 
-    ungrouped_data = unaggregated_data[selected_cols]
+    ungrouped_data = filtered_data[selected_cols]
     aggregated_data = ungrouped_data.groupby(group_cols, as_index=False).agg({product_agg: 'sum'})
 
     if not weekly:
-        add_weekyear(data=aggregated_data)
+        add_week_year(data=aggregated_data)
 
     return aggregated_data
 
 
-def make_pivot(aggregated_data, weekly=True, date_table=[]):
+def make_pivot(aggregated_data, day_to_week_table, weekly=True):
 
-    data_granularity = 'week_jaar' if weekly else 'besteldatum'
+    date_granularity = 'week_jaar' if weekly else 'besteldatum'
 
-    pivoted_data = pd.DataFrame(aggregated_data.pivot(index=data_granularity,
-                                       columns='inkooprecept_naam',
-                                       values='ce_besteld'))
+    pivoted_data = pd.DataFrame(aggregated_data.pivot(index=date_granularity,
+                                                      columns='inkooprecept_naam',
+                                                      values='ce_besteld'))
+
     if weekly:
-        pivoted_data['eerste_dag_week'] = date_table['eerste_dag_week']
+        add_first_day_week(add_to=pivoted_data, source_table=day_to_week_table)
         pivoted_data.reset_index(inplace=True)
         pivoted_data.set_index('eerste_dag_week', inplace=True)
+        pivoted_data.sort_index()
     else:
-        pivoted_data.reset_index(inplace=True)
-        week_nr = pivoted_data['besteldatum'].apply(lambda x: x.isocalendar()[1])
-        jaar = pivoted_data['besteldatum'].apply(lambda x: x.isocalendar()[0])
-        pivoted_data['week_jaar'] = (week_nr.astype(str) + "-" + jaar.astype(str)).astype(str)
-        pivoted_data.set_index('besteldatum', inplace=True)
+        add_week_year(data=pivoted_data, date_name=date_granularity)
 
-    return pivoted_data
+    return pivoted_data.sort_index(ascending=False, inplace=False)
 
 
-def find_active_products(raw_product_ts, eval_week='2020-08-31'):
+def find_active_products(raw_product_ts, eval_week='2020-08-24'):
     eval_data = raw_product_ts.loc[eval_week].T
-    eval_data.drop('week_jaar', inplace=True)
+    eval_data.drop('week_jaar', inplace=True, errors='ignore')
     all_active_products = eval_data.index
     active_sold_products = eval_data.dropna(how='all').index
     active_not_sold_products = list(set(all_active_products) - set(active_sold_products))
@@ -193,7 +223,7 @@ def find_active_products(raw_product_ts, eval_week='2020-08-31'):
     return raw_product_ts[active_sold_products], raw_product_ts[active_not_sold_products]
 
 
-def select_products_to_predict(active_sold_products, min_obs=70, eval_week='2020-08-31'):
+def select_products_to_predict(active_sold_products, min_obs=70, eval_week='2020-08-24'):
     eval_date = datetime.datetime.strptime(eval_week, "%Y-%m-%d")
     end_date = eval_date - datetime.timedelta(weeks=min_obs)
     fitting_window = active_sold_products.loc[end_date:eval_date]
@@ -206,61 +236,55 @@ def select_products_to_predict(active_sold_products, min_obs=70, eval_week='2020
     return active_sold_products[series_to_model], active_sold_products[series_not_to_model]
 
 
-#if __name__ == '__main__':
+if __name__ == '__main__':
     # Run functions
-
-RAW_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/Betellingen met HF-artikel.xlsx'
-PRODUCT_STATUS = '/Users/cornelisvletter/Google Drive/HFF/Data/productstatus.xlsx'
-WEER_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/knmi_200913_debilt.csv'
-
-
+    RAW_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/Betellingen met HF-artikel.xlsx'
+    PRODUCT_STATUS = '/Users/cornelisvletter/Google Drive/HFF/Data/productstatus.xlsx'
+    WEER_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/knmi_200913_debilt.csv'
+    SAVE_LOC =  '/Users/cornelisvletter/Google Drive/HFF/Data/Prepared'
 
 
 
-weer_data = weer_data_processing(data_loc=WEER_DATA)
+    # Importeren van order data
+    order_data = order_data_processing(order_data_loc=RAW_DATA)
 
-raw_data_proc = raw_data_processing(data_loc=RAW_DATA)
-date_table = create_datetable(raw_data_proc)
-raw_product_status = product_status_processing(data_loc=PRODUCT_STATUS)
-raw_data_app = add_product_status(sales_data = raw_data_proc, product_status=raw_product_status)
-raw_data_filtered = data_filtering(unfiltered_data=raw_data_app, su_filter=True)
-data_aggregated_weekly = data_aggregation(raw_data_filtered, weekly=True)
-data_pivot_weekly = make_pivot(data_aggregated_weekly, weekly=True, date_table=date_table)
+    # Tabel maken met eerste dag van de week
+    first_dow_table = first_day_week_table(processed_order_data=order_data)
 
-data_aggregated_su_daily = data_aggregation(raw_data_filtered, weekly=False, su=True)
-data_aggregated_daily = data_aggregation(raw_data_filtered, weekly=False, su=False)
+    # Importeren van weer data, op wekelijks niveau
+    weer_data = weer_data_processing(weer_data_loc=WEER_DATA, weekly=True)
 
-data_pivot_daily = make_pivot(data_aggregated_daily, weekly=False, date_table=date_table)
+    # Importeren van product status data
+    product_status = product_status_processing(product_data_loc=PRODUCT_STATUS)
 
-data_aggregated_su_daily.to_csv('daily_orders_per_product_su.csv', sep="|", index=False)
-data_pivot_daily.to_csv('daily_orders_per_product.csv', sep="|")
+    # Toevoegen van product status
+    add_product_status(order_data_processed=order_data, product_status_processed=product_status)
 
-data_pivot_weekly = make_pivot(data_aggregated_weekly, weekly=True, date_table=date_table)
+    # Filteren van besteldata
+    order_data_filtered = data_filtering(order_data)
 
-data_sold_products, data_not_sold_products = find_active_products(raw_product_ts=data_pivot_weekly)
-data_to_model, data_not_to_model = select_products_to_predict(data_sold_products)
+    # Aggregeren van data naar wekelijks niveau en halffabrikaat
+    order_data_wk = data_aggregation(filtered_data=order_data_filtered, weekly=True, su=False)
 
-def product_correlations(order_data):
-    order_data.drop('week_jaar', inplace=True, errors='ignore')
-    return order_data.corr(method='pearson', min_periods=30)
+    # Aggregeren van data naar besteldatum niveau en halffabrikaat
+    order_data_dg = data_aggregation(filtered_data=order_data_filtered, weekly=False, su=False)
 
-daily_order_corr = product_correlations(order_data=data_pivot_daily)
-weekly_order_corr = product_correlations(order_data=data_pivot_weekly)
+    # Pivoteren van data
 
-def create_lags(input_data, n_lags=4):
-    data_lags = input_data.copy(deep=True)
+    #  Shape: 111 producten, 112 datapunten
+    order_data_pivot_wk = make_pivot(aggregated_data=order_data_wk,
+                                         day_to_week_table=first_dow_table,
+                                         weekly=True)
 
-    data_lags.drop('week_jaar', axis=1, inplace=True, errors='ignore')
-    data_lags.sort_index(ascending=False, inplace=True)
+    #  Shape: 111 producten, 570 datapunten
+    order_data_pivot_dg = make_pivot(aggregated_data=order_data_dg,
+                                        day_to_week_table=first_dow_table,
+                                        weekly=False)
 
-    for lag in range(1, n_lags+1):
-        for product in data_lags.columns:
-            lag_name = "{}_lag_{}".format(product, lag)
-            data_lags[lag_name] = data_lags[product].shift(-lag)
+    # Actieve producten selecteren: 66 actief; 44 inactief
+    order_data_wk_a, order_data_wk_ia = find_active_products(
+        raw_product_ts=order_data_pivot_wk,
+        eval_week='2020-08-24')
 
-    data_lags[data_lags.columns.sort_values()]
-
-    return data_lags[data_lags.columns.sort_values()]
-
-test_lags = create_lags(input_data=data_pivot_daily, n_lags=1)
-corr_lags = product_correlations(order_data=test_lags)
+    gf.save_to_csv(data=order_data_wk_a, file_name='actieve_halffabricaten_wk', folder=SAVE_LOC)
+    gf.save_to_csv(data=order_data_wk_ia, file_name='inactieve_halffabricaten_wk', folder=SAVE_LOC)
