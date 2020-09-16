@@ -47,7 +47,7 @@ def create_lags(input_data, n_lags=2):
             lag_name = "{}_lag_{}".format(product, lag)
             data_lags[lag_name] = input_data[product].shift(-lag)
 
-    return data_lags[data_lags.columns.sort_values()]
+    return data_lags[data_lags.columns.sort_values()][:-2]
 
 
 def first_difference_data(undifferenced_data, delta=1):
@@ -59,6 +59,14 @@ def first_difference_data(undifferenced_data, delta=1):
     diff_pct_data = differenced_data / undifferenced_data.shift(-1)
 
     return diff_pct_data.iloc[:-delta]
+
+
+def create_ar_model_setup(y, difference=True, lags=2):
+
+    if difference:
+        y = first_difference_data(undifferenced_data=y, delta=1)
+
+    return y[:-2], create_lags(input_data=y, n_lags=lags)
 
 
 if __name__ == '__main__':
@@ -75,10 +83,11 @@ if __name__ == '__main__':
     order_train, order_test = split_train_test(data=order_data_pred)
     fill_missing_values(order_train)
 
-    order_train_diff = first_difference_data(undifferenced_data=order_train, delta=1)
+    exog_data, ar_components = create_ar_model_setup(y=order_train, difference=True, lags=2)
 
-    gf.save_to_csv(data=order_train_diff, file_name='producten_pred_diff', folder=DATA_LOC)
+    gf.save_to_csv(data=exog_data, file_name='producten_pred_diff', folder=DATA_LOC)
+    gf.save_to_csv(data=ar_components, file_name='producten_pred_ar_diff', folder=DATA_LOC)
 
-    ar_lags = create_lags(input_data=order_train_diff, n_lags=2)
+
 
 
