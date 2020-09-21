@@ -23,8 +23,8 @@ def order_data_processing(order_data_loc):
                              dtype={'Consumentgroep': str,
                                     'Inkooprecept': str,
                                     'VerkString': str,
-                                    'SU': str,
-                                    'Organisatie': str,
+                                    'Gebruiken': str,
+                                    'Org_ano': str,
                                     'Weekjaar': str,
                                     'Week': str,
                                     'Datum': str,
@@ -33,8 +33,8 @@ def order_data_processing(order_data_loc):
     raw_data.rename(columns={'ConsumentGroep': 'consumentgroep',
                              'InkoopRecept': 'inkooprecept',
                              'VerkString': 'verkoopartikel',
-                             'SU': 'superunielid',
-                             'Organisatie': 'organisatie',
+                             'Gebruiken': 'gebruiken',
+                             'Org_ano': 'organisatie',
                              'Weekjaar': 'weekjaar',
                              'Week': 'week',
                              'Datum': 'besteldatum',
@@ -60,7 +60,7 @@ def order_data_processing(order_data_loc):
                      'verkoopartikel_nr',
                      'verkoopartikel_naam',
                      'ce_besteld',
-                     'superunielid',
+                     'gebruiken',
                      'organisatie',
                      'consumentgroep_nr']]
 
@@ -281,7 +281,7 @@ if __name__ == '__main__':
                                         day_to_week_table=first_dow_table,
                                         weekly=False)
 
-    # Actieve producten selecteren: 66 actief; 44 inactief
+    # Actieve producten selecteren: 66 actief; 45 inactief
     order_data_wk_a, order_data_wk_ia = find_active_products(
         raw_product_ts=order_data_pivot_wk,
         eval_week='2020-08-24')
