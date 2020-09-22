@@ -83,7 +83,7 @@ def weer_data_processing(weer_data_loc, weekly=True):
             'temperatuur_gem': 'mean',
             'temperatuur_min': 'min',
             'temperatuur_max': 'max',
-            'zonuren': 'mean',
+            'zonuren': 'sum',
             'neerslag_duur': 'sum',
             'neerslag_mm': 'sum',
             })
@@ -104,13 +104,18 @@ def first_day_week_table(processed_order_data):
     return day_to_week_table
 
 
-def add_first_day_week(add_to, source_table, week_col_name='week_jaar'):
+def add_first_day_week(add_to, source_table, week_col_name='week_jaar', set_as_index=False):
 
     if not add_to.index.name == week_col_name:
-        add_to.reset_index(inplace=True, errors='ignore')
+        add_to.reset_index(inplace=True)
         add_to.set_index(week_col_name, inplace=True)
 
     add_to['eerste_dag_week'] = source_table['eerste_dag_week']
+    add_to.drop(add_to[add_to['eerste_dag_week'].isna()].index, inplace=True)
+
+    if set_as_index:
+        add_to.reset_index(inplace=True)
+        add_to.set_index('eerste_dag_week', inplace=True)
 
 
 def product_status_processing(product_data_loc):
@@ -120,11 +125,11 @@ def product_status_processing(product_data_loc):
                                               'Omschrijving': str,
                                               'Geblokkeerd': str}).dropna(how='all')
 
-    raw_product_status.rename(columns={'Nummer' : 'inkooprecept_nr',
-                                              'Omschrijving' : 'inkooprecept_naam',
-                                              'Geblokkeerd' : 'geblokkeerd'},
-                                     errors="raise",
-                                     inplace=True)
+    raw_product_status.rename(columns={'Nummer': 'inkooprecept_nr',
+                                       'Omschrijving': 'inkooprecept_naam',
+                                       'Geblokkeerd': 'geblokkeerd'},
+                              errors="raise",
+                              inplace=True)
 
     raw_product_status['inkooprecept_nr'] = raw_product_status['inkooprecept_nr'].astype(int)
 
@@ -162,8 +167,8 @@ def data_filtering(unfiltered_data, su_filter=True):
     print("Bul, rol, aankoop data: {} lines".format(len(filter_1)))
 
     if su_filter:
-        filter_2 = filter_1[(filter_1['superunielid'] == 'Superunie')]
-        print("Bestellingen Superunie leden: {} lines".format(len(filter_2)))
+        filter_2 = filter_1[(filter_1['gebruiken'] == '1')]
+        print("Bestellingen leden: {} lines".format(len(filter_2)))
 
     filter_3 = filter_2[filter_2['besteldatum'] >= pd.Timestamp(year=2018, month=8, day=1)]
     print("Bestellingen na 01/08/2018: {} lines".format(len(filter_3)))
@@ -253,6 +258,13 @@ if __name__ == '__main__':
 
     # Importeren van weer data, op wekelijks niveau
     weer_data = weer_data_processing(weer_data_loc=WEER_DATA, weekly=True)
+    add_first_day_week(add_to=weer_data, source_table=first_dow_table, week_col_name='date', set_as_index=True)
+
+    weer_data_sl = weer_data[['temperatuur_gem', 'zonuren', 'neerslag_mm']]
+    weer_data_last_w = weer_data_sl.shift(-1)
+    weer_data_last_w.columns = ['temp_lw', 'zonuren_lw', 'neerslag_lw']
+    weer_data_next_w = weer_data_sl.shift(1)
+    weer_data_next_w.columns = ['temp_nw', 'zonuren_nw', 'neerslag_nw']
 
     # Importeren van product status data
     product_status = product_status_processing(product_data_loc=PRODUCT_STATUS)
@@ -265,6 +277,18 @@ if __name__ == '__main__':
 
     # Aggregeren van data naar wekelijks niveau en halffabrikaat
     order_data_wk = data_aggregation(filtered_data=order_data_filtered, weekly=True, su=False)
+    add_first_day_week(add_to=order_data_wk, source_table=first_dow_table, week_col_name='week_jaar', set_as_index=True)
+
+    order_data_filtered[(order_data_filtered['gebruiken'] == '1')
+                        & (order_data_filtered['besteldatum'] > '01-01-2019')]['ce_besteld'].sum()
+
+    order_data_weer_1 = order_data_wk.join(weer_data_sl, how='left')\
+        .join(weer_data_last_w, how='left')\
+        .join(weer_data_next_w, how='left')
+
+    order_data_weer_1.dropna(how='any', inplace=True)
+
+    test = pd.concat([order_data_wk, weer_data_sl, weer_data_last_w, weer_data_next_w], axis=1)
 
     # Aggregeren van data naar besteldatum niveau en halffabrikaat
     order_data_dg = data_aggregation(filtered_data=order_data_filtered, weekly=False, su=False)
