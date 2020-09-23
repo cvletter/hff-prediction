@@ -16,6 +16,10 @@ def select_products_to_predict(active_sold_products, min_obs=70, eval_week='2020
     return active_sold_products[series_to_model], active_sold_products[series_not_to_model]
 
 
+def add_exogenous_features():
+    pass
+
+
 def split_train_test(data, eval_week='2020-08-24', test_size=10, train_size=60):
 
     eval_week = datetime.datetime.strptime(eval_week, "%Y-%m-%d")
@@ -47,7 +51,7 @@ def create_lags(input_data, n_lags=2):
             lag_name = "{}_lag_{}".format(product, lag)
             data_lags[lag_name] = input_data[product].shift(-lag)
 
-    return data_lags[data_lags.columns.sort_values()][:-2]
+    return data_lags[data_lags.columns.sort_values()][:-n_lags]
 
 
 def first_difference_data(undifferenced_data, delta=1, scale=True):
@@ -63,12 +67,12 @@ def first_difference_data(undifferenced_data, delta=1, scale=True):
     return differenced_data[:-delta]
 
 
-def create_ar_model_setup(y, difference=True, lags=2):
-
+# TODO: Add exogenous factors
+def create_model_setup(y, difference=True, lags=2):
     if difference:
         y = first_difference_data(undifferenced_data=y, delta=1, scale=False)
 
-    return y[:-2], create_lags(input_data=y, n_lags=lags)
+    return y[:-lags], create_lags(input_data=y, n_lags=lags)
 
 
 if __name__ == '__main__':
@@ -85,7 +89,7 @@ if __name__ == '__main__':
     order_train, order_test = split_train_test(data=order_data_pred)
     fill_missing_values(order_train)
 
-    exog_data, ar_components = create_ar_model_setup(y=order_train, difference=True, lags=2)
+    exog_data, ar_components = create_model_setup(y=order_train, difference=True, lags=2)
 
     gf.save_to_csv(data=exog_data, file_name='producten_pred_diff', folder=DATA_LOC)
     gf.save_to_csv(data=ar_components, file_name='producten_pred_ar_diff', folder=DATA_LOC)

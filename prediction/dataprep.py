@@ -97,8 +97,10 @@ def weer_data_processing(weer_data_loc, weekly=True):
 def first_day_week_table(processed_order_data):
 
     date_cols = processed_order_data[['week_jaar', 'besteldatum']]
-    day_to_week_table = pd.DataFrame(date_cols.groupby(['week_jaar'],
-                                               as_index=False).agg({'besteldatum': 'min'})).set_index('week_jaar')
+    day_to_week_table = pd.DataFrame(
+        date_cols.groupby(['week_jaar'], as_index=False).agg(
+            {'besteldatum': 'min'})).set_index('week_jaar')
+
     day_to_week_table.columns = ['eerste_dag_week']
 
     return day_to_week_table
@@ -116,6 +118,9 @@ def add_first_day_week(add_to, source_table, week_col_name='week_jaar', set_as_i
     if set_as_index:
         add_to.reset_index(inplace=True)
         add_to.set_index('eerste_dag_week', inplace=True)
+
+    if 'index' in add_to.columns:
+        add_to.drop('index', axis=1, inplace=True)
 
 
 def product_status_processing(product_data_loc):
@@ -243,12 +248,10 @@ def select_products_to_predict(active_sold_products, min_obs=70, eval_week='2020
 
 if __name__ == '__main__':
     # Run functions
-    RAW_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/Betellingen met HF-artikel.xlsx'
-    PRODUCT_STATUS = '/Users/cornelisvletter/Google Drive/HFF/Data/productstatus.xlsx'
-    WEER_DATA = '/Users/cornelisvletter/Google Drive/HFF/Data/knmi_200913_debilt.csv'
-    SAVE_LOC = '/Users/cornelisvletter/Google Drive/HFF/Data/Prepared'
-
-
+    RAW_DATA = '/Users/cornelisvletter/Google Drive/1BITE Foods/Data/Betellingen met HF-artikel.xlsx'
+    PRODUCT_STATUS = '/Users/cornelisvletter/Google Drive/1BITE Foods/Data/productstatus.xlsx'
+    WEER_DATA = '/Users/cornelisvletter/Google Drive/1BITE Foods/Data/knmi_200913_debilt.csv'
+    SAVE_LOC = '/Users/cornelisvletter/Google Drive/1BITE Foods/Data/Prepared'
 
     # Importeren van order data
     order_data = order_data_processing(order_data_loc=RAW_DATA)
@@ -259,12 +262,6 @@ if __name__ == '__main__':
     # Importeren van weer data, op wekelijks niveau
     weer_data = weer_data_processing(weer_data_loc=WEER_DATA, weekly=True)
     add_first_day_week(add_to=weer_data, source_table=first_dow_table, week_col_name='date', set_as_index=True)
-
-    weer_data_sl = weer_data[['temperatuur_gem', 'zonuren', 'neerslag_mm']]
-    weer_data_last_w = weer_data_sl.shift(-1)
-    weer_data_last_w.columns = ['temp_lw', 'zonuren_lw', 'neerslag_lw']
-    weer_data_next_w = weer_data_sl.shift(1)
-    weer_data_next_w.columns = ['temp_nw', 'zonuren_nw', 'neerslag_nw']
 
     # Importeren van product status data
     product_status = product_status_processing(product_data_loc=PRODUCT_STATUS)
@@ -278,17 +275,6 @@ if __name__ == '__main__':
     # Aggregeren van data naar wekelijks niveau en halffabrikaat
     order_data_wk = data_aggregation(filtered_data=order_data_filtered, weekly=True, su=False)
     add_first_day_week(add_to=order_data_wk, source_table=first_dow_table, week_col_name='week_jaar', set_as_index=True)
-
-    order_data_filtered[(order_data_filtered['gebruiken'] == '1')
-                        & (order_data_filtered['besteldatum'] > '01-01-2019')]['ce_besteld'].sum()
-
-    order_data_weer_1 = order_data_wk.join(weer_data_sl, how='left')\
-        .join(weer_data_last_w, how='left')\
-        .join(weer_data_next_w, how='left')
-
-    order_data_weer_1.dropna(how='any', inplace=True)
-
-    test = pd.concat([order_data_wk, weer_data_sl, weer_data_last_w, weer_data_next_w], axis=1)
 
     # Aggregeren van data naar besteldatum niveau en halffabrikaat
     order_data_dg = data_aggregation(filtered_data=order_data_filtered, weekly=False, su=False)
