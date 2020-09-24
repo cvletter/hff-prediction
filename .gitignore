@@ -107,3 +107,6 @@ model_authorizer.json
 *.dot
 .DS_store
 .bigquery/
+
+# Other
+file_locations.py
