@@ -17,6 +17,18 @@ ZONUREN = 'zonuren'
 NEERSLAG_DUUR = 'neerslag_duur'
 NEERSLAG_MM = 'neerslag_mm'
 
+TEMP_GEM_L1W = 'temperatuur_gem_l1w'
+TEMP_GEM_L2W = 'temperatuur_gem_l2w'
+TEMP_GEM_P1W = 'temperatuur_gem_p1w'
+
+ZONUREN_L1W = 'zonuren_l1w'
+ZONUREN_L2W = 'zonuren_l2w'
+ZONUREN_P1W = 'zonuren_p1w'
+
+NEERSLAG_MM_L1W = 'neerslag_duur_l1w'
+NEERSLAG_MM_L2W = 'neerslag_duur_l2w'
+NEERSLAG_MM_P1W = 'neerslag_duur_p1w'
+
 # GENERATED
 FIRST_AVAILABLE_DATE = '2018-08-01'
 TRAIN_SPLIT_DATE = '2020-08-24'
