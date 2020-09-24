@@ -75,7 +75,7 @@ def prep_covid_features():
 
 def prep_exogenous_features(weather, holiday, covid, weekly=True):
 
-    # TODO
+    # TODO d
     #weather.join(holiday, how='left').join(covid, how='left')
 
 
