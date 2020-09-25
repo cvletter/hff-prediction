@@ -6,21 +6,6 @@ import prediction.column_names as cn
 import prediction.file_management as fm
 
 
-def add_week_year(data, date_name=cn.ORDER_DATE):
-    set_date = False
-
-    if data.index.name == date_name:
-        set_date = True
-        data.reset_index(inplace=True)
-
-    week_num = data[date_name].apply(lambda x: x.isocalendar()[1])
-    year_val = data[date_name].apply(lambda x: x.isocalendar()[0])
-    data[cn.WEEK_NUMBER] = week_num.astype(str) + "-" + year_val.astype(str)
-
-    if set_date:
-        data.set_index(date_name, inplace=True)
-
-
 def order_data_processing(order_data_loc):
     raw_data = pd.read_excel(order_data_loc,
                              dtype={'Consumentgroep': str,
@@ -54,7 +39,7 @@ def order_data_processing(order_data_loc):
     raw_data[cn.VERKOOP_ART_NR] = raw_data[cn.VERKOOP_ART_NR].astype(int)
     raw_data[cn.INKOOP_RECEPT_NR] = raw_data[cn.INKOOP_RECEPT_NR].astype(int)
 
-    add_week_year(data=raw_data, date_name=cn.ORDER_DATE)
+    gf.add_week_year(data=raw_data, date_name=cn.ORDER_DATE)
 
     return raw_data[[cn.ORDER_DATE,
                      cn.WEEK_NUMBER,
@@ -78,7 +63,7 @@ def weer_data_processing(weer_data_loc, weekly=True):
     raw_weer_data.set_index(cn.W_DATE, inplace=True)
 
     raw_weer_data = np.round(raw_weer_data / 10, 1)
-    add_week_year(data=raw_weer_data, date_name=cn.W_DATE)
+    gf.add_week_year(data=raw_weer_data, date_name=cn.W_DATE)
 
     if weekly:
         raw_weer_data.reset_index(inplace=True)
@@ -108,19 +93,6 @@ def first_day_week_table(processed_order_data):
 
     return day_to_week_table
 
-
-def add_first_day_week(add_to, source_table, week_col_name=cn.WEEK_NUMBER, set_as_index=False):
-
-    if not add_to.index.name == week_col_name:
-        add_to.reset_index(inplace=True, drop=True)
-        add_to.set_index(week_col_name, inplace=True)
-
-    add_to[cn.FIRST_DOW] = source_table[cn.FIRST_DOW]
-    add_to.drop(add_to[add_to[cn.FIRST_DOW].isna()].index, inplace=True)
-
-    if set_as_index:
-        add_to.reset_index(inplace=True, drop=True)
-        add_to.set_index(cn.FIRST_DOW, inplace=True)
 
 # TODO Afmaken column_names
 
@@ -200,7 +172,7 @@ def data_aggregation(filtered_data, weekly=True, su=False):
     aggregated_data = ungrouped_data.groupby(group_cols, as_index=False).agg({product_agg: 'sum'})
 
     if not weekly:
-        add_week_year(data=aggregated_data)
+        gf.add_week_year(data=aggregated_data)
 
     return aggregated_data
 
@@ -214,12 +186,12 @@ def make_pivot(aggregated_data, day_to_week_table, weekly=True):
                                                       values='ce_besteld'))
 
     if weekly:
-        add_first_day_week(add_to=pivoted_data, source_table=day_to_week_table)
+        gf.add_first_day_week(add_to=pivoted_data)
         pivoted_data.reset_index(inplace=True)
         pivoted_data.set_index('eerste_dag_week', inplace=True)
         pivoted_data.sort_index()
     else:
-        add_week_year(data=pivoted_data, date_name=date_granularity)
+        gf.add_week_year(data=pivoted_data, date_name=date_granularity)
 
     return pivoted_data.sort_index(ascending=False, inplace=False)
 
@@ -257,7 +229,7 @@ if __name__ == '__main__':
 
     # Importeren van weer data, op wekelijks niveau
     weer_data = weer_data_processing(weer_data_loc=fm.WEER_DATA, weekly=True)
-    add_first_day_week(add_to=weer_data, source_table=first_dow_table, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
+    gf.add_first_day_week(add_to=weer_data, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
 
     # Importeren van product status data
     product_status = product_status_processing(product_data_loc=fm.PRODUCT_STATUS)
@@ -270,7 +242,7 @@ if __name__ == '__main__':
 
     # Aggregeren van data naar wekelijks niveau en halffabrikaat
     order_data_wk = data_aggregation(filtered_data=order_data_filtered, weekly=True, su=False)
-    add_first_day_week(add_to=order_data_wk, source_table=first_dow_table, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
+    gf.add_first_day_week(add_to=order_data_wk, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
 
     # Aggregeren van data naar besteldatum niveau en halffabrikaat
     order_data_dg = data_aggregation(filtered_data=order_data_filtered, weekly=False, su=False)

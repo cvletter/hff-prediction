@@ -1,7 +1,8 @@
 import pandas as pd
 import prediction.column_names as cn
 import prediction.file_management as fm
-from datetime import datetime
+import prediction.general_purpose_functions as gf
+
 
 def prep_weather_features(input_weer_data, min_max=False, index_col=cn.FIRST_DOW):
 
@@ -33,7 +34,7 @@ def prep_weather_features(input_weer_data, min_max=False, index_col=cn.FIRST_DOW
         weather_plus_1w).dropna(how='any')
 
 
-def prep_holiday_features():
+def prep_holiday_features(weekly=False):
     holiday_dates = pd.DataFrame(pd.date_range('2018-01-01', periods=1200, freq='D'), columns=['day'])
 
     christmas_dt = pd.to_datetime(['2018-12-25', '2019-12-25', '2020-12-25'])
@@ -60,32 +61,49 @@ def prep_holiday_features():
     carnaval_dt = pd.to_datetime(['2018-02-11', '2019-03-05', '2020-02-23'])
     holiday_dates['carnaval'] = [1 if x in carnaval_dt else 0 for x in holiday_dates['day']]
 
+    gf.add_week_year(data=holiday_dates, date_name='day')
+    gf.add_first_day_week(add_to=holiday_dates, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
+    holiday_dates.drop('day', axis=1, inplace=True)
+
+    if weekly:
+        return holiday_dates.groupby(cn.FIRST_DOW, as_index=True).max()
+
     return holiday_dates
 
 
-def prep_covid_features():
+def prep_covid_features(weekly=False):
 
     covid_dates = pd.DataFrame(pd.date_range('2018-01-01', periods=1200, freq='D'), columns=['day'])
 
     covid_start_dt = pd.to_datetime(['2018-03-13'])
     covid_dates['covid_start'] = [1 if x >= covid_start_dt else 0 for x in covid_dates['day']]
 
+    gf.add_week_year(data=covid_dates, date_name='day')
+    gf.add_first_day_week(add_to=covid_dates, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
+    covid_dates.drop('day', axis=1, inplace=True)
+
+    if weekly:
+        return covid_dates.groupby(cn.FIRST_DOW, as_index=True).max()
+
     return covid_dates
 
 
-def prep_exogenous_features(weather, holiday, covid, weekly=True):
+def prep_exogenous_features(weather_f, holiday_f, covid_f):
 
-    # TODO d
-    #weather.join(holiday, how='left').join(covid, how='left')
+    exog_features = weather_f.join(holiday_f, how='left').join(covid_f, how='left')
 
+    return exog_features
 
-    pass
 
 if __name__ == '__main__':
     # Import weer data
     weather_data = pd.read_csv(fm.WEER_DATA_PREP, decimal=",", sep=';')
     weather_features = prep_weather_features(input_weer_data=weather_data)
-    holiday_features = prep_holiday_features()
-    covid_features = prep_covid_features()
+    holiday_features = prep_holiday_features(weekly=True)
+    covid_features = prep_covid_features(weekly=True)
 
-    #weather_features.join(holiday_features, how='left').join(covid_features, how='left')
+    exog_features = prep_exogenous_features(weather_f=weather_features,
+                                            holiday_f=holiday_features,
+                                            covid_f=covid_features)
+
+    gf.save_to_csv(data=exog_features, file_name='exogenous_features', folder=fm.SAVE_LOC)
