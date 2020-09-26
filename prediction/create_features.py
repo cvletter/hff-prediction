@@ -19,8 +19,6 @@ def prep_weather_features(input_weer_data, min_max=False, index_col=cn.FIRST_DOW
         pass
 
     weather_current_week = input_weer_data[cols]
-    weather_plus_1w = weather_current_week.shift(1)
-    weather_plus_1w.columns = [cn.TEMP_GEM_P1W, cn.NEERSLAG_MM_P1W, cn.ZONUREN_P1W]
 
     weather_min_1w = weather_current_week.shift(-1)
     weather_min_1w.columns = [cn.TEMP_GEM_L1W, cn.NEERSLAG_MM_L1W, cn.ZONUREN_L1W]
@@ -30,15 +28,17 @@ def prep_weather_features(input_weer_data, min_max=False, index_col=cn.FIRST_DOW
 
     return weather_current_week.join(
         weather_min_1w, how='left').join(
-        weather_min_2w, how='left').join(
-        weather_plus_1w).dropna(how='any')
+        weather_min_2w, how='left').dropna(how='any')
 
 
-def prep_holiday_features(weekly=False):
+def prep_holiday_features(weekly=False, look_ahead=cn.HOLIDAY_FORWARD):
     holiday_dates = pd.DataFrame(pd.date_range('2018-01-01', periods=1200, freq='D'), columns=['day'])
 
     christmas_dt = pd.to_datetime(['2018-12-25', '2019-12-25', '2020-12-25'])
     holiday_dates['christmas'] = [1 if x in christmas_dt else 0 for x in holiday_dates['day']]
+
+    sinterklaas_dt = pd.to_datetime(['2018-12-05', '2019-12-05', '2020-12-05'])
+    holiday_dates['sinterklaas'] = [1 if x in sinterklaas_dt else 0 for x in holiday_dates['day']]
 
     newyears_dt = pd.to_datetime(['2018-12-31', '2019-12-31', '2020-12-31'])
     holiday_dates['newyears'] = [1 if x in newyears_dt else 0 for x in holiday_dates['day']]
@@ -66,7 +66,9 @@ def prep_holiday_features(weekly=False):
     holiday_dates.drop('day', axis=1, inplace=True)
 
     if weekly:
-        return holiday_dates.groupby(cn.FIRST_DOW, as_index=True).max()
+        holiday_weeks = holiday_dates.groupby(cn.FIRST_DOW, as_index=True).max()
+        holiday_weeks_fw = holiday_weeks.shift(-2)
+        return holiday_weeks_fw.dropna(how='any', inplace=False)
 
     return holiday_dates
 
@@ -76,7 +78,8 @@ def prep_covid_features(weekly=False):
     covid_dates = pd.DataFrame(pd.date_range('2018-01-01', periods=1200, freq='D'), columns=['day'])
 
     covid_start_dt = pd.to_datetime(['2018-03-13'])
-    covid_dates['covid_start'] = [1 if x >= covid_start_dt else 0 for x in covid_dates['day']]
+    covid_end_dt = pd.to_datetime(['2018-06-02'])
+    covid_dates['covid_period'] = [1 if (covid_start_dt <= x <= covid_end_dt) else 0 for x in covid_dates['day']]
 
     gf.add_week_year(data=covid_dates, date_name='day')
     gf.add_first_day_week(add_to=covid_dates, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
@@ -97,7 +100,7 @@ def prep_exogenous_features(weather_f, holiday_f, covid_f):
 
 if __name__ == '__main__':
     # Import weer data
-    weather_data = pd.read_csv(fm.WEER_DATA_PREP, decimal=",", sep=';')
+    weather_data = gf.import_temp_file(file_name=fm.WEER_DATA_PREP, data_loc=fm.SAVE_LOC, set_index=False)
     weather_features = prep_weather_features(input_weer_data=weather_data)
     holiday_features = prep_holiday_features(weekly=True)
     covid_features = prep_covid_features(weekly=True)

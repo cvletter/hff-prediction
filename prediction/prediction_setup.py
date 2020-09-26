@@ -1,19 +1,30 @@
 import pandas as pd
 import datetime
 import prediction.general_purpose_functions as gf
+import prediction.file_management as fm
+import prediction.column_names as cn
 
 
-def select_products_to_predict(active_sold_products, min_obs=70, eval_week='2020-08-24'):
-    eval_date = datetime.datetime.strptime(eval_week, "%Y-%m-%d")
-    end_date = eval_date - datetime.timedelta(weeks=min_obs)
-    fitting_window = active_sold_products.loc[eval_date:end_date]
+def split_products(active_products, min_obs=cn.TRAIN_OBS, prediction_date=cn.PREDICTION_DATE, hold_out=cn.PREDICTION_WINDOW):
+
+
+    prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
+    active_products = active_products.loc[prediction_date:]
+
+    last_train_date = prediction_date - datetime.timedelta(weeks=hold_out)
+    first_train_date = last_train_date - datetime.timedelta(weeks=min_obs)
+    fitting_window = active_products.loc[last_train_date:first_train_date]
+
     obs_count = pd.DataFrame(fitting_window.count())
     obs_count.columns = ['count']
 
     series_to_model = obs_count[obs_count['count'] >= min_obs].index
-    series_not_to_model = obs_count[obs_count['count'] < min_obs].index
+    print("Number of products able to model: {}".format(len(series_to_model)))
 
-    return active_sold_products[series_to_model], active_sold_products[series_not_to_model]
+    series_not_to_model = obs_count[obs_count['count'] < min_obs].index
+    print("Number of products not able to model: {}".format(len(series_not_to_model)))
+
+    return active_products[series_to_model], active_products[series_not_to_model]
 
 
 def add_exogenous_features():
@@ -85,7 +96,7 @@ if __name__ == '__main__':
     order_data['eerste_dag_week'] = pd.to_datetime(order_data['eerste_dag_week'], format='%Y-%m-%d')
     order_data.set_index('eerste_dag_week', inplace=True)
 
-    order_data_pred, order_data_npred = select_products_to_predict(active_sold_products=order_data)
+    order_data_pred, order_data_npred = split_products(active_products=order_data)
     order_train, order_test = split_train_test(data=order_data_pred)
     fill_missing_values(order_train)
 
@@ -93,6 +104,28 @@ if __name__ == '__main__':
 
     gf.save_to_csv(data=exog_data, file_name='producten_pred_diff', folder=DATA_LOC)
     gf.save_to_csv(data=ar_components, file_name='producten_pred_ar_diff', folder=DATA_LOC)
+
+    # NEW
+
+    active_products = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT,
+                                         data_loc=fm.SAVE_LOC,
+                                         set_index=True)
+
+    inactive_products = gf.import_temp_file(file_name=fm.ORDER_DATA_INACT,
+                                           data_loc=fm.SAVE_LOC,
+                                           set_index=True)
+
+    exog_features = gf.import_temp_file(file_name=fm.EXOG_FEATURES,
+                                       data_loc=fm.SAVE_LOC,
+                                       set_index=True)
+
+    products_model, products_nmodel = split_products(active_products=active_products,
+                                                     min_obs=cn.TRAIN_OBS,
+                                                     prediction_date=cn.PREDICTION_DATE,
+                                                     hold_out=cn.PREDICTION_WINDOW)
+
+
+
 
 
 

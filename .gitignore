@@ -109,4 +109,4 @@ model_authorizer.json
 .bigquery/
 
 # Other
-prediction/file_locations.py
+prediction/file_management.py
