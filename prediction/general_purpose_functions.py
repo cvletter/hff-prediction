@@ -1,6 +1,28 @@
 import datetime
 import pandas as pd
 import prediction.column_names as cn
+import pickle as pkl
+
+
+def save_to_pkl(data, file_name, folder):
+    current_time = datetime.datetime.now()
+    set_timestamp = "{}{}{}_{}{}".format(current_time.year,
+                                         current_time.month,
+                                         current_time.day,
+                                         current_time.hour,
+                                         current_time.minute)
+
+    save_as = "{}/{}_{}.p".format(folder, file_name, set_timestamp)
+
+    with open(save_as, 'wb') as f:
+        pkl.dump(data, f)
+
+    f.close()
+
+
+def read_pkl(file_name, data_loc):
+    import_name = '{}/{}'.format(data_loc, file_name)
+    return pkl.load(open(import_name, "rb"))
 
 
 def save_to_csv(data, file_name, folder):

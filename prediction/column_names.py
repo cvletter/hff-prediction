@@ -1,3 +1,6 @@
+
+import datetime
+
 # ORDER DATA
 ORDER_DATE = 'besteldatum'
 CONSUMENT_GROEP = 'consumentgroep'
@@ -31,6 +34,7 @@ NEERSLAG_MM_P1W = 'neerslag_duur_p1w'
 
 # GENERATED
 WEEK_NUMBER = 'week_jaar'
+MOD_PROD_SUM = 'model_products_sum'
 CONSUMENT_GROEP_NR = 'consumentgroep_nr'
 VERKOOP_ART_NR = 'verkoopartikel_nr'
 VERKOOP_ART_NM ='verkoopartikel_naam'
@@ -39,9 +43,15 @@ INKOOP_RECEPT_NM = 'inkooprecept_naam'
 FIRST_DOW = 'eerste_dag_week'
 
 # INPUT VARIABLES
-FIRST_AVAILABLE_DATE = '2018-08-01'
-PREDICTION_DATE = '2020-08-31'
+
+
+FIRST_AVAILABLE_DATE = datetime.datetime.strptime('2018-08-01', "%Y-%m-%d")
+PREDICTION_DATE = datetime.datetime.strptime('2020-08-31', "%Y-%m-%d")
+PREDICTION_WINDOW = 2
+LAST_TRAIN_DATE = PREDICTION_DATE - datetime.timedelta(weeks=PREDICTION_WINDOW)
+
 TRAIN_OBS = 70
-PREDICTION_WINDOW = 1
+
 HOLIDAY_FORWARD = 2
+N_LAGS = 2
 

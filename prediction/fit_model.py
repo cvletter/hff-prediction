@@ -1,17 +1,11 @@
 import prediction.general_purpose_functions as gpf
 import statsmodels.api as sm
 import pandas as pd
-
-DATA_LOC = '/Users/cornelisvletter/Google Drive/HFF/Data/Prepared'
-FILE_NAME_AR = 'producten_pred_ar_diff_2020916_178.csv'
-FILE_NAME_Y = 'producten_pred_diff_2020916_178.csv'
-
-Y = gpf.import_temp_file(file_name=FILE_NAME_Y, data_loc=DATA_LOC, set_index=True)
-ar_comp = gpf.import_temp_file(file_name=FILE_NAME_AR, data_loc=DATA_LOC, set_index=True)
+import prediction.general_purpose_functions as gf
+import prediction.file_management as fm
 
 
 def batch_fit_ar_model(Y, X_ar, add_constant=True):
-
     Y_pred = pd.DataFrame(index=Y.index)
 
     for product in Y.columns:
@@ -31,16 +25,7 @@ def batch_fit_ar_model(Y, X_ar, add_constant=True):
     return Y_pred
 
 
-predictions = batch_fit_ar_model(Y, ar_comp)
-errors = Y - predictions
+if __name__ == '__main__':
+    fit_data = gf.read_pkl(file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC)
 
 
-
-
-
-
-
-
-y = pd.read_csv(import_name, sep=";", decimal=",")
-order_data['eerste_dag_week'] = pd.to_datetime(order_data['eerste_dag_week'], format='%Y-%m-%d')
-order_data.set_index('eerste_dag_week', inplace=True)
