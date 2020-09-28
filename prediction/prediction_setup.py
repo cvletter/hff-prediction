@@ -5,7 +5,8 @@ import prediction.file_management as fm
 import prediction.column_names as cn
 
 
-def split_products(active_products, min_obs=cn.TRAIN_OBS, prediction_date=cn.PREDICTION_DATE, hold_out=cn.PREDICTION_WINDOW):
+def split_products(active_products, min_obs=cn.TRAIN_OBS, prediction_date=cn.PREDICTION_DATE,
+                   hold_out=cn.PREDICTION_WINDOW):
 
     last_train_date = prediction_date - datetime.timedelta(weeks=hold_out)
     first_train_date = last_train_date - datetime.timedelta(weeks=min_obs)
@@ -28,9 +29,6 @@ def split_products(active_products, min_obs=cn.TRAIN_OBS, prediction_date=cn.PRE
 
     return products_model, products_no_model
 
-
-def add_exogenous_features():
-    pass
 
 def fill_missing_values(data):
     data.fillna(value=0, inplace=True)
@@ -58,7 +56,6 @@ def create_lags(input_data, n_lags=cn.N_LAGS):
     return data_lags[:-n_lags]
 
 
-
 def first_difference_data(undifferenced_data, delta=1, scale=True):
 
     undifferenced_data.sort_index(ascending=True, inplace=True)
@@ -72,8 +69,8 @@ def first_difference_data(undifferenced_data, delta=1, scale=True):
     return differenced_data[:-delta]
 
 
-# TODO: Add exogenous factors
-def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, prediction_date=cn.PREDICTION_DATE, hold_out=cn.PREDICTION_WINDOW):
+def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, prediction_date=cn.PREDICTION_DATE,
+                       hold_out=cn.PREDICTION_WINDOW):
 
     last_train_date = prediction_date - datetime.timedelta(weeks=hold_out)
 
@@ -129,8 +126,7 @@ if __name__ == '__main__':
 
     data_fitting, data_prediction = create_model_setup(y_m=products_model,
                                                        y_nm=products_nmodel,
-                                                       X_exog=exog_features
-                                                       )
+                                                       X_exog=exog_features)
 
     gf.save_to_pkl(data=data_fitting, file_name='fit_data', folder=fm.SAVE_LOC)
     gf.save_to_pkl(data=data_prediction, file_name='prediction_data', folder=fm.SAVE_LOC)
