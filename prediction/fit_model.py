@@ -4,9 +4,7 @@ import pandas as pd
 import prediction.general_purpose_functions as gf
 import prediction.file_management as fm
 import prediction.column_names as cn
-
-#import seaborn as sns
-
+# import seaborn as sns
 
 
 def batch_fit_model(Y, Y_ar, X_exog, add_constant=True):

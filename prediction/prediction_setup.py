@@ -77,7 +77,11 @@ def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, predi
     fill_missing_values(data=y_m)
     fill_missing_values(data=y_nm)
 
+
     if difference:
+        y_m_ud = y_m.copy(deep=True)
+        y_nm_ud = y_nm.copy(deep=True)
+
         y_m = first_difference_data(undifferenced_data=y_m, delta=1, scale=False)
         y_nm = first_difference_data(undifferenced_data=y_nm, delta=1, scale=False)
 
@@ -92,13 +96,19 @@ def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, predi
     yl_ar_nm_prd = y_ar_nm.loc[prediction_date]
     X_exog_prd = X_exog.loc[prediction_date]
 
+    #TODO: TEST THIS
+    y_m_undiff = y_m_ud[last_train_date]
+    y_nm_undiff = y_nm_ud[last_train_date]
+
     model_fitting = {cn.Y_TRUE: y_true_fit,
                      cn.Y_AR: y_ar_m_fit,
                      cn.X_EXOG: X_exog_fit}
 
     model_prediction = {cn.Y_AR_M: yl_ar_m_prd,
                         cn.Y_AR_NM: yl_ar_nm_prd,
-                        cn.X_EXOG: X_exog_prd}
+                        cn.X_EXOG: X_exog_prd,
+                        'y_m_undif': y_m_undiff,
+                        'y_nm_undif': y_nm_undiff}
 
     return model_fitting, model_prediction
 

@@ -10,7 +10,7 @@ import pandas as pd
 # FIXED PARAMETERS
 PREDICTION_DATE = '2020-06-22'
 PREDICTION_WINDOW = 2
-TRAIN_OBS = 80
+TRAIN_OBS = 70
 ORDER_DATA = fm.RAW_DATA
 WEATHER_DATA = fm.WEER_DATA
 PRODUCT_DATA = fm.PRODUCT_STATUS
@@ -66,3 +66,4 @@ prediction_dates = pd.DataFrame(pd.date_range('2020-04-01', periods=22, freq='W-
 for dt in prediction_dates[cn.FIRST_DOW]:
     _yhat, _yos = run_prediction(pred_date=dt)
     all_predictions = pd.concat([all_predictions, _yos], axis=0, join='outer')
+
