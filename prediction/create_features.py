@@ -10,7 +10,8 @@ def prep_weather_features(input_weer_data, min_max=False, index_col=cn.FIRST_DOW
     if not input_weer_data.index.name == index_col:
         input_weer_data.reset_index(inplace=True, drop=True)
         input_weer_data.set_index(index_col, inplace=True)
-        input_weer_data.sort_index(ascending=False, inplace=True)
+
+    input_weer_data.sort_index(ascending=False, inplace=True)
 
     cols = [cn.TEMP_GEM, cn.NEERSLAG_MM, cn.ZONUREN]
 
@@ -91,9 +92,11 @@ def prep_covid_features(weekly=False):
     return covid_dates
 
 
-def prep_exogenous_features(weather_data_processed, save_to_csv=False):
-    weather_data_processed = gf.import_temp_file(file_name=weather_data_processed,
-                                                  data_loc=fm.SAVE_LOC, set_index=False)
+def prep_exogenous_features(weather_data_processed, import_file=False, save_to_csv=False):
+
+    if import_file:
+        weather_data_processed = gf.import_temp_file(file_name=weather_data_processed,
+                                                     data_loc=fm.SAVE_LOC, set_index=False)
 
     weather_f = prep_weather_features(input_weer_data=weather_data_processed)
     holiday_f = prep_holiday_features(weekly=True)
