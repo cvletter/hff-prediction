@@ -157,13 +157,13 @@ def data_filtering(unfiltered_data, su_filter=True):
     return filter_4
 
 
-def data_aggregation(filtered_data, weekly=True, su=False):
+def data_aggregation(filtered_data, weekly=True, exclude_su=True):
     time_agg = 'week_jaar' if weekly else 'besteldatum'
     product_agg = 'ce_besteld'
 
     group_cols = [time_agg, 'inkooprecept_naam', 'inkooprecept_nr']
 
-    if su:
+    if not exclude_su:
         group_cols += ['organisatie']
 
     selected_cols = [product_agg] + group_cols
@@ -201,17 +201,60 @@ def find_active_products(raw_product_ts, eval_week=cn.LAST_TRAIN_DATE):
     return raw_product_ts[active_sold_products], raw_product_ts[active_not_sold_products]
 
 
-def select_products_to_predict(active_sold_products, min_obs=70, eval_week='2020-08-24'):
-    eval_date = datetime.datetime.strptime(eval_week, "%Y-%m-%d")
-    end_date = eval_date - datetime.timedelta(weeks=min_obs)
-    fitting_window = active_sold_products.loc[end_date:eval_date]
-    obs_count = pd.DataFrame(fitting_window.count())
-    obs_count.columns = ['count']
+def data_prep_wrapper(prediction_date, prediction_window, order_data_loc=fm.RAW_DATA, weer_data_loc=fm.WEER_DATA,
+                      product_data_loc=fm.PRODUCT_STATUS, agg_weekly=True, exclude_su=True,
+                      save_to_csv=False):
 
-    series_to_model = obs_count[obs_count['count'] >= min_obs].index
-    series_not_to_model = obs_count[obs_count['count'] < min_obs].index
+    prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
+    last_train_date = prediction_date - datetime.timedelta(weeks=prediction_window)
 
-    return active_sold_products[series_to_model], active_sold_products[series_not_to_model]
+    # Importeren van order data
+    order_data = order_data_processing(order_data_loc=order_data_loc)
+
+    # Tabel maken met eerste dag van de week
+    #first_dow_table = first_day_week_table(processed_order_data=order_data)
+
+    # Importeren van weer data, op wekelijks niveau
+    weer_data = weer_data_processing(weer_data_loc=weer_data_loc, weekly=agg_weekly)
+    gf.add_first_day_week(add_to=weer_data, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
+
+    # Importeren van product status data
+    product_status = product_status_processing(product_data_loc=product_data_loc)
+
+    # Toevoegen van product status
+    add_product_status(order_data_processed=order_data, product_status_processed=product_status)
+
+    # Filteren van besteldata
+    order_data_filtered = data_filtering(order_data)
+
+    # Aggregeren van data naar wekelijks niveau en halffabrikaat
+    order_data_wk = data_aggregation(filtered_data=order_data_filtered, weekly=agg_weekly, exclude_su=exclude_su)
+    gf.add_first_day_week(add_to=order_data_wk, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
+
+    # Aggregeren van data naar besteldatum niveau en halffabrikaat
+    # order_data_dg = data_aggregation(filtered_data=order_data_filtered, weekly=False, su=True)
+
+    # Pivoteren van data
+
+    #  Shape: 111 producten, 112 datapunten
+    order_data_pivot_wk = make_pivot(aggregated_data=order_data_wk,
+                                         weekly=True)
+
+    #  Shape: 111 producten, 570 datapunten
+    # order_data_pivot_dg = make_pivot(aggregated_data=order_data_dg,
+    #                                    weekly=False)
+
+    # Actieve producten selecteren: 66 actief; 45 inactief
+    order_data_wk_a, order_data_wk_ia = find_active_products(
+        raw_product_ts=order_data_pivot_wk,
+        eval_week=last_train_date)
+
+    if save_to_csv:
+        gf.save_to_csv(data=weer_data, file_name='weer_data_processed', folder=fm.SAVE_LOC)
+        gf.save_to_csv(data=order_data_wk_a, file_name='actieve_halffabricaten_wk', folder=fm.SAVE_LOC)
+        gf.save_to_csv(data=order_data_wk_ia, file_name='inactieve_halffabricaten_wk', folder=fm.SAVE_LOC)
+
+    return order_data_wk_a, order_data_wk_ia, weer_data
 
 
 if __name__ == '__main__':
@@ -236,11 +279,11 @@ if __name__ == '__main__':
     order_data_filtered = data_filtering(order_data)
 
     # Aggregeren van data naar wekelijks niveau en halffabrikaat
-    order_data_wk = data_aggregation(filtered_data=order_data_filtered, weekly=True, su=False)
+    order_data_wk = data_aggregation(filtered_data=order_data_filtered, weekly=True, exclude_su=True)
     gf.add_first_day_week(add_to=order_data_wk, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
 
     # Aggregeren van data naar besteldatum niveau en halffabrikaat
-    order_data_dg = data_aggregation(filtered_data=order_data_filtered, weekly=False, su=False)
+    order_data_dg = data_aggregation(filtered_data=order_data_filtered, weekly=False, exclude_su=True)
 
     # Pivoteren van data
 
@@ -260,3 +303,4 @@ if __name__ == '__main__':
     gf.save_to_csv(data=weer_data, file_name='weer_data_processed', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=order_data_wk_a, file_name='actieve_halffabricaten_wk', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=order_data_wk_ia, file_name='inactieve_halffabricaten_wk', folder=fm.SAVE_LOC)
+

@@ -102,6 +102,10 @@ def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, predi
 
     return model_fitting, model_prediction
 
+def prediction_setup_wrapper(prediction_date, prediction_window, train_obs,
+                             active_products, inactive_products, exog_features):
+
+    pass
 
 if __name__ == '__main__':
 

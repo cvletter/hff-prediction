@@ -31,7 +31,7 @@ def prep_weather_features(input_weer_data, min_max=False, index_col=cn.FIRST_DOW
         weather_min_2w, how='left').dropna(how='any')
 
 
-def prep_holiday_features(weekly=False, look_ahead=cn.HOLIDAY_FORWARD):
+def prep_holiday_features(weekly=False):
     holiday_dates = pd.DataFrame(pd.date_range('2018-01-01', periods=1200, freq='D'), columns=['day'])
 
     christmas_dt = pd.to_datetime(['2018-12-25', '2019-12-25', '2020-12-25'])
@@ -91,9 +91,18 @@ def prep_covid_features(weekly=False):
     return covid_dates
 
 
-def prep_exogenous_features(weather_f, holiday_f, covid_f):
+def prep_exogenous_features(weather_data_processed, save_to_csv=False):
+    weather_data_processed = gf.import_temp_file(file_name=weather_data_processed,
+                                                  data_loc=fm.SAVE_LOC, set_index=False)
+
+    weather_f = prep_weather_features(input_weer_data=weather_data_processed)
+    holiday_f = prep_holiday_features(weekly=True)
+    covid_f = prep_covid_features(weekly=True)
 
     exog_features = weather_f.join(holiday_f, how='left').join(covid_f, how='left')
+
+    if save_to_csv:
+        gf.save_to_csv(data=exog_features, file_name='exogenous_features', folder=fm.SAVE_LOC)
 
     return exog_features
 
@@ -105,8 +114,7 @@ if __name__ == '__main__':
     holiday_features = prep_holiday_features(weekly=True)
     covid_features = prep_covid_features(weekly=True)
 
-    exog_features = prep_exogenous_features(weather_f=weather_features,
-                                            holiday_f=holiday_features,
-                                            covid_f=covid_features)
+    exog_features = prep_exogenous_features(weather_data_processed=weather_data, save_to_csv=False)
 
     gf.save_to_csv(data=exog_features, file_name='exogenous_features', folder=fm.SAVE_LOC)
+
