@@ -42,6 +42,15 @@ INKOOP_RECEPT_NR = 'inkooprecept_nr'
 INKOOP_RECEPT_NM = 'inkooprecept_naam'
 FIRST_DOW = 'eerste_dag_week'
 
+# MODEL NAMES
+Y_TRUE = 'y_true'
+Y_AR = 'y_ar'
+X_EXOG = 'x_exog'
+
+Y_AR_M = 'y_ar_m'
+Y_AR_NM = 'y_ar_nm'
+
+
 # INPUT VARIABLES
 
 

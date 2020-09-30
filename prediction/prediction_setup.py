@@ -92,20 +92,43 @@ def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, predi
     yl_ar_nm_prd = y_ar_nm.loc[prediction_date]
     X_exog_prd = X_exog.loc[prediction_date]
 
-    model_fitting = {'y_true': y_true_fit,
-                    'y_ar': y_ar_m_fit,
-                    'X_exog': X_exog_fit}
+    model_fitting = {cn.Y_TRUE: y_true_fit,
+                    cn.Y_AR: y_ar_m_fit,
+                    cn.X_EXOG: X_exog_fit}
 
-    model_prediction = {'y_ar_m': yl_ar_m_prd,
-                        'y_ar_mm': yl_ar_nm_prd,
-                        'X_exog': X_exog_prd}
+    model_prediction = {cn.Y_AR_M: yl_ar_m_prd,
+                        cn.Y_AR_NM: yl_ar_nm_prd,
+                        cn.X_EXOG: X_exog_prd}
 
     return model_fitting, model_prediction
 
-def prediction_setup_wrapper(prediction_date, prediction_window, train_obs,
-                             active_products, inactive_products, exog_features):
 
-    pass
+def prediction_setup_wrapper(prediction_date, prediction_window, train_obs,
+                             nlags, difference,
+                             act_products, exog_features,
+                             save_to_pkl=False):
+
+    prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
+
+    products_model, products_nmodel = split_products(active_products=act_products,
+                                                     min_obs=train_obs,
+                                                     prediction_date=prediction_date,
+                                                     hold_out=prediction_window)
+
+    data_fitting, data_prediction = create_model_setup(y_m=products_model,
+                                                       y_nm=products_nmodel,
+                                                       prediction_date=prediction_date,
+                                                       hold_out=prediction_window,
+                                                       X_exog=exog_features,
+                                                       difference=difference,
+                                                       lags=nlags)
+
+    if save_to_pkl:
+        gf.save_to_pkl(data=data_fitting, file_name='fit_data', folder=fm.SAVE_LOC)
+        gf.save_to_pkl(data=data_prediction, file_name='prediction_data', folder=fm.SAVE_LOC)
+
+    return data_fitting, data_prediction
+
 
 if __name__ == '__main__':
 

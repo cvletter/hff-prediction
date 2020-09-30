@@ -81,19 +81,30 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models,
     return Y_pred
 
 
+def fit_and_predict(fit_dict, predict_dict):
+    Yis_fit, model_fits = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR], X_exog=fit_dict[cn.X_EXOG])
+
+    Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
+                                     Xp_exog=predict_dict[cn.X_EXOG], fitted_models=model_fits,
+                                     agg_model_name=cn.MOD_PROD_SUM)
+
+    return Yis_fit, Yos_pred
+
+
+
 if __name__ == '__main__':
     fit_data = gf.read_pkl(file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC)
     predict_data = gf.read_pkl(file_name=fm.PREDICT_DATA, data_loc=fm.SAVE_LOC)
 
-    Yf_true = fit_data['y_true']
-    Yf_ar = fit_data['y_ar']
-    Xf_exog = fit_data['X_exog']
+    Yf_true = fit_data[cn.Y_TRUE]
+    Yf_ar = fit_data[cn.Y_AR]
+    Xf_exog = fit_data[cn.X_EXOG]
 
     Yis_fit, model_fits = batch_fit_model(Y=Yf_true, Y_ar=Yf_ar, X_exog=Xf_exog)
 
-    Yp_ar = predict_data['y_ar_m']
-    Yp_ar_nm = predict_data['y_ar_mm']
-    Xp_exog = predict_data['X_exog']
+    Yp_ar = predict_data[cn.Y_AR_M]
+    Yp_ar_nm = predict_data[cn.Y_AR_NM]
+    Xp_exog = predict_data[cn.X_EXOG]
 
     Yos_pred = batch_make_prediction(Yp_ar_m=Yp_ar, Yp_ar_nm=Yp_ar_nm,
                                      Xp_exog=Xp_exog, fitted_models=model_fits,
