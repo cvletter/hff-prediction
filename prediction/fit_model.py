@@ -5,8 +5,8 @@ import prediction.general_purpose_functions as gf
 import prediction.file_management as fm
 import prediction.column_names as cn
 
-import seaborn as sns
-import matplotlib.pyplot as plt
+#import seaborn as sns
+
 
 
 def batch_fit_model(Y, Y_ar, X_exog, add_constant=True):
@@ -116,4 +116,4 @@ if __name__ == '__main__':
     Yt_total['fit_model'] = Yis_fit[cn.MOD_PROD_SUM]
     Yt_total['fit_model_sum'] = Yis_fit.sum(axis=1)
 
-    sns.relplot(data=Yt_total, kind="line")
+   # sns.relplot(data=Yt_total, kind="line")

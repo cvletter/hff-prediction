@@ -55,13 +55,13 @@ order_data = ORDER_DATA
 weather_data = WEATHER_DATA
 product_data = PRODUCT_DATA
 
-Y_is_1, Y_os_1 = run_prediction(pred_date='2020-06-22')
-Y_is_2, Y_os_2 = run_prediction(pred_date='2020-06-29')
+# Y_is_1, Y_os_1 = run_prediction(pred_date='2020-06-22')
+# Y_is_2, Y_os_2 = run_prediction(pred_date='2020-06-29')
 
 # all_predictions = pd.DataFrame(index=prediction_dates[cn.FIRST_DOW])
 
 all_predictions = pd.DataFrame([])
-prediction_dates = pd.DataFrame(pd.date_range('2020-06-01', periods=14, freq='W-MON').astype(str), columns=[cn.FIRST_DOW])
+prediction_dates = pd.DataFrame(pd.date_range('2020-04-01', periods=22, freq='W-MON').astype(str), columns=[cn.FIRST_DOW])
 
 for dt in prediction_dates[cn.FIRST_DOW]:
     _yhat, _yos = run_prediction(pred_date=dt)
