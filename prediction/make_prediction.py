@@ -94,8 +94,16 @@ if __name__ == '__main__':
 
     in_sample_fit, out_of_sample_prediction, fit_data, predict_data = run_prediction(
         pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
-                   difference=True, lags=cn.N_LAGS, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
+                   difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
                    product_data=fm.PRODUCT_STATUS, model_type='Poisson')
+
+    is_fit_tot = pd.DataFrame(in_sample_fit[cn.MOD_PROD_SUM])
+    is_fit_tot.columns = ['fit']
+    is_true_tot = pd.DataFrame(fit_data['y_true'][cn.MOD_PROD_SUM])
+    is_true_tot.columns = ['true']
+    test = is_fit_tot.join(is_true_tot, how='left')
+
+    import seaborn as sns
 
     prediction_dates = pd.DataFrame(pd.date_range('2020-07-01', periods=9, freq='W-MON').astype(str), columns=[cn.FIRST_DOW])
     all_1step, all_2step = batch_2step_prediction(prediction_dates=prediction_dates[cn.FIRST_DOW])
