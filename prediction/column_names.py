@@ -50,6 +50,9 @@ X_EXOG = 'x_exog'
 Y_AR_M = 'y_ar_m'
 Y_AR_NM = 'y_ar_nm'
 
+Y_M_UNDIF = 'y_m_undif'
+Y_NM_UNDIF = 'y_nm_undif'
+
 
 # INPUT VARIABLES
 

@@ -102,8 +102,8 @@ def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, predi
     model_prediction = {cn.Y_AR_M: yl_ar_m_prd,
                         cn.Y_AR_NM: yl_ar_nm_prd,
                         cn.X_EXOG: X_exog_prd,
-                        'y_m_undif': y_m_ltd,
-                        'y_nm_undif': y_nm_ltd}
+                        cn.Y_M_UNDIF: y_m_ltd,
+                        cn.Y_NM_UNDIF: y_nm_ltd}
 
     return model_fitting, model_prediction
 

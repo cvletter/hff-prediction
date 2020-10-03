@@ -6,20 +6,13 @@ from prediction.fit_model import fit_and_predict
 import prediction.file_management as fm
 import prediction.column_names as cn
 import pandas as pd
-
-# FIXED PARAMETERS
-PREDICTION_DATE = '2020-06-22'
-PREDICTION_WINDOW = 1
-LAGS = 2
-TRAIN_OBS = 70
-ORDER_DATA = fm.RAW_DATA
-WEATHER_DATA = fm.WEER_DATA
-PRODUCT_DATA = fm.PRODUCT_STATUS
-DIFFERENCE = True
+import datetime
+import numpy as np
 
 
-def run_prediction(pred_date, prediction_window=PREDICTION_WINDOW, train_obs=TRAIN_OBS, difference=DIFFERENCE,
-                   lags=LAGS, order_data=ORDER_DATA, weather_data=WEATHER_DATA, product_data=PRODUCT_DATA):
+def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
+                   difference=True, lags=cn.N_LAGS,
+                   order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA, product_data=fm.PRODUCT_STATUS):
 
     # Import and prepare data
     active_products, inactive_products, weather_data_processed = data_prep_wrapper(
@@ -48,15 +41,15 @@ def run_prediction(pred_date, prediction_window=PREDICTION_WINDOW, train_obs=TRA
 
     return in_sample_fit, out_of_sample_prediction, fit_data, predict_data
 
-
+# Parameter settings
 pred_date_2 = '2020-08-31'
 pred_date_1 = '2020-08-24'
-prediction_window = PREDICTION_WINDOW
-train_obs = TRAIN_OBS
-difference = DIFFERENCE
-order_data = ORDER_DATA
-weather_data = WEATHER_DATA
-product_data = PRODUCT_DATA
+prediction_window = 1
+train_obs = 70
+difference = True
+order_data = fm.RAW_DATA
+weather_data = fm.WEER_DATA
+product_data = fm.PRODUCT_STATUS
 
 _yhat_1, _yos_1, fit1, pred1 = run_prediction(pred_date=pred_date_1, prediction_window=1)
 _yhat_2, _yos_2, fit2, pred2 = run_prediction(pred_date=pred_date_2, prediction_window=2)
@@ -67,4 +60,32 @@ prediction_dates = pd.DataFrame(pd.date_range('2020-04-01', periods=22, freq='W-
 for dt in prediction_dates[cn.FIRST_DOW]:
     _yhat, _yos = run_prediction(pred_date=dt)
     all_predictions = pd.concat([all_predictions, _yos], axis=0, join='outer')
+
+
+def two_step_prediction(final_prediction_date):
+
+    if type(final_prediction_date) == str:
+        final_prediction_date = datetime.datetime.strptime(final_prediction_date, "%Y-%m-%d")
+
+    first_prediction_date = final_prediction_date - datetime.timedelta(days=7)
+    __, pred1_diff, __, pred1 = run_prediction(pred_date=first_prediction_date, prediction_window=1)
+    pred1_raw = pd.DataFrame(pd.concat([pred1[cn.Y_M_UNDIF], pred1[cn.Y_NM_UNDIF]]))
+    pred1_diff = pred1_diff.T.set_index(pred1_diff.columns)
+    pred1_combined = pred1_diff.join(pred1_raw, how='left')
+    pred1_combined['pred1_final'] = (pred1_combined.sum(axis=1)).astype(int)
+    pred1_combined['pred1_final'] = [0 if x < 0 else x for x in pred1_combined['pred1_final']]
+
+    __, pred2_diff, __, __ = run_prediction(pred_date=first_prediction_date, prediction_window=1)
+    pred2_diff = pred2_diff.T.set_index(pred2_diff.columns)
+    pred2_combined = pred2_diff.join(pred1_combined['pred1_final'], how='left')
+    pred2_combined['pred2_final'] = (pred2_combined.sum(axis=1)).astype(int)
+    pred2_combined['pred2_final'] = [0 if x < 0 else x for x in pred2_combined['pred2_final']]
+
+    return pred1_combined['pred1_final'].rename(first_prediction_date), \
+           pred2_combined['pred2_final'].rename(final_prediction_date)
+
+
+
+test1, test2 = two_step_prediction(final_prediction_date=prediction_dates[cn.FIRST_DOW][20])
+
 

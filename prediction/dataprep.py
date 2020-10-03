@@ -205,7 +205,9 @@ def data_prep_wrapper(prediction_date, prediction_window, order_data_loc=fm.RAW_
                       product_data_loc=fm.PRODUCT_STATUS, agg_weekly=True, exclude_su=True,
                       save_to_csv=False):
 
-    prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
+    if type(prediction_date) == str:
+        prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
+
     last_train_date = prediction_date - datetime.timedelta(weeks=prediction_window)
 
     # Importeren van order data
