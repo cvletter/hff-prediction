@@ -113,7 +113,8 @@ def prediction_setup_wrapper(prediction_date, prediction_window, train_obs,
                              act_products, exog_features,
                              save_to_pkl=False):
 
-    prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
+    if type(prediction_date) == str:
+        prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
 
     products_model, products_nmodel = split_products(active_products=act_products,
                                                      min_obs=train_obs,

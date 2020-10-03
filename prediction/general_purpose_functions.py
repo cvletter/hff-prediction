@@ -40,7 +40,7 @@ def save_to_csv(data, file_name, folder):
 
 
 def import_temp_file(file_name, data_loc, set_index=True):
-    import_name = '{}/{}'.format(data_loc, file_name)
+    import_name = '{}\{}'.format(data_loc, file_name)
     data = pd.read_csv(import_name, sep=";", decimal=",")
 
     if set_index:

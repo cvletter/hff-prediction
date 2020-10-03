@@ -7,7 +7,7 @@ import prediction.column_names as cn
 # import seaborn as sns
 
 
-def batch_fit_model(Y, Y_ar, X_exog, add_constant=True):
+def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
     Y_pred = pd.DataFrame(index=Y.index)
 
     fitted_models = {}
@@ -24,7 +24,17 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True):
 
         X_tot = x_ar.join(X_exog, how='left')
 
-        temp_mdl = sm.OLS(y, X_tot, missing='drop')
+        if model == 'OLS':
+            temp_mdl = sm.OLS(y, X_tot, missing='drop')
+        elif model == 'Poisson':
+            temp_mdl = sm.GLM(y, X_tot,
+                              family=sm.families.Poisson(),
+                              missing='drop')
+        elif model == 'Negative-Binomial':
+            temp_mdl = sm.GLM(y, X_tot,
+                              family=sm.families.NegativeBinomial(alpha=0.1),
+                              missing='drop')
+
         temp_fit = temp_mdl.fit()
 
         Y_pred[y_name] = temp_fit.predict()
@@ -79,8 +89,9 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models,
     return Y_pred
 
 
-def fit_and_predict(fit_dict, predict_dict):
-    Yis_fit, model_fits = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR], X_exog=fit_dict[cn.X_EXOG])
+def fit_and_predict(fit_dict, predict_dict, model_type='OLS'):
+    Yis_fit, model_fits = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR], X_exog=fit_dict[cn.X_EXOG],
+                                          model=model_type)
 
     Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
                                      Xp_exog=predict_dict[cn.X_EXOG], fitted_models=model_fits,
