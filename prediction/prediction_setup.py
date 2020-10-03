@@ -34,21 +34,21 @@ def fill_missing_values(data):
     data.fillna(value=0, inplace=True)
 
 
-def create_lags(input_data, n_lags=cn.N_LAGS):
+def create_lags(input_data, n_lags=cn.N_LAGS, prediction_window=cn.PREDICTION_WINDOW):
     data_lags = input_data.copy(deep=True)
     first_lag_cols = []
     for product in input_data.columns:
-        first_lag_cols.append("{}_lag_{}".format(product, 1))
+        first_lag_cols.append("{}_lag_{}".format(product, prediction_window))
 
     data_lags.columns = first_lag_cols
     data_lags.sort_index(ascending=False, inplace=True)
 
-    for lag in range(2, n_lags+1):
+    for lag in range(1, n_lags):
         for product in input_data.columns:
-            lag_name = "{}_lag_{}".format(product, lag)
-            data_lags[lag_name] = input_data[product].shift(-lag+1)
+            lag_name = "{}_lag_{}".format(product, lag + prediction_window)
+            data_lags[lag_name] = input_data[product].shift(-lag)
 
-    data_lags['prediction_date'] = data_lags.index + datetime.timedelta(days=cn.PREDICTION_WINDOW * 7)
+    data_lags['prediction_date'] = data_lags.index + datetime.timedelta(days=prediction_window * 7)
     data_lags.rename(index=data_lags['prediction_date'], inplace=True)
 
     data_lags.drop('prediction_date', axis=1, inplace=True)
@@ -77,16 +77,15 @@ def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, predi
     fill_missing_values(data=y_m)
     fill_missing_values(data=y_nm)
 
+    y_m_ltd = y_m.loc[last_train_date]
+    y_nm_ltd = y_nm.loc[last_train_date]
 
     if difference:
-        y_m_ud = y_m.copy(deep=True)
-        y_nm_ud = y_nm.copy(deep=True)
-
         y_m = first_difference_data(undifferenced_data=y_m, delta=1, scale=False)
         y_nm = first_difference_data(undifferenced_data=y_nm, delta=1, scale=False)
 
-    y_ar_m = create_lags(input_data=y_m, n_lags=lags)
-    y_ar_nm = create_lags(input_data=y_nm, n_lags=lags)
+    y_ar_m = create_lags(input_data=y_m, n_lags=lags, prediction_window=hold_out)
+    y_ar_nm = create_lags(input_data=y_nm, n_lags=lags, prediction_window=hold_out)
 
     y_ar_m_fit = y_ar_m.loc[last_train_date:]
     X_exog_fit = X_exog.loc[y_ar_m_fit.index]
@@ -96,10 +95,6 @@ def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, predi
     yl_ar_nm_prd = y_ar_nm.loc[prediction_date]
     X_exog_prd = X_exog.loc[prediction_date]
 
-    #TODO: TEST THIS
-    y_m_undiff = y_m_ud[last_train_date]
-    y_nm_undiff = y_nm_ud[last_train_date]
-
     model_fitting = {cn.Y_TRUE: y_true_fit,
                      cn.Y_AR: y_ar_m_fit,
                      cn.X_EXOG: X_exog_fit}
@@ -107,8 +102,8 @@ def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, predi
     model_prediction = {cn.Y_AR_M: yl_ar_m_prd,
                         cn.Y_AR_NM: yl_ar_nm_prd,
                         cn.X_EXOG: X_exog_prd,
-                        'y_m_undif': y_m_undiff,
-                        'y_nm_undif': y_nm_undiff}
+                        'y_m_undif': y_m_ltd,
+                        'y_nm_undif': y_nm_ltd}
 
     return model_fitting, model_prediction
 
@@ -159,11 +154,16 @@ if __name__ == '__main__':
     products_model, products_nmodel = split_products(active_products=active_products,
                                                      min_obs=cn.TRAIN_OBS,
                                                      prediction_date=cn.PREDICTION_DATE,
-                                                     hold_out=cn.PREDICTION_WINDOW)
+                                                     hold_out=1)
 
     data_fitting, data_prediction = create_model_setup(y_m=products_model,
                                                        y_nm=products_nmodel,
-                                                       X_exog=exog_features)
+                                                       X_exog=exog_features,
+                                                       lags=2,
+                                                       prediction_date=cn.PREDICTION_DATE,
+                                                       hold_out=2)
+
 
     gf.save_to_pkl(data=data_fitting, file_name='fit_data', folder=fm.SAVE_LOC)
     gf.save_to_pkl(data=data_prediction, file_name='prediction_data', folder=fm.SAVE_LOC)
+
