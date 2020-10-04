@@ -1,5 +1,5 @@
 import prediction.general_purpose_functions as gf
-from prediction.dataprep import data_prep_wrapper
+from prediction.data_preparation import data_prep_wrapper
 from prediction.create_features import prep_exogenous_features
 from prediction.prediction_setup import prediction_setup_wrapper
 from prediction.fit_model import fit_and_predict
@@ -13,6 +13,22 @@ import numpy as np
 def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
                    difference=True, lags=cn.N_LAGS, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
                    product_data=fm.PRODUCT_STATUS, model_type='OLS'):
+
+    def convert_series_to_dataframe(input_series, date_val, index_name=cn.FIRST_DOW):
+        input_df = pd.DataFrame(input_series).T
+        input_df[index_name] = date_val
+        return input_df.set_index(index_name, drop=True, inplace=False)
+
+    def in_sample_error(all_fits, all_true_values):
+        fit_error = abs(all_fits.subtract(all_true_values[all_fits.columns], axis='index'))
+        avg_fit_error = fit_error.mean(axis=0)
+        avg_true_values = all_true_values[all_fits.columns].mean(axis=0)
+        avg_pct_fit_error = avg_fit_error / avg_true_values
+
+        avg_fit_error_df = convert_series_to_dataframe(input_series=avg_fit_error, date_val=pred_date)
+        avg_pct_fit_error_df = convert_series_to_dataframe(input_series=avg_pct_fit_error, date_val=pred_date)
+
+        return avg_fit_error_df, avg_pct_fit_error_df
 
     # Import and prepare data
     active_products, inactive_products, weather_data_processed = data_prep_wrapper(
@@ -40,44 +56,10 @@ def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION
     in_sample_fit, out_of_sample_prediction = fit_and_predict(fit_dict=fit_data, predict_dict=predict_data,
                                                               model_type=model_type)
 
+    fit_data['avg_fit_error'], fit_data['avg_pct_fit_error'] = in_sample_error(all_fits=in_sample_fit,
+                                                                               all_true_values=fit_data['y_true'])
+
     return in_sample_fit, out_of_sample_prediction, fit_data, predict_data
-
-
-def two_step_prediction(final_prediction_date):
-
-    if type(final_prediction_date) == str:
-        final_prediction_date = datetime.datetime.strptime(final_prediction_date, "%Y-%m-%d")
-
-    first_prediction_date = final_prediction_date - datetime.timedelta(days=7)
-    __, pred1_diff, __, pred1 = run_prediction(pred_date=first_prediction_date, prediction_window=1)
-    pred1_raw = pd.DataFrame(pd.concat([pred1[cn.Y_M_UNDIF], pred1[cn.Y_NM_UNDIF]]))
-    pred1_diff = pred1_diff.T.set_index(pred1_diff.columns)
-
-    pred1_combined = pred1_diff.join(pred1_raw, how='left')
-    pred1_combined['pred1_final'] = (pred1_combined.sum(axis=1)).astype(int)
-    # pred1_combined['pred1_final'] = [0 if x < 0 else x for x in pred1_combined['pred1_final']]
-
-    __, pred2_diff, __, __ = run_prediction(pred_date=first_prediction_date, prediction_window=2)
-    pred2_diff = pred2_diff.T.set_index(pred2_diff.columns)
-
-    pred2_combined = pred2_diff.join(pred1_combined['pred1_final'], how='left')
-    pred2_combined['pred2_final'] = (pred2_combined.sum(axis=1)).astype(int)
-    # pred2_combined['pred2_final'] = [0 if x < 0 else x for x in pred2_combined['pred2_final']]
-
-    return pred1_combined['pred1_final'].rename(first_prediction_date), \
-           pred2_combined['pred2_final'].rename(final_prediction_date)
-
-
-def batch_2step_prediction(prediction_dates):
-    all_predictions_1stp = pd.DataFrame([])
-    all_predictions_2stp = pd.DataFrame([])
-
-    for dt in prediction_dates:
-        _1step, _2step = two_step_prediction(final_prediction_date=dt)
-        all_predictions_1stp = pd.concat([all_predictions_1stp, _1step], axis=1)
-        all_predictions_2stp = pd.concat([all_predictions_2stp, _2step], axis=1)
-
-    return all_predictions_1stp.T, all_predictions_2stp.T
 
 
 if __name__ == '__main__':
@@ -92,27 +74,40 @@ if __name__ == '__main__':
     product_data = fm.PRODUCT_STATUS
     model = 'Poisson'
 
-    in_sample_fit, out_of_sample_prediction, fit_data, predict_data = run_prediction(
-        pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
-                   difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
-                   product_data=fm.PRODUCT_STATUS, model_type='Poisson')
+    prediction_dates = pd.DataFrame(pd.date_range('2020-08-01', periods=3, freq='W-MON').astype(str), columns=[cn.FIRST_DOW])
 
-    is_fit_tot = pd.DataFrame(in_sample_fit[cn.MOD_PROD_SUM])
-    is_fit_tot.columns = ['fit']
-    is_true_tot = pd.DataFrame(fit_data['y_true'][cn.MOD_PROD_SUM])
-    is_true_tot.columns = ['true']
-    test = is_fit_tot.join(is_true_tot, how='left')
+    model_settings = {}
+    model_settings['prediction_window'] = 1
+    model_settings['train_size'] = 70
+    model_settings['differencing'] = False
+    model_settings['ar_lags'] = 2
+    model_settings['fit_model'] = 'Poisson'
 
-    import seaborn as sns
+    def batch_prediction(prediction_dates, model_settings):
 
-    prediction_dates = pd.DataFrame(pd.date_range('2020-07-01', periods=9, freq='W-MON').astype(str), columns=[cn.FIRST_DOW])
-    all_1step, all_2step = batch_2step_prediction(prediction_dates=prediction_dates[cn.FIRST_DOW])
+        p_window = model_settings['prediction_window']
+        train_size = model_settings['train_size']
+        differencing = model_settings['differencing']
+        ar_lags = model_settings['ar_lags']
+        fit_model = model_settings['fit_model']
 
-    all_1step.index.rename(cn.FIRST_DOW, inplace=True)
-    all_2step.index.rename(cn.FIRST_DOW, inplace=True)
+        all_is_abs_errors = pd.DataFrame([])
+        all_is_pct_errors = pd.DataFrame([])
+        all_os_predictions = pd.DataFrame([])
 
-    gf.save_to_csv(all_1step, file_name="1step_predictions", folder=fm.SAVE_LOC)
-    gf.save_to_csv(all_2step, file_name="2step_predictions", folder=fm.SAVE_LOC)
+        for p_date in prediction_dates[cn.FIRST_DOW]:
+            _fit, _predict, _fitdata, _predictdata = run_prediction(
+                pred_date=p_date, prediction_window=p_window, train_obs=train_size,
+                difference=differencing, lags=ar_lags, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
+                product_data=fm.PRODUCT_STATUS, model_type=fit_model)
 
+            all_is_abs_errors = pd.concat([all_is_abs_errors, _fitdata['avg_fit_error']], axis=0)
+            all_is_pct_errors = pd.concat([all_is_pct_errors, _fitdata['avg_pct_fit_error']], axis=0)
+            all_os_predictions = pd.concat([all_os_predictions, _predict], axis=0)
+
+        return all_os_predictions, all_is_abs_errors, all_is_pct_errors
+
+
+    os_pr, is_abs, is_pct = batch_prediction(prediction_dates=prediction_dates, model_settings=model_settings)
 
 
