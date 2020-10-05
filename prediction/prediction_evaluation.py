@@ -4,17 +4,6 @@ import prediction.file_management as fm
 import prediction.general_purpose_functions as gf
 import seaborn as sns
 
-active_products_act = gf.import_temp_file(file_name="actieve_halffabricaten_wk_2020926_1610.csv", data_loc=fm.SAVE_LOC)
-inactive_products_act = gf.import_temp_file(file_name="inactieve_halffabricaten_wk_2020926_1610.csv", data_loc=fm.SAVE_LOC)
-all_products_act = active_products_act.join(inactive_products_act, how='outer')
-
-pred_1step = gf.import_temp_file(file_name="1step_predictions_2020103_1636.csv", data_loc=fm.SAVE_LOC)
-pred_2step = gf.import_temp_file(file_name="2step_predictions_2020103_1636.csv", data_loc=fm.SAVE_LOC)
-
-Y_true = all_products_act
-Y_pred = pred_1step
-product_name = 'total'
-
 
 def prediction_evaluation(product_name, Y_true, Y_pred):
 
@@ -33,11 +22,17 @@ def prediction_evaluation(product_name, Y_true, Y_pred):
     y_eval.columns = ['prediction']
 
     y_eval = y_eval.join(y_true, how='left')
-    # y_eval['prediction_error'] = y_eval['prediction'] - y_eval['actual']
+    y_eval['prediction_error'] = y_eval['prediction'] - y_eval['actual']
 
-    sns.relplot(data=y_eval, kind="line")
+    sns.relplot(data=y_eval[['prediction', 'actual']], kind="line")
     return y_eval
 
 
-test = prediction_evaluation(product_name='Copparol vijgroomk. 160g HF', Y_true=all_products_act, Y_pred=pred_1step)
+if __name__ == '__main__':
+    active_products_act = gf.import_temp_file(file_name="actieve_halffabricaten_wk_2020926_1610.csv",
+                                              data_loc=fm.SAVE_LOC)
+    inactive_products_act = gf.import_temp_file(file_name="inactieve_halffabricaten_wk_2020926_1610.csv",
+                                                data_loc=fm.SAVE_LOC)
+    all_products_act = active_products_act.join(inactive_products_act, how='outer')
+
 

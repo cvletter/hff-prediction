@@ -1,4 +1,3 @@
-import prediction.general_purpose_functions as gf
 from prediction.data_preparation import data_prep_wrapper
 from prediction.create_features import prep_exogenous_features
 from prediction.prediction_setup import prediction_setup_wrapper
@@ -6,8 +5,6 @@ from prediction.fit_model import fit_and_predict
 import prediction.file_management as fm
 import prediction.column_names as cn
 import pandas as pd
-import datetime
-import numpy as np
 
 
 def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
@@ -62,6 +59,30 @@ def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION
     return in_sample_fit, out_of_sample_prediction, fit_data, predict_data
 
 
+def batch_prediction(prediction_dates, model_settings):
+    p_window = model_settings['prediction_window']
+    train_size = model_settings['train_size']
+    differencing = model_settings['differencing']
+    ar_lags = model_settings['ar_lags']
+    fit_model = model_settings['fit_model']
+
+    all_is_abs_errors = pd.DataFrame([])
+    all_is_pct_errors = pd.DataFrame([])
+    all_os_predictions = pd.DataFrame([])
+
+    for p_date in prediction_dates[cn.FIRST_DOW]:
+        _fit, _predict, _fitdata, _predictdata = run_prediction(
+            pred_date=p_date, prediction_window=p_window, train_obs=train_size,
+            difference=differencing, lags=ar_lags, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
+            product_data=fm.PRODUCT_STATUS, model_type=fit_model)
+
+        all_is_abs_errors = pd.concat([all_is_abs_errors, _fitdata['avg_fit_error']], axis=0)
+        all_is_pct_errors = pd.concat([all_is_pct_errors, _fitdata['avg_pct_fit_error']], axis=0)
+        all_os_predictions = pd.concat([all_os_predictions, _predict], axis=0)
+
+    return all_os_predictions, all_is_abs_errors, all_is_pct_errors
+
+
 if __name__ == '__main__':
     # Parameter settings
     pred_date_2 = '2020-08-31'
@@ -82,32 +103,6 @@ if __name__ == '__main__':
     model_settings['differencing'] = False
     model_settings['ar_lags'] = 2
     model_settings['fit_model'] = 'Negative-Binomial'
-
-    def batch_prediction(prediction_dates, model_settings):
-
-        p_window = model_settings['prediction_window']
-        train_size = model_settings['train_size']
-        differencing = model_settings['differencing']
-        ar_lags = model_settings['ar_lags']
-        fit_model = model_settings['fit_model']
-
-        all_is_abs_errors = pd.DataFrame([])
-        all_is_pct_errors = pd.DataFrame([])
-        all_os_predictions = pd.DataFrame([])
-
-        for p_date in prediction_dates[cn.FIRST_DOW]:
-            _fit, _predict, _fitdata, _predictdata = run_prediction(
-                pred_date=p_date, prediction_window=p_window, train_obs=train_size,
-                difference=differencing, lags=ar_lags, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
-                product_data=fm.PRODUCT_STATUS, model_type=fit_model)
-
-            all_is_abs_errors = pd.concat([all_is_abs_errors, _fitdata['avg_fit_error']], axis=0)
-            all_is_pct_errors = pd.concat([all_is_pct_errors, _fitdata['avg_pct_fit_error']], axis=0)
-            all_os_predictions = pd.concat([all_os_predictions, _predict], axis=0)
-
-        return all_os_predictions, all_is_abs_errors, all_is_pct_errors
-
-
     os_pr, is_abs, is_pct = batch_prediction(prediction_dates=prediction_dates, model_settings=model_settings)
 
 

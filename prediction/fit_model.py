@@ -63,7 +63,7 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
 
 
 def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models,
-                          add_constant=True, prep_input=True, agg_model_name=cn.MOD_PROD_SUM):
+                          add_constant=True, prep_input=True, find_comparable_model=True):
 
     def series_to_dataframe(pd_series):
         return pd.DataFrame(pd_series).transpose()
@@ -88,19 +88,32 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models,
 
         Y_pred[y_name_m] = fitted_models[y_name_m].predict(Xp_tot)
 
-
     for product_nm in Yp_ar_nm.columns:
-        y_name_nm = product_nm[:-6]
+        y_name_nm = product_nm[:-6]  # remove '_lag_1 or 2'
 
         lag_index = [y_name_nm in x for x in Yp_ar_nm.columns]
         Xp_ar_nm = Yp_ar_nm.iloc[:, lag_index]
+
+        if find_comparable_model:
+            # Find product which has similar magnitude absolute sales
+            _y_nm_val = Yp_ar_nm['{}_lag_1'.format(y_name_nm)][0]
+
+            lag1_index = ['_lag_1' in x for x in Yp_ar_m.columns]
+            _Y_m_vals = Yp_ar_m.iloc[:, lag1_index]
+
+            _closest_prod = (abs(_Y_m_vals - _y_nm_val) / _y_nm_val).T
+
+            closest_product_name = _closest_prod.idxmin()[0][:-6]
+
+        else:
+            closest_product_name = cn.MOD_PROD_SUM
 
         if add_constant:
             Xp_ar_nm.insert(0, 'constant', 1)
 
         Xp_tot = Xp_ar_nm.join(Xp_exog, how='left')
 
-        Y_pred[y_name_nm] = fitted_models[agg_model_name].predict(Xp_tot)
+        Y_pred[y_name_nm] = fitted_models[closest_product_name].predict(Xp_tot)
 
     return Y_pred
 
@@ -111,10 +124,9 @@ def fit_and_predict(fit_dict, predict_dict, model_type='OLS'):
 
     Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
                                      Xp_exog=predict_dict[cn.X_EXOG], fitted_models=model_fits,
-                                     agg_model_name=cn.MOD_PROD_SUM)
+                                     find_comparable_model=True)
 
     return Yis_fit, Yos_pred
-
 
 
 if __name__ == '__main__':
@@ -124,8 +136,6 @@ if __name__ == '__main__':
     Yf_true = fit_data[cn.Y_TRUE]
     Yf_ar = fit_data[cn.Y_AR]
     Xf_exog = fit_data[cn.X_EXOG]
-
-
 
     Yis_fit, model_fits = batch_fit_model(Y=Yf_true, Y_ar=Yf_ar, X_exog=Xf_exog)
 
