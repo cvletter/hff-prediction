@@ -81,7 +81,7 @@ if __name__ == '__main__':
     model_settings['train_size'] = 70
     model_settings['differencing'] = False
     model_settings['ar_lags'] = 2
-    model_settings['fit_model'] = 'Poisson'
+    model_settings['fit_model'] = 'Negative-Binomial'
 
     def batch_prediction(prediction_dates, model_settings):
 

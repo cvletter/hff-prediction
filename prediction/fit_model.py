@@ -26,13 +26,29 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
 
         if model == 'OLS':
             temp_mdl = sm.OLS(y, X_tot, missing='drop')
+
         elif model == 'Poisson':
             temp_mdl = sm.GLM(y, X_tot,
                               family=sm.families.Poisson(),
                               missing='drop')
+
         elif model == 'Negative-Binomial':
+            aux_reg_feat = pd.DataFrame(index=y.index)
+
+            temp_mdl_poisson = sm.GLM(y, X_tot,
+                              family=sm.families.Poisson(),
+                              missing='drop')
+
+            temp_poisson_fit = temp_mdl_poisson.fit()
+
+            aux_reg_feat['lambda'] = temp_poisson_fit.mu
+            aux_reg_feat['dep_var'] = ((y - temp_poisson_fit.mu)**2 - y) / temp_poisson_fit.mu
+            aux_reg = sm.OLS(aux_reg_feat['dep_var'], aux_reg_feat['lambda']).fit()
+
+            alpha_fit = aux_reg.params[0]
+
             temp_mdl = sm.GLM(y, X_tot,
-                              family=sm.families.NegativeBinomial(alpha=0.1),
+                              family=sm.families.NegativeBinomial(alpha=alpha_fit),
                               missing='drop')
 
         temp_fit = temp_mdl.fit()
@@ -108,6 +124,8 @@ if __name__ == '__main__':
     Yf_true = fit_data[cn.Y_TRUE]
     Yf_ar = fit_data[cn.Y_AR]
     Xf_exog = fit_data[cn.X_EXOG]
+
+
 
     Yis_fit, model_fits = batch_fit_model(Y=Yf_true, Y_ar=Yf_ar, X_exog=Xf_exog)
 

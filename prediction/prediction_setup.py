@@ -7,7 +7,6 @@ import prediction.column_names as cn
 
 def split_products(active_products, min_obs=cn.TRAIN_OBS, prediction_date=cn.PREDICTION_DATE,
                    hold_out=cn.PREDICTION_WINDOW):
-
     last_train_date = prediction_date - datetime.timedelta(weeks=hold_out)
     first_train_date = last_train_date - datetime.timedelta(weeks=min_obs)
     fitting_window = active_products.loc[last_train_date:first_train_date]
@@ -57,7 +56,6 @@ def create_lags(input_data, n_lags=cn.N_LAGS, prediction_window=cn.PREDICTION_WI
 
 
 def first_difference_data(undifferenced_data, delta=1, scale=True):
-
     undifferenced_data.sort_index(ascending=True, inplace=True)
     differenced_data = undifferenced_data.diff(periods=delta)
     differenced_data.sort_index(ascending=False, inplace=True)
@@ -71,7 +69,6 @@ def first_difference_data(undifferenced_data, delta=1, scale=True):
 
 def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, prediction_date=cn.PREDICTION_DATE,
                        hold_out=cn.PREDICTION_WINDOW):
-
     last_train_date = prediction_date - datetime.timedelta(weeks=hold_out)
 
     fill_missing_values(data=y_m)
@@ -112,7 +109,6 @@ def prediction_setup_wrapper(prediction_date, prediction_window, train_obs,
                              nlags, difference,
                              act_products, exog_features,
                              save_to_pkl=False):
-
     if type(prediction_date) == str:
         prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
 
@@ -137,20 +133,19 @@ def prediction_setup_wrapper(prediction_date, prediction_window, train_obs,
 
 
 if __name__ == '__main__':
-
     # NEW
 
     active_products = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT,
-                                         data_loc=fm.SAVE_LOC,
-                                         set_index=True)
+                                          data_loc=fm.SAVE_LOC,
+                                          set_index=True)
 
     inactive_products = gf.import_temp_file(file_name=fm.ORDER_DATA_INACT,
-                                           data_loc=fm.SAVE_LOC,
-                                           set_index=True)
+                                            data_loc=fm.SAVE_LOC,
+                                            set_index=True)
 
     exog_features = gf.import_temp_file(file_name=fm.EXOG_FEATURES,
-                                       data_loc=fm.SAVE_LOC,
-                                       set_index=True)
+                                        data_loc=fm.SAVE_LOC,
+                                        set_index=True)
 
     products_model, products_nmodel = split_products(active_products=active_products,
                                                      min_obs=cn.TRAIN_OBS,
@@ -162,9 +157,8 @@ if __name__ == '__main__':
                                                        X_exog=exog_features,
                                                        lags=2,
                                                        prediction_date=cn.PREDICTION_DATE,
-                                                       hold_out=2)
-
+                                                       difference=False,
+                                                       hold_out=1)
 
     gf.save_to_pkl(data=data_fitting, file_name='fit_data', folder=fm.SAVE_LOC)
     gf.save_to_pkl(data=data_prediction, file_name='prediction_data', folder=fm.SAVE_LOC)
-
