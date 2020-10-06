@@ -62,7 +62,7 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
     return Y_pred, fitted_models
 
 
-def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models,
+def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, prediction_window,
                           add_constant=True, prep_input=True, find_comparable_model=True):
 
     def series_to_dataframe(pd_series):
@@ -96,9 +96,10 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models,
 
         if find_comparable_model:
             # Find product which has similar magnitude absolute sales
-            _y_nm_val = Yp_ar_nm['{}_lag_1'.format(y_name_nm)][0]
+            lag_val = '_lag_{}'.format(prediction_window)
+            _y_nm_val = Yp_ar_nm['{}{}'.format(y_name_nm, lag_val)][0]
 
-            lag1_index = ['_lag_1' in x for x in Yp_ar_m.columns]
+            lag1_index = [lag_val in x for x in Yp_ar_m.columns]
             _Y_m_vals = Yp_ar_m.iloc[:, lag1_index]
 
             _closest_prod = (abs(_Y_m_vals - _y_nm_val) / _y_nm_val).T
@@ -118,13 +119,13 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models,
     return Y_pred
 
 
-def fit_and_predict(fit_dict, predict_dict, model_type='OLS'):
+def fit_and_predict(fit_dict, predict_dict, prediction_window, model_type='OLS'):
     Yis_fit, model_fits = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR], X_exog=fit_dict[cn.X_EXOG],
                                           model=model_type)
 
     Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
                                      Xp_exog=predict_dict[cn.X_EXOG], fitted_models=model_fits,
-                                     find_comparable_model=True)
+                                     find_comparable_model=True, prediction_window=prediction_window)
 
     return Yis_fit, Yos_pred
 
