@@ -38,11 +38,14 @@ def get_top_correlations(y, y_lags, top_correl=5):
 
     for i in y.columns:
         for j in y_lags.columns:
-            all_correlations.loc[i, j] = y[i].corr(y_lags[j])
+            if j[:-6] == i:
+                all_correlations.loc[i, j] = -1e9
+            else:
+                all_correlations.loc[i, j] = abs(y[i].corr(y_lags[j]))
 
     top_correlations = {}
     for p in all_correlations.index:
-        top_correlations[p] = abs(all_correlations.loc[p]).sort_values(ascending=False)[:top_correl].index
+        top_correlations[p] = all_correlations.loc[p].sort_values(ascending=False)[:top_correl].index
 
     return top_correlations
 
@@ -185,18 +188,22 @@ if __name__ == '__main__':
     Y_raw = products_model
     fill_missing_values(Y_raw)
 
-    Y_ar = create_lags(input_data=Y_raw, n_lags=5, prediction_window=2)
+    Y_ar_corr = create_lags(input_data=Y_raw, n_lags=5, prediction_window=2)
 
     def get_top_correlations(Y, Y_lags, top_correl=5):
         all_correlations = pd.DataFrame(columns=Y_lags.columns, index=Y.columns)
 
         for i in Y.columns:
             for j in Y_lags.columns:
-                all_correlations.loc[i, j] = Y[i].corr(Y_lags[j])
+                if j[:-6] == i:
+                    all_correlations.loc[i, j] = -1e9
+                else:
+                    all_correlations.loc[i, j] = abs(Y[i].corr(Y_lags[j]))
 
         top_correlations = {}
         for p in all_correlations.index:
-            top_correlations[p] = abs(all_correlations.loc[p]).sort_values(ascending=False)[:top_correl].index
+            top_correlations[p] = all_correlations.loc[p].sort_values(ascending=False)[:top_correl].index
 
-        return top_correlations
+        return top_correlations, all_correlations
 
+    top_corr, all_correl = get_top_correlations(Y=Y_raw, Y_lags=Y_ar)

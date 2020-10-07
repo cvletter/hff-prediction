@@ -111,5 +111,5 @@ if __name__ == '__main__':
     all_products_act = active_products_act.join(inactive_products_act, how='outer')
 
     product_name = 'Copparolletjes vijgenrk 81g HF'
-    is_performance = in_sample_plot(name=product_name, y_true=fit_data2, y_fit=is_fit2,
-                                    title="Geschat model (2 weken, 31/8), Copparolletjes vijgenrk 81g HF")
+    is_performance = in_sample_plot(y_true=fit_data1, y_fit=is_fit1,
+                                    title="test")

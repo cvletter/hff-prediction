@@ -15,15 +15,15 @@ def batch_fit_model(Y, Y_ar, X_exog, Y_cross_ar, add_constant=True, model='Negat
     for product in Y.columns:
         y_name = product
         y = Y[y_name]
-        x_ar = Y_ar[Y_cross_ar[y_name]]
+        Y_arx = Y_ar[Y_cross_ar[y_name]]
 
-        # lag_index = [y_name in x for x in Y_ar.columns]
-        # x_ar = Y_ar.iloc[:, lag_index]
+        lag_index = [y_name in x for x in Y_ar.columns]
+        x_ar = Y_ar.iloc[:, lag_index]
 
         if add_constant:
             x_ar.insert(0, 'constant', 1)
 
-        X_tot = x_ar.join(X_exog, how='left')
+        X_tot = x_ar.join(Y_arx, how='left').join(X_exog, how='left')
 
         if model == 'OLS':
             temp_mdl = sm.OLS(y, X_tot, missing='drop')
@@ -79,15 +79,15 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, Y_cross_ar, fitted_models,
     for product_m in Yp_ar_m.columns:
         y_name_m = product_m[:-6]
 
-        # lag_index = [y_name_m in x for x in Yp_ar_m.columns]
-        # Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
+        lag_index = [y_name_m in x for x in Yp_ar_m.columns]
+        Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
 
-        Xp_ar_m = Yp_ar_m[Y_cross_ar[y_name_m]]
+        Xp_arx_m = Yp_ar_m[Y_cross_ar[y_name_m]]
 
         if add_constant:
             Xp_ar_m.insert(0, 'constant', 1)
 
-        Xp_tot = Xp_ar_m.join(Xp_exog, how='left')
+        Xp_tot = Xp_ar_m.join(Xp_arx_m, how='left').join(Xp_exog, how='left')
 
         Y_pred[y_name_m] = fitted_models[y_name_m].predict(Xp_tot)
 
@@ -115,7 +115,9 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, Y_cross_ar, fitted_models,
         if add_constant:
             Xp_ar_nm.insert(0, 'constant', 1)
 
-        Xp_tot = Xp_ar_nm.join(Xp_exog, how='left')
+        Xp_arx_nm = Yp_ar_m[Y_cross_ar[closest_product_name]]
+
+        Xp_tot = Xp_ar_nm.join(Xp_arx_nm, how='left').join(Xp_exog, how='left')
 
         Y_pred[y_name_nm] = fitted_models[closest_product_name].predict(Xp_tot)
 
@@ -124,10 +126,11 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, Y_cross_ar, fitted_models,
 
 def fit_and_predict(fit_dict, predict_dict, prediction_window, model_type='OLS'):
     Yis_fit, model_fits = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR], X_exog=fit_dict[cn.X_EXOG],
-                                          model=model_type)
+                                          Y_cross_ar=fit_dict['correlations'], model=model_type)
 
     Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
-                                     Xp_exog=predict_dict[cn.X_EXOG], fitted_models=model_fits,
+                                     Xp_exog=predict_dict[cn.X_EXOG], Y_cross_ar=fit_dict["correlations"],
+                                     fitted_models=model_fits,
                                      find_comparable_model=True, prediction_window=prediction_window)
 
     return Yis_fit, Yos_pred
@@ -146,7 +149,7 @@ if __name__ == '__main__':
     Y_ar = Yf_ar
     X_exog = Xf_exog
 
-    Yis_fit, model_fits = batch_fit_model(Y=Yf_true, Y_ar=Yf_ar, X_exog=Xf_exog)
+    Yis_fit, model_fits = batch_fit_model(Y=Yf_true, Y_ar=Yf_ar, X_exog=Xf_exog, Y_cross_ar=Yf_exog_cols)
 
     Yp_ar = predict_data[cn.Y_AR_M]
     Yp_ar_nm = predict_data[cn.Y_AR_NM]
@@ -154,6 +157,7 @@ if __name__ == '__main__':
 
     Yos_pred = batch_make_prediction(Yp_ar_m=Yp_ar, Yp_ar_nm=Yp_ar_nm,
                                      Xp_exog=Xp_exog, fitted_models=model_fits,
+                                     Y_cross_ar=Yf_exog_cols, prediction_window=1
                                      )
 
     gf.save_to_csv(data=Yis_fit, file_name="insample_fit", folder=fm.SAVE_LOC)
