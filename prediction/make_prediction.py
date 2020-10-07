@@ -2,11 +2,11 @@ from prediction.data_preparation import data_prep_wrapper
 from prediction.create_features import prep_exogenous_features
 from prediction.prediction_setup import prediction_setup_wrapper
 from prediction.fit_model import fit_and_predict
+from prediction.prediction_evaluation import in_sample_plot
 import prediction.file_management as fm
 import prediction.column_names as cn
 import prediction.general_purpose_functions as gf
 import pandas as pd
-import seaborn as sns
 
 
 def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
@@ -86,26 +86,6 @@ def batch_prediction(prediction_dates, model_settings):
 
 
 if __name__ == '__main__':
-    # Parameter settings
-    pred_date_2 = '2020-08-31'
-    pred_date_1 = '2020-08-24'
-    # prediction_window = 1
-    train_obs = 70
-    difference = False
-    order_data = fm.RAW_DATA
-    weather_data = fm.WEER_DATA
-    product_data = fm.PRODUCT_STATUS
-    model = 'Poisson'
-
-    prediction_dates = pd.DataFrame(pd.date_range('2020-08-01', periods=3, freq='W-MON').astype(str), columns=[cn.FIRST_DOW])
-
-    model_settings = {}
-    model_settings['prediction_window'] = 1
-    model_settings['train_size'] = 70
-    model_settings['differencing'] = False
-    model_settings['ar_lags'] = 2
-    model_settings['fit_model'] = 'Negative-Binomial'
-    os_pr, is_abs, is_pct = batch_prediction(prediction_dates=prediction_dates, model_settings=model_settings)
 
     # In sample testing of 2020-31-8
     is_fit1, os_pr1, fit_data1, predict_data1 = run_prediction(pred_date='2020-08-31',
@@ -126,59 +106,10 @@ if __name__ == '__main__':
                                                                product_data=fm.PRODUCT_STATUS,
                                                                model_type='Negative-Binomial')
 
-    active_products_act = gf.import_temp_file(file_name="actieve_halffabricaten_wk_2020926_1610.csv",
-                                              data_loc=fm.SAVE_LOC)
-    inactive_products_act = gf.import_temp_file(file_name="inactieve_halffabricaten_wk_2020926_1610.csv",
-                                                data_loc=fm.SAVE_LOC)
+    active_products_act = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT, data_loc=fm.SAVE_LOC)
+    inactive_products_act = gf.import_temp_file(file_name=fm.ORDER_DATA_INACT, data_loc=fm.SAVE_LOC)
     all_products_act = active_products_act.join(inactive_products_act, how='outer')
 
-
-    def prediction_evaluation(product_name, Y_true, Y_pred):
-
-        if product_name == 'total':
-            Y_pred_t = Y_pred.copy(deep=True)
-            Y_pred_t.drop(cn.MOD_PROD_SUM, axis=1, inplace=True)
-            y_true = Y_true[Y_pred_t.columns].sum(axis=1)
-            y_eval = Y_pred_t.sum(axis=1)
-        else:
-            y_eval = Y_pred[product_name]
-            y_true = Y_true[product_name]
-
-        y_true = pd.DataFrame(y_true)
-        y_true.columns = ['actual']
-        y_eval = pd.DataFrame(y_eval)
-        y_eval.columns = ['prediction']
-
-        y_eval = y_eval.join(y_true, how='left')
-        y_eval['prediction_error'] = y_eval['prediction'] - y_eval['actual']
-
-        sns.relplot(data=y_eval[['prediction', 'actual']], kind="line")
-        return y_eval
-
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-def plot_compare(y_true, y_fit, title, name=cn.MOD_PROD_SUM):
-    y_comp = pd.concat([y_fit[name], y_true['y_true'][name]], axis=1)
-    y_comp.columns = ['fitted', 'actual']
-    y_comp['error'] = y_comp['fitted'] - y_comp['actual']
-    y_comp['nullijn'] = 0
-    #y_comp['pct_error'] = abs(y_comp['error']) / y_comp['actual']
-
-    #avg_error = abs(y_comp['error']).mean()
-    avg_pct_error = np.round((abs(y_comp['error']) / y_comp['actual']).mean(),3)
-
-    graph_title = "{}, foutmarge: {}".format(title, avg_pct_error)
-
-    sns.set_theme(style="darkgrid")
-    graph_fit = sns.relplot(data=y_comp, kind='line')
-    graph_fit.set(xlabel='week', ylabel='productie (CE)')
-    graph_fit.fig.suptitle(graph_title, fontsize=10)
-    plt.show()
-
-product_name = 'Copparolletjes vijgenrk 81g HF'
-
-plot_compare(name=product_name,
-            y_true=fit_data2,
-             y_fit=is_fit2,
-             title="Geschat model (2 weken, 31/8), Copparolletjes vijgenrk 81g HF")
+    product_name = 'Copparolletjes vijgenrk 81g HF'
+    is_performance = in_sample_plot(name=product_name, y_true=fit_data2, y_fit=is_fit2,
+                                    title="Geschat model (2 weken, 31/8), Copparolletjes vijgenrk 81g HF")
