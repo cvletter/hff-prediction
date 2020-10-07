@@ -7,17 +7,18 @@ import prediction.column_names as cn
 # import seaborn as sns
 
 
-def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
+def batch_fit_model(Y, Y_ar, X_exog, Y_cross_ar, add_constant=True, model='Negative-Binomial'):
     Y_pred = pd.DataFrame(index=Y.index)
 
     fitted_models = {}
-
+    # y_name = Y.columns[0]
     for product in Y.columns:
         y_name = product
         y = Y[y_name]
+        x_ar = Y_ar[Y_cross_ar[y_name]]
 
-        lag_index = [y_name in x for x in Y_ar.columns]
-        x_ar = Y_ar.iloc[:, lag_index]
+        # lag_index = [y_name in x for x in Y_ar.columns]
+        # x_ar = Y_ar.iloc[:, lag_index]
 
         if add_constant:
             x_ar.insert(0, 'constant', 1)
@@ -54,7 +55,7 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
         temp_fit = temp_mdl.fit()
 
         Y_pred[y_name] = temp_fit.predict()
-        fitted_models[product] = temp_fit
+        fitted_models[y_name] = temp_fit
 
         # print("R2 and R2-adj for product {} are: {} and {}".format(product,
         #                                                           np.round(temp_fit.rsquared, 2),
@@ -62,7 +63,7 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
     return Y_pred, fitted_models
 
 
-def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, prediction_window,
+def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, Y_cross_ar, fitted_models, prediction_window,
                           add_constant=True, prep_input=True, find_comparable_model=True):
 
     def series_to_dataframe(pd_series):
@@ -78,8 +79,10 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, prediction_
     for product_m in Yp_ar_m.columns:
         y_name_m = product_m[:-6]
 
-        lag_index = [y_name_m in x for x in Yp_ar_m.columns]
-        Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
+        # lag_index = [y_name_m in x for x in Yp_ar_m.columns]
+        # Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
+
+        Xp_ar_m = Yp_ar_m[Y_cross_ar[y_name_m]]
 
         if add_constant:
             Xp_ar_m.insert(0, 'constant', 1)
@@ -137,6 +140,11 @@ if __name__ == '__main__':
     Yf_true = fit_data[cn.Y_TRUE]
     Yf_ar = fit_data[cn.Y_AR]
     Xf_exog = fit_data[cn.X_EXOG]
+    Yf_exog_cols = fit_data['correlations']
+
+    Y = Yf_true
+    Y_ar = Yf_ar
+    X_exog = Xf_exog
 
     Yis_fit, model_fits = batch_fit_model(Y=Yf_true, Y_ar=Yf_ar, X_exog=Xf_exog)
 

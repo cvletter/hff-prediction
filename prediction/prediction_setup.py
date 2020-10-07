@@ -100,6 +100,8 @@ def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, predi
     y_ar_m = create_lags(input_data=y_m, n_lags=lags, prediction_window=hold_out)
     y_ar_nm = create_lags(input_data=y_nm, n_lags=lags, prediction_window=hold_out)
 
+    top_corr = get_top_correlations(y=y_m, y_lags=y_ar_m, top_correl=5)
+
     y_ar_m_fit = y_ar_m.loc[last_train_date:]
     X_exog_fit = X_exog.loc[y_ar_m_fit.index]
     y_true_fit = y_m.loc[y_ar_m_fit.index]
@@ -110,7 +112,8 @@ def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, predi
 
     model_fitting = {cn.Y_TRUE: y_true_fit,
                      cn.Y_AR: y_ar_m_fit,
-                     cn.X_EXOG: X_exog_fit}
+                     cn.X_EXOG: X_exog_fit,
+                     "correlations": top_corr}
 
     model_prediction = {cn.Y_AR_M: yl_ar_m_prd,
                         cn.Y_AR_NM: yl_ar_nm_prd,
