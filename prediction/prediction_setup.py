@@ -33,6 +33,20 @@ def fill_missing_values(data):
     data.fillna(value=0, inplace=True)
 
 
+def get_top_correlations(y, y_lags, top_correl=5):
+    all_correlations = pd.DataFrame(columns=y_lags.columns, index=y.columns)
+
+    for i in y.columns:
+        for j in y_lags.columns:
+            all_correlations.loc[i, j] = y[i].corr(y_lags[j])
+
+    top_correlations = {}
+    for p in all_correlations.index:
+        top_correlations[p] = abs(all_correlations.loc[p]).sort_values(ascending=False)[:top_correl].index
+
+    return top_correlations
+
+
 def create_lags(input_data, n_lags=cn.N_LAGS, prediction_window=cn.PREDICTION_WINDOW):
     data_lags = input_data.copy(deep=True)
     first_lag_cols = []
@@ -80,6 +94,8 @@ def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, predi
     if difference:
         y_m = first_difference_data(undifferenced_data=y_m, delta=1, scale=False)
         y_nm = first_difference_data(undifferenced_data=y_nm, delta=1, scale=False)
+
+    # TODO CREATE CORRELATION FEATURE SELECTION HERE
 
     y_ar_m = create_lags(input_data=y_m, n_lags=lags, prediction_window=hold_out)
     y_ar_nm = create_lags(input_data=y_nm, n_lags=lags, prediction_window=hold_out)
@@ -162,3 +178,22 @@ if __name__ == '__main__':
 
     gf.save_to_pkl(data=data_fitting, file_name='fit_data', folder=fm.SAVE_LOC)
     gf.save_to_pkl(data=data_prediction, file_name='prediction_data', folder=fm.SAVE_LOC)
+
+    Y_raw = products_model
+    fill_missing_values(Y_raw)
+
+    Y_ar = create_lags(input_data=Y_raw, n_lags=5, prediction_window=2)
+
+    def get_top_correlations(Y, Y_lags, top_correl=5):
+        all_correlations = pd.DataFrame(columns=Y_lags.columns, index=Y.columns)
+
+        for i in Y.columns:
+            for j in Y_lags.columns:
+                all_correlations.loc[i, j] = Y[i].corr(Y_lags[j])
+
+        top_correlations = {}
+        for p in all_correlations.index:
+            top_correlations[p] = abs(all_correlations.loc[p]).sort_values(ascending=False)[:top_correl].index
+
+        return top_correlations
+
