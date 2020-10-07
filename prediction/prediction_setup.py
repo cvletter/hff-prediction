@@ -22,8 +22,8 @@ def split_products(active_products, min_obs=cn.TRAIN_OBS, prediction_date=cn.PRE
     series_not_to_model = obs_count[obs_count['count'] < min_obs].index
     print("Number of products not able to model: {}".format(len(series_not_to_model)))
 
-    products_model = active_products[series_to_model]
-    products_model.loc[cn.MOD_PROD_SUM] = products_model.sum(axis=1)
+    products_model = active_products[series_to_model].copy(deep=True)
+    products_model[cn.MOD_PROD_SUM] = products_model.sum(axis=1)
     products_no_model = active_products[series_not_to_model]
 
     return products_model, products_no_model
