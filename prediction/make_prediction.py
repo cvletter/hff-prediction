@@ -91,7 +91,7 @@ if __name__ == '__main__':
     is_fit1, os_pr1, fit_data1, predict_data1 = run_prediction(pred_date='2020-08-31',
                                                                prediction_window=1,
                                                                train_obs=cn.TRAIN_OBS,
-                                                               difference=False, lags=3,
+                                                               difference=False, lags=4,
                                                                order_data=fm.RAW_DATA,
                                                                weather_data=fm.WEER_DATA,
                                                                product_data=fm.PRODUCT_STATUS,
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     is_fit2, os_pr2, fit_data2, predict_data2 = run_prediction(pred_date='2020-08-31',
                                                                prediction_window=2,
                                                                train_obs=cn.TRAIN_OBS,
-                                                               difference=False, lags=3,
+                                                               difference=False, lags=4,
                                                                order_data=fm.RAW_DATA,
                                                                weather_data=fm.WEER_DATA,
                                                                product_data=fm.PRODUCT_STATUS,
@@ -110,6 +110,8 @@ if __name__ == '__main__':
     inactive_products_act = gf.import_temp_file(file_name=fm.ORDER_DATA_INACT, data_loc=fm.SAVE_LOC)
     all_products_act = active_products_act.join(inactive_products_act, how='outer')
 
-    product_name = 'Copparolletjes vijgenrk 81g HF'
-    is_performance = in_sample_plot(y_true=fit_data1, y_fit=is_fit1,
+    is_performance1 = in_sample_plot(y_true=fit_data1, y_fit=is_fit1,
+                                    title="test")
+
+    is_performance2 = in_sample_plot(y_true=fit_data2, y_fit=is_fit2,
                                     title="test")
