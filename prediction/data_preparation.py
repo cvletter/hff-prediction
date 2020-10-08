@@ -237,11 +237,11 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, order_data_l
 
     # Pivoteren van data
 
-    #  Shape: 111 producten, 112 datapunten
+    #  Shape: 110 producten, 112 datapunten
     order_data_pivot_wk = make_pivot(aggregated_data=order_data_wk,
                                          weekly=True)
 
-    #  Shape: 111 producten, 570 datapunten
+    #  Shape: 110 producten, 570 datapunten
     # order_data_pivot_dg = make_pivot(aggregated_data=order_data_dg,
     #                                    weekly=False)
 
@@ -260,46 +260,8 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, order_data_l
 
 if __name__ == '__main__':
 
-    # Importeren van order data
-    order_data = order_data_processing(order_data_loc=fm.RAW_DATA)
-
-    # Tabel maken met eerste dag van de week
-    #first_dow_table = first_day_week_table(processed_order_data=order_data)
-
-    # Importeren van weer data, op wekelijks niveau
-    weer_data = weer_data_processing(weer_data_loc=fm.WEER_DATA, weekly=True)
-    gf.add_first_day_week(add_to=weer_data, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
-
-    # Importeren van product status data
-    product_status = product_status_processing(product_data_loc=fm.PRODUCT_STATUS)
-
-    # Toevoegen van product status
-    add_product_status(order_data_processed=order_data, product_status_processed=product_status)
-
-    # Filteren van besteldata
-    order_data_filtered = data_filtering(order_data)
-
-    # Aggregeren van data naar wekelijks niveau en halffabrikaat
-    order_data_wk = data_aggregation(filtered_data=order_data_filtered, weekly=True, exclude_su=True)
-    gf.add_first_day_week(add_to=order_data_wk, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
-
-    # Aggregeren van data naar besteldatum niveau en halffabrikaat
-    order_data_dg = data_aggregation(filtered_data=order_data_filtered, weekly=False, exclude_su=True)
-
-    # Pivoteren van data
-
-    #  Shape: 111 producten, 112 datapunten
-    order_data_pivot_wk = make_pivot(aggregated_data=order_data_wk,
-                                         weekly=True)
-
-    #  Shape: 111 producten, 570 datapunten
-    order_data_pivot_dg = make_pivot(aggregated_data=order_data_dg,
-                                        weekly=False)
-
-    # Actieve producten selecteren: 66 actief; 45 inactief
-    order_data_wk_a, order_data_wk_ia = find_active_products(
-        raw_product_ts=order_data_pivot_wk,
-        eval_week=cn.LAST_TRAIN_DATE)
+    order_data_wk_a, order_data_wk_ia, weer_data = data_prep_wrapper(prediction_date=cn.PREDICTION_DATE,
+                                                                     prediction_window=1)
 
     gf.save_to_csv(data=weer_data, file_name='weer_data_processed', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=order_data_wk_a, file_name='actieve_halffabricaten_wk', folder=fm.SAVE_LOC)

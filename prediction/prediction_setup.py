@@ -84,7 +84,7 @@ def first_difference_data(undifferenced_data, delta=1, scale=True):
     return differenced_data[:-delta]
 
 
-def create_model_setup(y_m, y_nm, X_exog, difference=True, lags=cn.N_LAGS, prediction_date=cn.PREDICTION_DATE,
+def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, prediction_date=cn.PREDICTION_DATE,
                        hold_out=cn.PREDICTION_WINDOW):
     last_train_date = prediction_date - datetime.timedelta(weeks=hold_out)
 
@@ -131,6 +131,7 @@ def prediction_setup_wrapper(prediction_date, prediction_window, train_obs,
                              nlags, difference,
                              act_products, exog_features,
                              save_to_pkl=False):
+
     if type(prediction_date) == str:
         prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
 
@@ -155,7 +156,6 @@ def prediction_setup_wrapper(prediction_date, prediction_window, train_obs,
 
 
 if __name__ == '__main__':
-    # NEW
 
     active_products = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT,
                                           data_loc=fm.SAVE_LOC,
@@ -169,41 +169,13 @@ if __name__ == '__main__':
                                         data_loc=fm.SAVE_LOC,
                                         set_index=True)
 
-    products_model, products_nmodel = split_products(active_products=active_products,
-                                                     min_obs=cn.TRAIN_OBS,
-                                                     prediction_date=cn.PREDICTION_DATE,
-                                                     hold_out=1)
+    data_fitting, data_prediction = prediction_setup_wrapper(prediction_date=cn.PREDICTION_DATE,
+                                                             prediction_window=1,
+                                                             train_obs=cn.TRAIN_OBS,
+                                                             nlags=3,
+                                                             difference=False,
+                                                             act_products=active_products,
+                                                             exog_features=exog_features,
+                                                             save_to_pkl=True)
 
-    data_fitting, data_prediction = create_model_setup(y_m=products_model,
-                                                       y_nm=products_nmodel,
-                                                       X_exog=exog_features,
-                                                       lags=2,
-                                                       prediction_date=cn.PREDICTION_DATE,
-                                                       difference=False,
-                                                       hold_out=1)
 
-    gf.save_to_pkl(data=data_fitting, file_name='fit_data', folder=fm.SAVE_LOC)
-    gf.save_to_pkl(data=data_prediction, file_name='prediction_data', folder=fm.SAVE_LOC)
-
-    Y_raw = products_model
-    fill_missing_values(Y_raw)
-
-    Y_ar_corr = create_lags(input_data=Y_raw, n_lags=5, prediction_window=2)
-
-    def get_top_correlations(Y, Y_lags, top_correl=5):
-        all_correlations = pd.DataFrame(columns=Y_lags.columns, index=Y.columns)
-
-        for i in Y.columns:
-            for j in Y_lags.columns:
-                if j[:-6] == i:
-                    all_correlations.loc[i, j] = -1e9
-                else:
-                    all_correlations.loc[i, j] = abs(Y[i].corr(Y_lags[j]))
-
-        top_correlations = {}
-        for p in all_correlations.index:
-            top_correlations[p] = all_correlations.loc[p].sort_values(ascending=False)[:top_correl].index
-
-        return top_correlations, all_correlations
-
-    top_corr, all_correl = get_top_correlations(Y=Y_raw, Y_lags=Y_ar)

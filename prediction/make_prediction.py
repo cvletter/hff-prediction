@@ -10,7 +10,7 @@ import pandas as pd
 
 
 def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
-                   difference=True, lags=cn.N_LAGS, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
+                   difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
                    product_data=fm.PRODUCT_STATUS, model_type='OLS'):
 
     def convert_series_to_dataframe(input_series, date_val, index_name=cn.FIRST_DOW):
