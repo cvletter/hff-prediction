@@ -1,10 +1,8 @@
 import statsmodels.api as sm
-import numpy as np
 import pandas as pd
 import prediction.general_purpose_functions as gf
 import prediction.file_management as fm
 import prediction.column_names as cn
-# import seaborn as sns
 
 
 def batch_fit_model(Y, Y_ar, X_exog, Y_cross_ar, add_constant=True, model='Negative-Binomial'):
@@ -57,9 +55,6 @@ def batch_fit_model(Y, Y_ar, X_exog, Y_cross_ar, add_constant=True, model='Negat
         Y_pred[y_name] = temp_fit.predict()
         fitted_models[y_name] = temp_fit
 
-        # print("R2 and R2-adj for product {} are: {} and {}".format(product,
-        #                                                           np.round(temp_fit.rsquared, 2),
-        #                                                           np.round(temp_fit.rsquared_adj, 2)))
     return Y_pred, fitted_models
 
 
@@ -76,6 +71,7 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, Y_cross_ar, fitted_models,
 
     Y_pred = pd.DataFrame(index=Yp_ar_m.index)
 
+    # product_m = Yp_ar_m.columns[0]
     for product_m in Yp_ar_m.columns:
         y_name_m = product_m[:-6]
 
@@ -91,6 +87,7 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, Y_cross_ar, fitted_models,
 
         Y_pred[y_name_m] = fitted_models[y_name_m].predict(Xp_tot)
 
+    # product_nm = Yp_ar_nm.columns[0]
     for product_nm in Yp_ar_nm.columns:
         y_name_nm = product_nm[:-6]  # remove '_lag_1 or 2'
 
@@ -140,30 +137,14 @@ if __name__ == '__main__':
     fit_data = gf.read_pkl(file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC)
     predict_data = gf.read_pkl(file_name=fm.PREDICT_DATA, data_loc=fm.SAVE_LOC)
 
-    Yf_true = fit_data[cn.Y_TRUE]
-    Yf_ar = fit_data[cn.Y_AR]
-    Xf_exog = fit_data[cn.X_EXOG]
-    Yf_exog_cols = fit_data['correlations']
+    Yis_fit, model_fits = batch_fit_model(Y=fit_data[cn.Y_TRUE], Y_ar=fit_data[cn.Y_AR], X_exog=fit_data[cn.X_EXOG],
+                                          Y_cross_ar=fit_data['correlations'], model='Negative-Binomial')
 
-    Y = Yf_true
-    Y_ar = Yf_ar
-    X_exog = Xf_exog
-
-    Yis_fit, model_fits = batch_fit_model(Y=Yf_true, Y_ar=Yf_ar, X_exog=Xf_exog, Y_cross_ar=Yf_exog_cols)
-
-    Yp_ar = predict_data[cn.Y_AR_M]
-    Yp_ar_nm = predict_data[cn.Y_AR_NM]
-    Xp_exog = predict_data[cn.X_EXOG]
-
-    Yos_pred = batch_make_prediction(Yp_ar_m=Yp_ar, Yp_ar_nm=Yp_ar_nm,
-                                     Xp_exog=Xp_exog, fitted_models=model_fits,
-                                     Y_cross_ar=Yf_exog_cols, prediction_window=1
-                                     )
+    Yos_pred = batch_make_prediction(Yp_ar_m=predict_data[cn.Y_AR_M], Yp_ar_nm=predict_data[cn.Y_AR_NM],
+                                     Xp_exog=predict_data[cn.X_EXOG], Y_cross_ar=fit_data["correlations"],
+                                     fitted_models=model_fits,
+                                     find_comparable_model=True, prediction_window=1)
 
     gf.save_to_csv(data=Yis_fit, file_name="insample_fit", folder=fm.SAVE_LOC)
 
-    Yt_total = pd.DataFrame(Yf_true[cn.MOD_PROD_SUM])
-    Yt_total['fit_model'] = Yis_fit[cn.MOD_PROD_SUM]
-    Yt_total['fit_model_sum'] = Yis_fit.sum(axis=1)
 
-   # sns.relplot(data=Yt_total, kind="line")
