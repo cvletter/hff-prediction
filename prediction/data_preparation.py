@@ -6,7 +6,7 @@ import prediction.column_names as cn
 import prediction.file_management as fm
 
 
-def order_data_processing(order_data_loc):
+def order_data_processing(order_data_loc: str) -> pd.DataFrame:
     raw_data = pd.read_excel(order_data_loc,
                              dtype={'Consumentgroep': str,
                                     'Inkooprecept': str,
@@ -32,6 +32,7 @@ def order_data_processing(order_data_loc):
 
     raw_data[cn.ORDER_DATE] = pd.to_datetime(raw_data[cn.ORDER_DATE], format='%Y-%m-%d')
 
+    # Splitsen van consumentgroepnummers, verkoopartikelen en inkoopreceptnummers
     raw_data[cn.CONSUMENT_GROEP_NR] = raw_data[cn.CONSUMENT_GROEP].str.split("-", expand=True, n=1)[0].astype(int)
     raw_data[[cn.VERKOOP_ART_NR, cn.VERKOOP_ART_NM]] = raw_data[cn.VERKOOP_ART].str.split(" - ", expand=True, n=1)
     raw_data[[cn.INKOOP_RECEPT_NR, cn.INKOOP_RECEPT_NM]] = raw_data[cn.INKOOP_RECEPT].str.split(" - ", expand=True, n=1)
@@ -39,6 +40,7 @@ def order_data_processing(order_data_loc):
     raw_data[cn.VERKOOP_ART_NR] = raw_data[cn.VERKOOP_ART_NR].astype(int)
     raw_data[cn.INKOOP_RECEPT_NR] = raw_data[cn.INKOOP_RECEPT_NR].astype(int)
 
+    # Voeg hier het weeknummer en jaar toe o.b.v. de besteldatum
     gf.add_week_year(data=raw_data, date_name=cn.ORDER_DATE)
 
     return raw_data[[cn.ORDER_DATE,
@@ -53,7 +55,7 @@ def order_data_processing(order_data_loc):
                      cn.CONSUMENT_GROEP_NR]]
 
 
-def weer_data_processing(weer_data_loc, weekly=True):
+def weer_data_processing(weer_data_loc: str, weekly=True) -> pd.DataFrame:
     raw_weer_data = pd.read_csv(weer_data_loc, sep=";")
 
     raw_weer_data.columns = [cn.W_DATE, cn.TEMP_GEM, cn.TEMP_MIN,
@@ -62,9 +64,11 @@ def weer_data_processing(weer_data_loc, weekly=True):
     raw_weer_data[cn.W_DATE] = pd.to_datetime(raw_weer_data[cn.W_DATE], format='%Y%m%d')
     raw_weer_data.set_index(cn.W_DATE, inplace=True)
 
+    # Deel alle cijfers door 10 om tot normale waarden voor temp, uren en mm te komen
     raw_weer_data = np.round(raw_weer_data / 10, 1)
     gf.add_week_year(data=raw_weer_data, date_name=cn.W_DATE)
 
+    # Indien data moet worden geaggregeerd naar week
     if weekly:
         raw_weer_data.reset_index(inplace=True)
         raw_weer_data = raw_weer_data.groupby(cn.WEEK_NUMBER, as_index=False).agg({
@@ -82,21 +86,9 @@ def weer_data_processing(weer_data_loc, weekly=True):
     return raw_weer_data
 
 
-def first_day_week_table(processed_order_data):
-
-    date_cols = processed_order_data[[cn.WEEK_NUMBER, cn.ORDER_DATE]]
-    day_to_week_table = pd.DataFrame(
-        date_cols.groupby([cn.WEEK_NUMBER], as_index=False).agg(
-            {cn.ORDER_DATE: 'min'})).set_index(cn.WEEK_NUMBER)
-
-    day_to_week_table.columns = [cn.FIRST_DOW]
-
-    return day_to_week_table
-
-
 # TODO Afmaken column_names
 
-def product_status_processing(product_data_loc):
+def product_status_processing(product_data_loc: str) -> pd.DataFrame:
     raw_product_status = pd.read_excel(product_data_loc,
                                        sheet_name='Blad2',
                                        dtype={'Nummer': str,
@@ -115,8 +107,9 @@ def product_status_processing(product_data_loc):
 
     return raw_product_status
 
-
-def add_product_status(order_data_processed, product_status_processed, join_col='inkooprecept_nr'):
+# Toevoegen van de status van een product, 'geblokkeerd' of nog 'actief'
+def add_product_status(order_data_processed: pd.DataFrame, product_status_processed:  pd.DataFrame,
+                       join_col='inkooprecept_nr'):
 
     order_data_processed.reset_index(inplace=True)
     order_data_processed.set_index(join_col, inplace=True)
@@ -137,27 +130,31 @@ def add_product_status(order_data_processed, product_status_processed, join_col=
     order_data_processed.reset_index(inplace=True)
 
 
-def data_filtering(unfiltered_data, su_filter=True):
+def data_filtering(unfiltered_data: pd.DataFrame, su_filter=True) -> pd.DataFrame:
 
     print("Unfiltered data: {} lines".format(len(unfiltered_data)))
 
+    # Enkel bulk, rol en aankoopproducten
     filter_1 = unfiltered_data[(unfiltered_data['consumentgroep_nr'].between(14, 16, inclusive=True))]
     print("Bul, rol, aankoop data: {} lines".format(len(filter_1)))
 
+    # Enkel bestellingen van leden van de SuperUnie
     if su_filter:
         filter_2 = filter_1[(filter_1['gebruiken'] == '1')]
         print("Bestellingen leden: {} lines".format(len(filter_2)))
 
+    # Bestellingen na 1 augustus 2018, vanaf dat moment bestellingen betrouwbaar
     filter_3 = filter_2[filter_2['besteldatum'] >= pd.Timestamp(year=2018, month=8, day=1)]
     print("Bestellingen na 01/08/2018: {} lines".format(len(filter_3)))
 
+    # Enkel actieve producten
     filter_4 = filter_3[filter_3['inkooprecept_geblokkeerd'] == 'Nee']
     print("Actieve producten: {} lines".format(len(filter_4)))
 
     return filter_4
 
 
-def data_aggregation(filtered_data, weekly=True, exclude_su=True):
+def data_aggregation(filtered_data: pd.DataFrame, weekly=True, exclude_su=True) -> pd.DataFrame:
     time_agg = 'week_jaar' if weekly else 'besteldatum'
     product_agg = 'ce_besteld'
 
@@ -177,7 +174,7 @@ def data_aggregation(filtered_data, weekly=True, exclude_su=True):
     return aggregated_data
 
 
-def make_pivot(aggregated_data, weekly=True):
+def make_pivot(aggregated_data: pd.DataFrame, weekly=True) -> pd.DataFrame:
 
     date_granularity = cn.FIRST_DOW if weekly else cn.ORDER_DATE
 
@@ -191,7 +188,8 @@ def make_pivot(aggregated_data, weekly=True):
     return pivoted_data.sort_index(ascending=False, inplace=False)
 
 
-def find_active_products(raw_product_ts, eval_week=cn.LAST_TRAIN_DATE):
+# Selecteert hierdoor alleen producten die zijn verkocht in de week dat de voorspelling wordt gemaakt
+def find_active_products(raw_product_ts: pd.DataFrame, eval_week=cn.LAST_TRAIN_DATE) -> [pd.DataFrame, pd.DataFrame]:
     eval_data = raw_product_ts.loc[eval_week].T
     eval_data.drop('week_jaar', inplace=True, errors='ignore')
     all_active_products = eval_data.index
@@ -201,9 +199,10 @@ def find_active_products(raw_product_ts, eval_week=cn.LAST_TRAIN_DATE):
     return raw_product_ts[active_sold_products], raw_product_ts[active_not_sold_products]
 
 
-def data_prep_wrapper(prediction_date, prediction_window, order_data_loc=fm.RAW_DATA, weer_data_loc=fm.WEER_DATA,
-                      product_data_loc=fm.PRODUCT_STATUS, agg_weekly=True, exclude_su=True,
-                      save_to_csv=False):
+# Wrapping function to do entire data preparation
+def data_prep_wrapper(prediction_date: str, prediction_window: int, order_data_loc=fm.RAW_DATA,
+                      weer_data_loc=fm.WEER_DATA, product_data_loc=fm.PRODUCT_STATUS, agg_weekly=True, exclude_su=True,
+                      save_to_csv=False) -> [pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
     if type(prediction_date) == str:
         prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
