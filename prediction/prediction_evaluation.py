@@ -54,7 +54,7 @@ def prediction_performance_evaluation(Y_true, Y_pred, Y_pred_mod, Y_pred_non_mod
 
         Y_nmod_pred_tot.loc[dt, 'ynm_pred_isum'] = int(_yp_nmod.sum())
         Y_nmod_pred_tot.loc[dt, 'ynm_true_sum'] = int(_yt_nmod.sum())
-        Y_nmod_pred_tot.loc[dt, 'ynm_error_isum'] = int(_yp_nmod.sum()) - int(_yt_nmod.sum())
+        Y_nmod_pred_tot.loc[dt, 'ynm_error_isum'] = int(int(_yp_nmod.sum()) - int(_yt_nmod.sum())) / int(_yt_nmod.sum())
 
         # Fill individual series
         Y_mod_pred.loc[dt, _yp_mod.index] = _yp_mod
@@ -76,9 +76,9 @@ def prediction_performance_evaluation(Y_true, Y_pred, Y_pred_mod, Y_pred_non_mod
                        'e_nonmodelable_products': Y_nmod_err
                        }
 
-    mod_isum_err = all_evaluations['p_modelable_products_total']['ym_perror_isum'].mean()
-    nmod_isum_err = all_evaluations['p_nonmodelable_products_total']['ynm_error_isum'].mean()
-    mod_psum_err = all_evaluations['p_modelable_products_total']['ym_perror_psum'].mean()
+    mod_isum_err = abs(all_evaluations['p_modelable_products_total']['ym_perror_isum']).mean()
+    nmod_isum_err = abs(all_evaluations['p_nonmodelable_products_total']['ynm_error_isum']).mean()
+    mod_psum_err = abs(all_evaluations['p_modelable_products_total']['ym_perror_psum']).mean()
 
     m_graph_title = "Foutmarges modelleerbaar: p-som: {}; i-som: {}".format(mod_psum_err, mod_isum_err)
     _gmod = all_evaluations['p_modelable_products_total'][['ym_pred_isum', 'ym_pred_psum', 'ym_true_sum', 'ym_error_isum', 'ym_error_psum']]
@@ -138,6 +138,36 @@ def in_sample_plot(y_true, y_fit, title, name=cn.MOD_PROD_SUM):
     plt.show()
 
     return y_comp
+
+
+def in_sample_evaluation(pct_fits):
+    eval_time = pd.DataFrame(index=pct_fits.index)
+    eval_time['average'] = pct_fits.mean(axis=1)
+    eval_time['5p'] = pct_fits.quantile(q=0.05, axis=1)
+    eval_time['25p'] = pct_fits.quantile(q=0.25, axis=1)
+    eval_time['median'] = pct_fits.quantile(q=0.5, axis=1)
+    eval_time['75p'] = pct_fits.quantile(q=0.75, axis=1)
+    eval_time['95p'] = pct_fits.quantile(q=0.95, axis=1)
+    eval_time['count of products'] = pct_fits.count(axis=1, numeric_only=True)
+
+    print("Overall median: {}; overall 5p: {}; overall 95p: {}".format(round(eval_time['median'].median(), 3),
+                                                                       round(eval_time['5p'].median(), 3),
+                                                                       round(eval_time['95p'].median(), 3)))
+
+    eval_prod = pd.DataFrame(index=pct_fits.columns)
+    eval_prod['average'] = pct_fits.mean(axis=0)
+    eval_prod['5p'] = pct_fits.quantile(q=0.05, axis=0)
+    eval_prod['25p'] = pct_fits.quantile(q=0.25, axis=0)
+    eval_prod['median'] = pct_fits.quantile(q=0.5, axis=0)
+    eval_prod['75p'] = pct_fits.quantile(q=0.75, axis=0)
+    eval_prod['95p'] = pct_fits.quantile(q=0.95, axis=0)
+    eval_prod['count of fits'] = pct_fits.count(axis=0, numeric_only=True)
+
+    print("Overall median: {}; overall 5p: {}; overall 95p: {}".format(round(eval_prod['median'].median(), 3),
+                                                                       round(eval_prod['5p'].median(), 3),
+                                                                       round(eval_prod['95p'].median(), 3)))
+
+    return eval_time, eval_prod
 
 
 if __name__ == '__main__':

@@ -21,8 +21,9 @@ def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION
     def in_sample_error(all_fits, all_true_values):
         fit_error = abs(all_fits.subtract(all_true_values[all_fits.columns], axis='index'))
         avg_fit_error = fit_error.mean(axis=0)
-        avg_true_values = all_true_values[all_fits.columns].mean(axis=0)
-        avg_pct_fit_error = avg_fit_error / avg_true_values
+        corr_true_values = all_true_values.replace(0, 1)
+        pct_fit_error = fit_error / corr_true_values
+        avg_pct_fit_error = pct_fit_error.mean(axis=0)
 
         avg_fit_error_df = convert_series_to_dataframe(input_series=avg_fit_error, date_val=pred_date)
         avg_pct_fit_error_df = convert_series_to_dataframe(input_series=avg_pct_fit_error, date_val=pred_date)
@@ -93,7 +94,7 @@ def batch_prediction(prediction_dates, model_settings):
 if __name__ == '__main__':
 
     # In sample testing of 2020-31-8
-    is_fit1, os_pr1, fit_data1, predict_data1 = run_prediction(pred_date='2020-08-31',
+    is_fit1, os_pr1, fit_data1, predict_data1 = run_prediction(pred_date='2020-10-05',
                                                                prediction_window=1,
                                                                train_obs=cn.TRAIN_OBS,
                                                                difference=False, lags=4,
@@ -102,7 +103,7 @@ if __name__ == '__main__':
                                                                product_data=fm.PRODUCT_STATUS,
                                                                model_type='Negative-Binomial')
 
-    is_fit2, os_pr2, fit_data2, predict_data2 = run_prediction(pred_date='2020-08-31',
+    is_fit2, os_pr2, fit_data2, predict_data2 = run_prediction(pred_date='2020-10-05',
                                                                prediction_window=2,
                                                                train_obs=cn.TRAIN_OBS,
                                                                difference=False, lags=4,
@@ -115,8 +116,10 @@ if __name__ == '__main__':
     inactive_products_act = gf.import_temp_file(file_name=fm.ORDER_DATA_INACT, data_loc=fm.SAVE_LOC)
     all_products_act = active_products_act.join(inactive_products_act, how='outer')
 
+    prod_name = 'Garnalen Knoflook 140g HF'
+
     is_performance1 = in_sample_plot(y_true=fit_data1, y_fit=is_fit1,
-                                    title="test")
+                                    title="test", name=prod_name)
 
     is_performance2 = in_sample_plot(y_true=fit_data2, y_fit=is_fit2,
-                                    title="test")
+                                    title="test", name=prod_name)

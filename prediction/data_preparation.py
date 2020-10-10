@@ -11,8 +11,8 @@ def order_data_processing(order_data_loc: str) -> pd.DataFrame:
                              dtype={'Consumentgroep': str,
                                     'Inkooprecept': str,
                                     'VerkString': str,
-                                    'Gebruiken': str,
-                                    'Org_ano': str,
+                                    'SU': str,
+                                    'Organisatie': str,
                                     'Weekjaar': str,
                                     'Week': str,
                                     'Datum': str,
@@ -21,8 +21,8 @@ def order_data_processing(order_data_loc: str) -> pd.DataFrame:
     raw_data.rename(columns={'ConsumentGroep': cn.CONSUMENT_GROEP,
                              'InkoopRecept': cn.INKOOP_RECEPT,
                              'VerkString': cn.VERKOOP_ART,
-                             'Gebruiken': cn.SELECT_ORG,
-                             'Org_ano': cn.ORGANISATIE,
+                             'SU': cn.SELECT_ORG,
+                             'Organisatie': cn.ORGANISATIE,
                              'Weekjaar': cn.WEEK_NUMBER,
                              'Week': cn.WEEK,
                              'Datum': cn.ORDER_DATE,
@@ -140,7 +140,7 @@ def data_filtering(unfiltered_data: pd.DataFrame, su_filter=True) -> pd.DataFram
 
     # Enkel bestellingen van leden van de SuperUnie
     if su_filter:
-        filter_2 = filter_1[(filter_1['gebruiken'] == '1')]
+        filter_2 = filter_1[(filter_1[cn.SELECT_ORG] == 'Superunie')]
         print("Bestellingen leden: {} lines".format(len(filter_2)))
 
     # Bestellingen na 1 augustus 2018, vanaf dat moment bestellingen betrouwbaar
@@ -260,7 +260,8 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, order_data_l
 
 if __name__ == '__main__':
 
-    order_data_wk_a, order_data_wk_ia, weer_data = data_prep_wrapper(prediction_date=cn.PREDICTION_DATE,
+    pred_date = datetime.datetime.strptime('2020-10-05', "%Y-%m-%d")
+    order_data_wk_a, order_data_wk_ia, weer_data = data_prep_wrapper(prediction_date=pred_date,
                                                                      prediction_window=1)
 
     gf.save_to_csv(data=weer_data, file_name='weer_data_processed', folder=fm.SAVE_LOC)
