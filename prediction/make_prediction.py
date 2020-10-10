@@ -71,6 +71,8 @@ def batch_prediction(prediction_dates, model_settings):
     all_is_abs_errors = pd.DataFrame([])
     all_is_pct_errors = pd.DataFrame([])
     all_os_predictions = pd.DataFrame([])
+    all_mod_prod = {}
+    all_non_mod_prod = {}
 
     for p_date in prediction_dates[cn.FIRST_DOW]:
         _fit, _predict, _fitdata, _predictdata = run_prediction(
@@ -82,7 +84,10 @@ def batch_prediction(prediction_dates, model_settings):
         all_is_pct_errors = pd.concat([all_is_pct_errors, _fitdata['avg_pct_fit_error']], axis=0)
         all_os_predictions = pd.concat([all_os_predictions, _predict], axis=0)
 
-    return all_os_predictions, all_is_abs_errors, all_is_pct_errors
+        all_mod_prod[p_date] = _fitdata[cn.MOD_PROD]
+        all_non_mod_prod[p_date] = _fitdata[cn.NON_MOD_PROD]
+
+    return all_os_predictions, all_is_abs_errors, all_is_pct_errors, all_mod_prod, all_non_mod_prod
 
 
 if __name__ == '__main__':

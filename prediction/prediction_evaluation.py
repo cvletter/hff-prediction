@@ -5,10 +5,101 @@ import prediction.general_purpose_functions as gf
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 sns.set_theme(style="darkgrid")
 
 
+def prediction_performance_evaluation(Y_true, Y_pred, Y_pred_mod, Y_pred_non_mod):
+
+    Y_mod_pred = pd.DataFrame(index=Y_pred.index)
+    Y_nmod_pred = pd.DataFrame(index=Y_pred.index)
+
+    Y_mod_true = pd.DataFrame(index=Y_pred.index)
+    Y_nmod_true = pd.DataFrame(index=Y_pred.index)
+
+    Y_mod_err = pd.DataFrame(index=Y_pred.index)
+    Y_nmod_err = pd.DataFrame(index=Y_pred.index)
+
+    Y_mod_pred_tot = pd.DataFrame(columns=['ym_pred_isum', 'ym_pred_psum', 'ym_true_sum', 'ym_error_psum',
+                                           'ym_error_isum', 'ym_perror_isum', 'ym_perror_psum'], index=Y_pred.index)
+
+    Y_nmod_pred_tot = pd.DataFrame(columns=['ynm_pred_isum', 'ynm_true_sum', 'ynm_error_isum',
+                                            'ynm_perror_isum'], index=Y_pred.index)
+
+    # dt = Y_pred.index[0]
+
+    for dt in Y_pred.index:
+        _dt = datetime.strftime(dt, '%Y-%m-%d')
+        _ymod_col = Y_pred_mod[_dt]
+        _ynmod_col = Y_pred_non_mod[_dt]
+
+        _yp_mod = Y_pred.loc[dt, _ymod_col]
+        _yp_mod_psum = int(_yp_mod[cn.MOD_PROD_SUM])
+        _yp_mod.drop(cn.MOD_PROD_SUM, axis=0, inplace=True)
+
+        _yp_nmod = Y_pred.loc[dt, _ynmod_col]
+
+        _yt_mod = Y_true.loc[dt, _yp_mod.index]
+        _yt_nmod = Y_true.loc[dt, _yp_nmod.index]
+
+        # Fill totals
+        Y_mod_pred_tot.loc[dt, 'ym_pred_isum'] = int(_yp_mod.sum())
+        Y_mod_pred_tot.loc[dt, 'ym_pred_psum'] = _yp_mod_psum
+        Y_mod_pred_tot.loc[dt, 'ym_true_sum'] = int(_yt_mod.sum())
+        Y_mod_pred_tot.loc[dt, 'ym_error_isum'] = int(_yp_mod.sum()) - int(_yt_mod.sum())
+        Y_mod_pred_tot.loc[dt, 'ym_perror_isum'] = int(int(_yp_mod.sum()) - int(_yt_mod.sum())) / int(_yt_mod.sum())
+        Y_mod_pred_tot.loc[dt, 'ym_error_psum'] = _yp_mod_psum - int(_yt_mod.sum())
+        Y_mod_pred_tot.loc[dt, 'ym_perror_psum'] = int(_yp_mod_psum - int(_yt_mod.sum())) / int(_yt_mod.sum())
+
+        Y_nmod_pred_tot.loc[dt, 'ynm_pred_isum'] = int(_yp_nmod.sum())
+        Y_nmod_pred_tot.loc[dt, 'ynm_true_sum'] = int(_yt_nmod.sum())
+        Y_nmod_pred_tot.loc[dt, 'ynm_error_isum'] = int(_yp_nmod.sum()) - int(_yt_nmod.sum())
+
+        # Fill individual series
+        Y_mod_pred.loc[dt, _yp_mod.index] = _yp_mod
+        Y_nmod_pred.loc[dt, _yp_nmod.index] = _yp_nmod
+
+        Y_mod_true.loc[dt, _yt_mod.index] = _yt_mod
+        Y_nmod_true.loc[dt, _yt_nmod.index] = _yt_nmod
+
+        Y_mod_err = Y_mod_pred.subtract(Y_mod_true, axis=1)
+        Y_nmod_err = Y_nmod_pred.subtract(Y_nmod_true, axis=1)
+
+    all_evaluations = {'p_modelable_products_total': Y_mod_pred_tot,
+                       'p_nonmodelable_products_total': Y_nmod_pred_tot,
+                       'p_modelable_products': Y_mod_pred,
+                       'p_nonmodelable_products': Y_nmod_pred,
+                       't_modelable_products': Y_mod_true,
+                       't_nonmodelable_products': Y_nmod_true,
+                       'e_modelable_products': Y_mod_err,
+                       'e_nonmodelable_products': Y_nmod_err
+                       }
+
+    mod_isum_err = all_evaluations['p_modelable_products_total']['ym_perror_isum'].mean()
+    nmod_isum_err = all_evaluations['p_nonmodelable_products_total']['ynm_error_isum'].mean()
+    mod_psum_err = all_evaluations['p_modelable_products_total']['ym_perror_psum'].mean()
+
+    m_graph_title = "Foutmarges modelleerbaar: p-som: {}; i-som: {}".format(mod_psum_err, mod_isum_err)
+    _gmod = all_evaluations['p_modelable_products_total'][['ym_pred_isum', 'ym_pred_psum', 'ym_true_sum', 'ym_error_isum', 'ym_error_psum']]
+    _gmod.fillna(0, inplace=True)
+    graph_fit = sns.relplot(data=_gmod, kind='line')
+    graph_fit.set(xlabel='week', ylabel='productie (CE)')
+    graph_fit.fig.suptitle(m_graph_title, fontsize=10)
+    plt.show()
+
+    nm_graph_title = "Foutmarges niet-modelleerbaar: i-som: {}".format(nmod_isum_err)
+    _gnmod = all_evaluations['p_nonmodelable_products_total'][['ynm_pred_isum', 'ynm_true_sum', 'ynm_error_isum']]
+    _gnmod.fillna(0, inplace=True)
+    graph_fit = sns.relplot(data=_gnmod, kind='line')
+    graph_fit.set(xlabel='week', ylabel='productie (CE)')
+    graph_fit.fig.suptitle(nm_graph_title, fontsize=10)
+    plt.show()
+
+
+    return all_evaluations
+
+# Oud
 def prediction_evaluation(product_name, Y_true, Y_pred):
 
     if product_name == 'total':

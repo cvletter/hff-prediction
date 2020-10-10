@@ -112,11 +112,13 @@ def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, pred
     yl_ar_m_prd = y_ar_m.loc[prediction_date]
     yl_ar_nm_prd = y_ar_nm.loc[prediction_date]
     X_exog_prd = X_exog.loc[prediction_date]
-
+    
     model_fitting = {cn.Y_TRUE: y_true_fit,
                      cn.Y_AR: y_ar_m_fit,
                      cn.X_EXOG: X_exog_fit,
-                     "correlations": top_corr}
+                     cn.CORREL: top_corr,
+                     cn.MOD_PROD: y_m.columns,
+                     cn.NON_MOD_PROD: y_nm.columns}
 
     model_prediction = {cn.Y_AR_M: yl_ar_m_prd,
                         cn.Y_AR_NM: yl_ar_nm_prd,

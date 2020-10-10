@@ -53,6 +53,10 @@ Y_AR_NM = 'y_ar_nm'
 Y_M_UNDIF = 'y_m_undif'
 Y_NM_UNDIF = 'y_nm_undif'
 
+CORREL = 'correlations'
+
+MOD_PROD = 'modelable_products'
+NON_MOD_PROD = 'non_modelable_products'
 
 # INPUT VARIABLES
 
