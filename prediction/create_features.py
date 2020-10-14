@@ -5,7 +5,7 @@ import prediction.general_purpose_functions as gf
 
 
 def prep_weather_features(input_weer_data, min_max=False, index_col=cn.FIRST_DOW,
-                          shift=False, prediction_window=cn.PREDICTION_WINDOW):
+                          shift=True, prediction_window=cn.PREDICTION_WINDOW):
 
     # TODO check of ik niet beter gem. temp overdag kan nemen
     if not input_weer_data.index.name == index_col:
@@ -38,7 +38,7 @@ def prep_weather_features(input_weer_data, min_max=False, index_col=cn.FIRST_DOW
     return weather_combined
 
 
-def prep_holiday_features(weekly=False, shift=False, prediction_window=cn.PREDICTION_WINDOW):
+def prep_holiday_features(weekly=False, shift=True, prediction_window=cn.PREDICTION_WINDOW):
     holiday_dates = pd.DataFrame(pd.date_range('2018-01-01', periods=1200, freq='D'), columns=['day'])
 
     christmas_dt = pd.to_datetime(['2018-12-25', '2019-12-25', '2020-12-25'])
