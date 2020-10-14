@@ -5,7 +5,7 @@ import prediction.general_purpose_functions as gf
 
 
 def prep_weather_features(input_weer_data, min_max=False, index_col=cn.FIRST_DOW,
-                          prediction_window=cn.PREDICTION_WINDOW):
+                          shift=False, prediction_window=cn.PREDICTION_WINDOW):
 
     # TODO check of ik niet beter gem. temp overdag kan nemen
     if not input_weer_data.index.name == index_col:
@@ -32,10 +32,13 @@ def prep_weather_features(input_weer_data, min_max=False, index_col=cn.FIRST_DOW
         weather_min_1w, how='left').join(
         weather_min_2w, how='left')
 
-    return weather_combined.shift(-prediction_window+1).dropna(how='any')
+    if shift:
+        return weather_combined.shift(-prediction_window + 1).dropna(how='any')
+
+    return weather_combined
 
 
-def prep_holiday_features(weekly=False, prediction_window=cn.PREDICTION_WINDOW):
+def prep_holiday_features(weekly=False, shift=False, prediction_window=cn.PREDICTION_WINDOW):
     holiday_dates = pd.DataFrame(pd.date_range('2018-01-01', periods=1200, freq='D'), columns=['day'])
 
     christmas_dt = pd.to_datetime(['2018-12-25', '2019-12-25', '2020-12-25'])
@@ -71,8 +74,10 @@ def prep_holiday_features(weekly=False, prediction_window=cn.PREDICTION_WINDOW):
 
     if weekly:
         holiday_weeks = holiday_dates.groupby(cn.FIRST_DOW, as_index=True).max()
-        holiday_weeks_fw = holiday_weeks.shift(-prediction_window)
-        return holiday_weeks_fw.dropna(how='any', inplace=False)
+        if shift:
+            holiday_weeks = holiday_weeks.shift(-prediction_window)
+
+        return holiday_weeks.dropna(how='any', inplace=False)
 
     return holiday_dates
 
@@ -95,14 +100,15 @@ def prep_covid_features(weekly=False):
     return covid_dates
 
 
-def prep_exogenous_features(weather_data_processed, prediction_window, import_file=False, save_to_csv=False):
+def prep_exogenous_features(weather_data_processed, prediction_window, import_file=False, save_to_csv=False, shift=True):
 
     if import_file:
         weather_data_processed = gf.import_temp_file(file_name=weather_data_processed,
                                                      data_loc=fm.SAVE_LOC, set_index=False)
 
-    weather_f = prep_weather_features(input_weer_data=weather_data_processed, prediction_window=prediction_window)
-    holiday_f = prep_holiday_features(weekly=True, prediction_window=prediction_window)
+    weather_f = prep_weather_features(input_weer_data=weather_data_processed, prediction_window=prediction_window,
+                                      shift=shift)
+    holiday_f = prep_holiday_features(weekly=True, prediction_window=prediction_window, shift=shift)
     covid_f = prep_covid_features(weekly=True)
 
     exog_features = weather_f.join(holiday_f, how='left').join(covid_f, how='left')
@@ -120,7 +126,8 @@ if __name__ == '__main__':
     holiday_features = prep_holiday_features(weekly=True)
     covid_features = prep_covid_features(weekly=True)
 
-    exog_features = prep_exogenous_features(weather_data_processed=weather_data, save_to_csv=False)
+    exog_features = prep_exogenous_features(weather_data_processed=weather_data, prediction_window=1,
+                                            save_to_csv=False, shift=False)
 
     gf.save_to_csv(data=exog_features, file_name='exogenous_features', folder=fm.SAVE_LOC)
 

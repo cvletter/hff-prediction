@@ -171,7 +171,7 @@ if __name__ == '__main__':
                                         data_loc=fm.SAVE_LOC,
                                         set_index=True)
 
-    data_fitting, data_prediction = prediction_setup_wrapper(prediction_date=cn.PREDICTION_DATE,
+    data_fitting, data_prediction = prediction_setup_wrapper(prediction_date='2020-10-05',
                                                              prediction_window=1,
                                                              train_obs=cn.TRAIN_OBS,
                                                              nlags=3,
@@ -180,4 +180,4 @@ if __name__ == '__main__':
                                                              exog_features=exog_features,
                                                              save_to_pkl=True)
 
-
+    gf.save_to_pkl(data=data_fitting, file_name='fit_data', folder=fm.SAVE_LOC)
