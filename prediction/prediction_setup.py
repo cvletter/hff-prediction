@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import datetime
 import prediction.general_purpose_functions as gf
 import prediction.file_management as fm
@@ -34,6 +35,34 @@ def fill_missing_values(data):
 
 
 def get_top_correlations(y, y_lags, top_correl=5):
+    # Rowwise mean of input arrays & subtract from input arrays themeselves
+    A_mA = y - y.mean()
+    B_mB = y_lags - y_lags.mean()
+
+    # Sum of squares across rows
+    ssA = (A_mA**2).sum()
+    ssB = (B_mB**2).sum()
+
+    numerator = np.dot(A_mA.T, B_mB)
+    denominator = np.sqrt(np.dot(pd.DataFrame(ssA), pd.DataFrame(ssB).T))
+    correls = abs(numerator / denominator)
+
+    corrs = pd.DataFrame(correls, index=y.columns, columns=y_lags.columns)
+
+    for i in corrs.index:
+        for j in corrs.columns:
+            if i == j[:-6]:
+                corrs.loc[i, j] = -1e9
+
+    top_correlations = {}
+    for p in corrs.index:
+        top_correlations[p] = corrs.loc[p].sort_values(ascending=False)[:top_correl].index
+
+    # Finally get corr coeff
+    return top_correlations
+
+
+def get_top_correlations_old(y, y_lags, top_correl=5):
     all_correlations = pd.DataFrame(columns=y_lags.columns, index=y.columns)
 
     for i in y.columns:
@@ -86,6 +115,7 @@ def first_difference_data(undifferenced_data, delta=1, scale=True):
 
 def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, prediction_date=cn.PREDICTION_DATE,
                        hold_out=cn.PREDICTION_WINDOW):
+
     last_train_date = prediction_date - datetime.timedelta(weeks=hold_out)
 
     fill_missing_values(data=y_m)
@@ -103,8 +133,6 @@ def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, pred
     y_ar_m = create_lags(input_data=y_m, n_lags=lags, prediction_window=hold_out)
     y_ar_nm = create_lags(input_data=y_nm, n_lags=lags, prediction_window=hold_out)
 
-    top_corr = get_top_correlations(y=y_m, y_lags=y_ar_m, top_correl=5)
-
     y_ar_m_fit = y_ar_m.loc[last_train_date:]
     X_exog_fit = X_exog.loc[y_ar_m_fit.index]
     y_true_fit = y_m.loc[y_ar_m_fit.index]
@@ -112,6 +140,8 @@ def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, pred
     yl_ar_m_prd = y_ar_m.loc[prediction_date]
     yl_ar_nm_prd = y_ar_nm.loc[prediction_date]
     X_exog_prd = X_exog.loc[prediction_date]
+
+    top_corr = get_top_correlations(y=y_true_fit, y_lags=y_ar_m_fit, top_correl=5)
     
     model_fitting = {cn.Y_TRUE: y_true_fit,
                      cn.Y_AR: y_ar_m_fit,
