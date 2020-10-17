@@ -5,18 +5,24 @@ from prediction import column_names as cn
 import datetime
 
 
-fit_data = gf.read_pkl(file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC)
-y_true = fit_data['y_true']
-X_exog = fit_data['x_exog']
+def seasonality_check(dependent_variable):
+    Y_seasons = pd.DataFrame(index=dependent_variable.columns, columns =["summer19", "fall", "winter", "spring_apr", "spring_rest", "summer20", "total"])
+    _y_summer_19 = dependent_variable[(dependent_variable.index.month >= 7) & (dependent_variable.index.month <= 9) & (dependent_variable.index.year == 2019)]
+    _y_summer_20 = dependent_variable[(dependent_variable.index.month >= 7) & (dependent_variable.index.month <= 9) & (dependent_variable.index.year == 2020)]
+    _y_fall = dependent_variable[(dependent_variable.index.month >= 10) & (dependent_variable.index.month <= 12)]
+    _y_winter = dependent_variable[(dependent_variable.index.month >= 1) & (dependent_variable.index.month <= 3)]
+    _y_spring_apr = dependent_variable[(dependent_variable.index.month >= 4) & (dependent_variable.index.month <= 4)]
+    _y_spring_rest = dependent_variable[(dependent_variable.index.month >= 5) & (dependent_variable.index.month <= 6)]
 
+    Y_seasons["summer19"] = round(_y_summer_19.mean(), 1)
+    Y_seasons["fall"] = round(_y_fall.mean(), 1)
+    Y_seasons["winter"] = round(_y_winter.mean(), 1)
+    Y_seasons["spring_apr"] = round(_y_spring_apr.mean(), 1)
+    Y_seasons["spring_rest"] = round(_y_spring_rest.mean(), 1)
+    Y_seasons["summer20"] = round(_y_summer_20.mean(), 1)
+    Y_seasons["total"] = round(dependent_variable.mean(), 1)
 
-pre_corona = datetime.datetime.strptime("2020-04-20", "%Y-%m-%d")
-post_corona = datetime.datetime.strptime("2020-06-02", "%Y-%m-%d")
-
-dependent_variable = y_true
-exog_features = X_exog
-y_pre_corona = y_true[y_true.index <= pre_corona]
-y_post_corona = y_true[y_true.index >= post_corona]
+    return Y_seasons
 
 
 def weather_correl(dependent_variable, exog_features):
@@ -98,7 +104,7 @@ def autocorrelation_check(dependent_variable):
     return Y_correls
 
 
-def level_check(dependent_variable, pre_corona='2020-04-20', post_corona='2020-06-02'):
+def level_check(dependent_variable, pre_corona='2020-04-28', post_corona='2020-06-02'):
 
     pre_corona = datetime.datetime.strptime(pre_corona, "%Y-%m-%d")
     post_corona = datetime.datetime.strptime(post_corona, "%Y-%m-%d")
@@ -118,18 +124,45 @@ def level_check(dependent_variable, pre_corona='2020-04-20', post_corona='2020-0
     return Y_level_check
 
 
+if __name__ == "__main__":
+    fit_data = gf.read_pkl(file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC)
+    y_true = fit_data['y_true']
+    X_exog = fit_data['x_exog']
 
-# Level check
-Y_level = level_check(dependent_variable=y_true)
+    pre_corona = datetime.datetime.strptime("2020-04-28", "%Y-%m-%d")
+    post_corona = datetime.datetime.strptime("2020-06-02", "%Y-%m-%d")
 
-# Autocorrelatie check
-Y_corr_total = autocorrelation_check(dependent_variable=y_true)
-Y_corr_pre_cor = autocorrelation_check(dependent_variable=y_pre_corona)
-Y_corr_post_cor = autocorrelation_check(dependent_variable=y_post_corona)
+    dependent_variable = y_true
+    exog_features = X_exog
 
-# Weer check
-Y_weer = weather_correl(dependent_variable=y_true, exog_features=X_exog)
+    y_pre_corona = y_true[y_true.index <= pre_corona]
+    y_post_corona = y_true[y_true.index >= post_corona]
 
-# Holiday
-Y_holiday = holiday_correl(dependent_variable=y_true, exog_features=X_exog)
-Y_christmas = lag_holiday_correl(dependent_variable=y_true, exog_features=X_exog, holiday='christmas')
+    # Level check
+    Y_level = level_check(dependent_variable=y_true)
+    gf.save_to_csv(data=Y_level, file_name="average_check", folder=fm.SAVE_LOC)
+
+    # Auto-correlatie check
+    Y_corr_total = autocorrelation_check(dependent_variable=y_true)
+    Y_corr_pre_cor = autocorrelation_check(dependent_variable=y_pre_corona)
+    Y_corr_post_cor = autocorrelation_check(dependent_variable=y_post_corona)
+
+    gf.save_to_csv(data=Y_corr_total, file_name="correlaties_total", folder=fm.SAVE_LOC)
+    gf.save_to_csv(data=Y_corr_pre_cor, file_name="correlaties_pre", folder=fm.SAVE_LOC)
+    gf.save_to_csv(data=Y_corr_post_cor, file_name="correlaties_post", folder=fm.SAVE_LOC)
+
+    # Weer check
+    Y_weer = weather_correl(dependent_variable=y_true, exog_features=X_exog)
+    gf.save_to_csv(data=Y_weer, file_name="weer_correlaties", folder=fm.SAVE_LOC)
+
+    # Holiday
+    Y_holiday = holiday_correl(dependent_variable=y_true, exog_features=X_exog)
+    gf.save_to_csv(data=Y_holiday, file_name="feestdagen_correlaties", folder=fm.SAVE_LOC)
+
+    Y_christmas = lag_holiday_correl(dependent_variable=y_true, exog_features=X_exog, holiday='christmas')
+    gf.save_to_csv(data=Y_christmas, file_name="kerst_correlaties", folder=fm.SAVE_LOC)
+
+    # Seasons
+    Y_seasons = seasonality_check(dependent_variable=y_true)
+    gf.save_to_csv(data=Y_seasons, file_name="seizoenen_levels", folder=fm.SAVE_LOC)
+    

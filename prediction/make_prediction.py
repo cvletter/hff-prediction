@@ -7,6 +7,7 @@ import prediction.file_management as fm
 import prediction.column_names as cn
 import prediction.general_purpose_functions as gf
 import pandas as pd
+import time
 
 
 def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
@@ -34,6 +35,7 @@ def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION
     active_products, inactive_products, weather_data_processed = data_prep_wrapper(
         prediction_date=pred_date,
         prediction_window=prediction_window,
+        reload_data=False,
         order_data_loc=order_data,
         weer_data_loc=weather_data,
         product_data_loc=product_data,
@@ -93,6 +95,7 @@ def batch_prediction(prediction_dates, model_settings):
 
 if __name__ == '__main__':
 
+    start = time.time()
     # In sample testing of 2020-31-8
     is_fit1, os_pr1, fit_data1, predict_data1 = run_prediction(pred_date='2020-10-05',
                                                                prediction_window=1,
@@ -102,6 +105,9 @@ if __name__ == '__main__':
                                                                weather_data=fm.WEER_DATA,
                                                                product_data=fm.PRODUCT_STATUS,
                                                                model_type='Negative-Binomial')
+
+    elapsed = round((time.time() - start) / 60, 2)
+    print("It takes {} minutes to run a prediction.".format(elapsed))
 
     is_fit2, os_pr2, fit_data2, predict_data2 = run_prediction(pred_date='2020-10-05',
                                                                prediction_window=2,
@@ -118,8 +124,10 @@ if __name__ == '__main__':
 
     prod_name = 'Garnalen Knoflook 140g HF'
 
-    is_performance1 = in_sample_plot(y_true=fit_data1, y_fit=is_fit1,
-                                    title="test", name=prod_name)
+    is_performance1 = in_sample_plot(y_true=fit_data2, y_fit=is_fit2,
+                                    title="test")
+
+    gf.save_to_csv(data=is_performance1, file_name="insample_2p_nb", folder=fm.SAVE_LOC)
 
     is_performance2 = in_sample_plot(y_true=fit_data2, y_fit=is_fit2,
                                     title="test", name=prod_name)

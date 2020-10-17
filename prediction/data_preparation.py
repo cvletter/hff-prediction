@@ -199,28 +199,18 @@ def find_active_products(raw_product_ts: pd.DataFrame, eval_week=cn.LAST_TRAIN_D
     return raw_product_ts[active_sold_products], raw_product_ts[active_not_sold_products]
 
 
-# Wrapping function to do entire data preparation
-def data_prep_wrapper(prediction_date: str, prediction_window: int, order_data_loc=fm.RAW_DATA,
-                      weer_data_loc=fm.WEER_DATA, product_data_loc=fm.PRODUCT_STATUS, agg_weekly=True, exclude_su=True,
-                      save_to_csv=False) -> [pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-
-    if type(prediction_date) == str:
-        prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
-
-    last_train_date = prediction_date - datetime.timedelta(weeks=prediction_window)
+def process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA, r_product_data_loc=fm.PRODUCT_STATUS,
+                 agg_weekly=True, exclude_su=True, save_to_csv=False) -> [pd.DataFrame, pd.DataFrame]:
 
     # Importeren van order data
-    order_data = order_data_processing(order_data_loc=order_data_loc)
-
-    # Tabel maken met eerste dag van de week
-    #first_dow_table = first_day_week_table(processed_order_data=order_data)
+    order_data = order_data_processing(order_data_loc=r_order_data_loc)
 
     # Importeren van weer data, op wekelijks niveau
-    weer_data = weer_data_processing(weer_data_loc=weer_data_loc, weekly=agg_weekly)
+    weer_data = weer_data_processing(weer_data_loc=r_weer_data_loc, weekly=agg_weekly)
     gf.add_first_day_week(add_to=weer_data, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
 
     # Importeren van product status data
-    product_status = product_status_processing(product_data_loc=product_data_loc)
+    product_status = product_status_processing(product_data_loc=r_product_data_loc)
 
     # Toevoegen van product status
     add_product_status(order_data_processed=order_data, product_status_processed=product_status)
@@ -232,18 +222,40 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, order_data_l
     order_data_wk = data_aggregation(filtered_data=order_data_filtered, weekly=agg_weekly, exclude_su=exclude_su)
     gf.add_first_day_week(add_to=order_data_wk, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
 
-    # Aggregeren van data naar besteldatum niveau en halffabrikaat
-    # order_data_dg = data_aggregation(filtered_data=order_data_filtered, weekly=False, su=True)
-
     # Pivoteren van data
 
     #  Shape: 110 producten, 112 datapunten
     order_data_pivot_wk = make_pivot(aggregated_data=order_data_wk,
-                                         weekly=True)
+                                     weekly=True)
 
-    #  Shape: 110 producten, 570 datapunten
-    # order_data_pivot_dg = make_pivot(aggregated_data=order_data_dg,
-    #                                    weekly=False)
+    if save_to_csv:
+        gf.save_to_csv(data=weer_data, file_name='weather_data_pre_processed', folder=fm.SAVE_LOC)
+        gf.save_to_csv(data=order_data_pivot_wk, file_name='order_data_pivot_wk_proc', folder=fm.SAVE_LOC)
+
+    return order_data_pivot_wk, weer_data
+
+
+# Wrapping function to do entire data preparation
+def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data = False,
+                      order_data_loc=fm.RAW_DATA, weer_data_loc=fm.WEER_DATA, product_data_loc=fm.PRODUCT_STATUS,
+                      agg_weekly=True, exclude_su=True, save_to_csv=False) -> [pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+
+    if type(prediction_date) == str:
+        prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
+
+    last_train_date = prediction_date - datetime.timedelta(weeks=prediction_window)
+
+    if reload_data:
+        order_data_pivot_wk, weer_data = process_data(r_order_data_loc=order_data_loc, r_weer_data_loc=weer_data_loc,
+                                                      r_product_data_loc=product_data_loc, agg_weekly=agg_weekly,
+                                                      exclude_su=exclude_su, save_to_csv=False)
+
+    else:
+        order_data_pivot_wk = gf.import_temp_file(file_name=fm.ORDER_DATA_PIVOT_WK, data_loc=fm.SAVE_LOC,
+                                                  set_index=True)
+
+        weer_data = gf.import_temp_file(file_name=fm.WEER_DATA_PRE_PROC, data_loc=fm.SAVE_LOC,
+                                                  set_index=True)
 
     # Actieve producten selecteren: 66 actief; 45 inactief
     order_data_wk_a, order_data_wk_ia = find_active_products(
@@ -263,6 +275,11 @@ if __name__ == '__main__':
     pred_date = datetime.datetime.strptime('2020-10-05', "%Y-%m-%d")
     order_data_wk_a, order_data_wk_ia, weer_data = data_prep_wrapper(prediction_date=pred_date,
                                                                      prediction_window=1)
+
+    order_data_pivot_wk, weather_data_pre_processed = process_data(r_order_data_loc=fm.RAW_DATA,
+                                                                   r_weer_data_loc=fm.WEER_DATA,
+                                                                   r_product_data_loc=fm.PRODUCT_STATUS,
+                 agg_weekly=True, exclude_su=True, save_to_csv=True)
 
     gf.save_to_csv(data=weer_data, file_name='weer_data_processed', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=order_data_wk_a, file_name='actieve_halffabricaten_wk', folder=fm.SAVE_LOC)
