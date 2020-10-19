@@ -49,6 +49,9 @@ def import_temp_file(file_name, data_loc, set_index=True):
 
     return data
 
+def str2date(date_str):
+    return datetime.datetime.strptime(date_str, "%Y-%m-%d")
+
 
 def add_week_year(data, date_name=cn.ORDER_DATE):
     set_date = False

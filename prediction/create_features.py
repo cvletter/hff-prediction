@@ -2,6 +2,7 @@ import pandas as pd
 import prediction.column_names as cn
 import prediction.file_management as fm
 import prediction.general_purpose_functions as gf
+import datetime
 
 
 def prep_weather_features(input_weer_data, min_max=False, index_col=cn.FIRST_DOW,
@@ -82,6 +83,28 @@ def prep_holiday_features(weekly=False, shift=True, prediction_window=cn.PREDICT
     return holiday_dates
 
 
+def prep_level_shifts():
+
+    def str2date(date_str):
+        return datetime.datetime.strptime(date_str, "%Y-%m-%d")
+
+    level_shifts = pd.DataFrame(pd.date_range('2018-01-01', periods=1200, freq='D'), columns=['day'])
+
+    # this becomes the new constant
+    # level_shifts['period_1'] = [1 if x <= str2date('2019-03-11') else 0 for x in level_shifts['day']]
+    level_shifts['period_2'] = [1 if str2date('2019-04-15') <= x <= str2date('2020-04-27') else 0 for x in level_shifts['day']]
+
+    level_shifts['period_3'] = [1 if x >= str2date('2020-06-01') else 0 for x in level_shifts['day']]
+    level_shifts['trans_period_1'] = [1 if (str2date('2019-03-18') <= x <= str2date('2019-04-08')) else 0 for x in level_shifts['day']]
+    level_shifts['trans_period_2'] = [1 if (str2date('2020-05-04') <= x <= str2date('2020-05-25')) else 0 for x in level_shifts['day']]
+
+    gf.add_week_year(data=level_shifts, date_name='day')
+    gf.add_first_day_week(add_to=level_shifts, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
+    level_shifts.drop('day', axis=1, inplace=True)
+
+    return level_shifts.groupby(cn.FIRST_DOW, as_index=True).max()
+
+
 def prep_covid_features(weekly=False):
 
     covid_dates = pd.DataFrame(pd.date_range('2018-01-01', periods=1200, freq='D'), columns=['day'])
@@ -110,8 +133,9 @@ def prep_exogenous_features(weather_data_processed, prediction_window, import_fi
                                       shift=shift)
     holiday_f = prep_holiday_features(weekly=True, prediction_window=prediction_window, shift=shift)
     covid_f = prep_covid_features(weekly=True)
+    level_f = prep_level_shifts()
 
-    exog_features = weather_f.join(holiday_f, how='left').join(covid_f, how='left')
+    exog_features = weather_f.join(holiday_f, how='left').join(covid_f, how='left').join(level_f, how='left')
 
     if save_to_csv:
         gf.save_to_csv(data=exog_features, file_name='exogenous_features', folder=fm.SAVE_LOC)

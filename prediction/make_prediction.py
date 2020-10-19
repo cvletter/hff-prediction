@@ -104,10 +104,10 @@ if __name__ == '__main__':
                                                                order_data=fm.RAW_DATA,
                                                                weather_data=fm.WEER_DATA,
                                                                product_data=fm.PRODUCT_STATUS,
-                                                               model_type='Negative-Binomial')
+                                                               model_type='OLS')
 
-    elapsed = round((time.time() - start) / 60, 2)
-    print("It takes {} minutes to run a prediction.".format(elapsed))
+    elapsed = round((time.time() - start), 2)
+    print("It takes {} seconds to run a prediction.".format(elapsed))
 
     is_fit2, os_pr2, fit_data2, predict_data2 = run_prediction(pred_date='2020-10-05',
                                                                prediction_window=2,
@@ -124,7 +124,7 @@ if __name__ == '__main__':
 
     prod_name = 'Garnalen Knoflook 140g HF'
 
-    is_performance1 = in_sample_plot(y_true=fit_data2, y_fit=is_fit2,
+    is_performance1 = in_sample_plot(y_true=fit_data1, y_fit=is_fit1,
                                     title="test")
 
     gf.save_to_csv(data=is_performance1, file_name="insample_2p_nb", folder=fm.SAVE_LOC)

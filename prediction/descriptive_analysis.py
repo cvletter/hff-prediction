@@ -3,7 +3,7 @@ from prediction import file_management as fm
 from prediction import general_purpose_functions as gf
 from prediction import column_names as cn
 import datetime
-
+import matplotlib.pyplot as plt
 
 def seasonality_check(dependent_variable):
     Y_seasons = pd.DataFrame(index=dependent_variable.columns, columns =["summer19", "fall", "winter", "spring_apr", "spring_rest", "summer20", "total"])
@@ -104,7 +104,7 @@ def autocorrelation_check(dependent_variable):
     return Y_correls
 
 
-def level_check(dependent_variable, pre_corona='2020-04-28', post_corona='2020-06-02'):
+def level_check(dependent_variable, break_dates=[]):
 
     pre_corona = datetime.datetime.strptime(pre_corona, "%Y-%m-%d")
     post_corona = datetime.datetime.strptime(post_corona, "%Y-%m-%d")
@@ -125,9 +125,19 @@ def level_check(dependent_variable, pre_corona='2020-04-28', post_corona='2020-0
 
 
 if __name__ == "__main__":
+    raw_data = gf.import_temp_file(file_name=fm.ORDER_DATA_PIVOT_WK, data_loc=fm.SAVE_LOC, set_index=True)
+    raw_data['total'] = raw_data.sum(axis=1)
+    raw_data = raw_data[raw_data.index <= '2020-10-05']
+
+    y = raw_data['total']
+
+
+
     fit_data = gf.read_pkl(file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC)
     y_true = fit_data['y_true']
     X_exog = fit_data['x_exog']
+
+    y_sum = y_true['model_products_sum']
 
     pre_corona = datetime.datetime.strptime("2020-04-28", "%Y-%m-%d")
     post_corona = datetime.datetime.strptime("2020-06-02", "%Y-%m-%d")
@@ -165,4 +175,3 @@ if __name__ == "__main__":
     # Seasons
     Y_seasons = seasonality_check(dependent_variable=y_true)
     gf.save_to_csv(data=Y_seasons, file_name="seizoenen_levels", folder=fm.SAVE_LOC)
-    
