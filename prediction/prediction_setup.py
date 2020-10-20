@@ -201,8 +201,8 @@ if __name__ == '__main__':
                                         data_loc=fm.SAVE_LOC,
                                         set_index=True)
 
-    data_fitting, data_prediction = prediction_setup_wrapper(prediction_date='2020-10-05',
-                                                             prediction_window=1,
+    data_fitting2, data_prediction2 = prediction_setup_wrapper(prediction_date='2020-09-14',
+                                                             prediction_window=2,
                                                              train_obs=cn.TRAIN_OBS,
                                                              nlags=3,
                                                              difference=False,

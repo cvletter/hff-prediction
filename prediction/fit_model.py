@@ -134,11 +134,9 @@ def fit_and_predict(fit_dict, predict_dict, prediction_window, model_type='OLS')
 
 
 if __name__ == '__main__':
-    fit_data = gf.read_pkl(file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC)
-    predict_data = gf.read_pkl(file_name=fm.PREDICT_DATA, data_loc=fm.SAVE_LOC)
 
-    Yis_fit, model_fits = batch_fit_model(Y=fit_data[cn.Y_TRUE], Y_ar=fit_data[cn.Y_AR], X_exog=fit_data[cn.X_EXOG],
-                                          Y_cross_ar=fit_data['correlations'], model='Negative-Binomial')
+
+
 
     Yos_pred = batch_make_prediction(Yp_ar_m=predict_data[cn.Y_AR_M], Yp_ar_nm=predict_data[cn.Y_AR_NM],
                                      Xp_exog=predict_data[cn.X_EXOG], Y_cross_ar=fit_data["correlations"],
