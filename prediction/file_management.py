@@ -11,6 +11,6 @@ WEER_DATA_PRE_PROC = "weather_data_pre_processed_20201017_1113.csv"
 WEER_DATA_PREP = 'weer_data_processed_20201014_1140.csv'
 ORDER_DATA_ACT = 'actieve_halffabricaten_wk_20201014_1140.csv'
 ORDER_DATA_INACT = 'inactieve_halffabricaten_wk_20201014_1140.csv'
-EXOG_FEATURES = 'exogenous_features_20201014_1157.csv'
+EXOG_FEATURES = 'exogenous_features_20201021_1928.csv'
 FIT_DATA = 'fit_data_20201014_122.p'
 PREDICT_DATA = 'prediction_data_2020108_2013.p'

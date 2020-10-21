@@ -236,7 +236,7 @@ def process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA, r_p
 
 
 # Wrapping function to do entire data preparation
-def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data = False,
+def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data=False,
                       order_data_loc=fm.RAW_DATA, weer_data_loc=fm.WEER_DATA, product_data_loc=fm.PRODUCT_STATUS,
                       agg_weekly=True, exclude_su=True, save_to_csv=False) -> [pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 

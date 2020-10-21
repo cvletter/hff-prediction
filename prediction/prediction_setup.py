@@ -62,43 +62,18 @@ def get_top_correlations(y, y_lags, top_correl=5):
     return top_correlations
 
 
-def get_top_correlations_old(y, y_lags, top_correl=5):
-    all_correlations = pd.DataFrame(columns=y_lags.columns, index=y.columns)
+def create_lags(input_data, n_lags=cn.N_LAGS):
+    data_lags = pd.DataFrame(index=input_data.index)
 
-    for i in y.columns:
-        for j in y_lags.columns:
-            if j[:-6] == i:
-                all_correlations.loc[i, j] = -1e9
+    for i in input_data.columns:
+        for k in range(0, n_lags):
+            if k == 0:
+                _temp_name = "{}_current_w".format(i)
             else:
-                all_correlations.loc[i, j] = abs(y[i].corr(y_lags[j]))
+                _temp_name = "{}_last{}w".format(i, k)
+            data_lags[_temp_name] = input_data[i].shift(-k)
 
-    top_correlations = {}
-    for p in all_correlations.index:
-        top_correlations[p] = all_correlations.loc[p].sort_values(ascending=False)[:top_correl].index
-
-    return top_correlations
-
-
-def create_lags(input_data, n_lags=cn.N_LAGS, prediction_window=cn.PREDICTION_WINDOW):
-    data_lags = input_data.copy(deep=True)
-    first_lag_cols = []
-    for product in input_data.columns:
-        first_lag_cols.append("{}_lag_{}".format(product, prediction_window))
-
-    data_lags.columns = first_lag_cols
-    data_lags.sort_index(ascending=False, inplace=True)
-
-    for lag in range(1, n_lags):
-        for product in input_data.columns:
-            lag_name = "{}_lag_{}".format(product, lag + prediction_window)
-            data_lags[lag_name] = input_data[product].shift(-lag)
-
-    data_lags['prediction_date'] = data_lags.index + datetime.timedelta(days=prediction_window * 7)
-    data_lags.rename(index=data_lags['prediction_date'], inplace=True)
-
-    data_lags.drop('prediction_date', axis=1, inplace=True)
-
-    return data_lags[:-n_lags]
+    return data_lags
 
 
 def first_difference_data(undifferenced_data, delta=1, scale=True):
@@ -116,6 +91,13 @@ def first_difference_data(undifferenced_data, delta=1, scale=True):
 def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, prediction_date=cn.PREDICTION_DATE,
                        hold_out=cn.PREDICTION_WINDOW):
 
+    def create_predictive_context(mod, non_mod, exog_f, hold_out=hold_out):
+
+        exog_f = exog_f.loc[mod.index]
+
+        return mod.shift(-hold_out)[:-hold_out], non_mod.shift(-hold_out)[:-hold_out], \
+               exog_f.shift(-hold_out)[:-hold_out]
+
     last_train_date = prediction_date - datetime.timedelta(weeks=hold_out)
 
     fill_missing_values(data=y_m)
@@ -129,17 +111,23 @@ def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, pred
         y_nm = first_difference_data(undifferenced_data=y_nm, delta=1, scale=False)
 
     # TODO CREATE CORRELATION FEATURE SELECTION HERE
+    y_m_lags = create_lags(input_data=y_m, n_lags=lags)
+    y_nm_lags = create_lags(input_data=y_nm, n_lags=lags)
 
-    y_ar_m = create_lags(input_data=y_m, n_lags=lags, prediction_window=hold_out)
-    y_ar_nm = create_lags(input_data=y_nm, n_lags=lags, prediction_window=hold_out)
+    y_ar_m, y_ar_nm, X_exog_l = create_predictive_context(mod=y_m_lags, non_mod=y_nm_lags, exog_f=X_exog,
+                                                          hold_out=hold_out)
 
     y_ar_m_fit = y_ar_m.loc[last_train_date:]
-    X_exog_fit = X_exog.loc[y_ar_m_fit.index]
+    X_exog_fit = X_exog_l.loc[y_ar_m_fit.index]
     y_true_fit = y_m.loc[y_ar_m_fit.index]
 
-    yl_ar_m_prd = y_ar_m.loc[prediction_date]
-    yl_ar_nm_prd = y_ar_nm.loc[prediction_date]
-    X_exog_prd = X_exog.loc[prediction_date]
+    yl_ar_m_prd = y_m.loc[last_train_date]
+    yl_ar_nm_prd = y_nm.loc[last_train_date]
+    X_exog_prd = X_exog_l.loc[last_train_date]
+
+    yl_ar_m_prd.name += datetime.timedelta(days=hold_out * 7)
+    yl_ar_nm_prd.name += datetime.timedelta(days=hold_out * 7)
+    X_exog_prd.name += datetime.timedelta(days=hold_out * 7)
 
     top_corr = get_top_correlations(y=y_true_fit, y_lags=y_ar_m_fit, top_correl=5)
     
@@ -201,7 +189,7 @@ if __name__ == '__main__':
                                         data_loc=fm.SAVE_LOC,
                                         set_index=True)
 
-    data_fitting2, data_prediction2 = prediction_setup_wrapper(prediction_date='2020-09-14',
+    data_fitting, data_prediction = prediction_setup_wrapper(prediction_date='2020-08-31',
                                                              prediction_window=2,
                                                              train_obs=cn.TRAIN_OBS,
                                                              nlags=3,
