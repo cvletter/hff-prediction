@@ -108,7 +108,8 @@ def fit_model(y, X, model='OLS'):
 def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
     Y_pred = pd.DataFrame(index=Y.index)
     fitted_models = {}
-    optimized_features = {}
+    optimized_ar_features = {}
+    optimized_exog_features = {}
 
     for product in Y.columns:
         y_name = product
@@ -139,14 +140,20 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
             mdl_fit = fit_model(y=y, X=selected_features, model=model)
             resid = y - mdl_fit.predict()
 
+        ar_cols = [y_name in x for x in selected_features.columns]
+        exog_cols = [not x for x in ar_cols]
+        ar_features = selected_features.iloc[:, ar_cols]
+        exog_features = selected_features.iloc[:, exog_cols]
+
         Y_pred[y_name] = mdl_fit.predict()
         fitted_models[y_name] = mdl_fit
-        optimized_features[y_name] = selected_features.columns
+        optimized_ar_features[y_name] = ar_features.columns
+        optimized_exog_features[y_name] = exog_features.columns
 
-    return Y_pred, fitted_models, optimized_features
+    return Y_pred, fitted_models, optimized_ar_features, optimized_exog_features
 
 
-def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, Y_cross_ar, fitted_models, prediction_window,
+def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, Yf_exog_opt, prediction_window,
                           add_constant=True, prep_input=True, find_comparable_model=True):
 
     def series_to_dataframe(pd_series):
@@ -159,25 +166,35 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, Y_cross_ar, fitted_models,
 
     Y_pred = pd.DataFrame(index=Yp_ar_m.index)
 
-    # product_m = Yp_ar_m.columns[0]
+    all_possible_features = Yp_ar
+
+    product_m = Yp_ar_m.columns[0]
     for product_m in Yp_ar_m.columns:
-        y_name_m = product_m[:-6]
+        y_name_m = product_m[:-7]
 
         lag_index = [y_name_m in x for x in Yp_ar_m.columns]
         Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
 
-        Xp_arx_m = Yp_ar_m[Y_cross_ar[y_name_m]]
+        Xf_ar_m = Yf_ar_opt[y_name_m]
+        Xp_ar_m = Xp_ar_m.iloc[:, :Xf_ar_m.shape[0]]
+
+        Xp_all_features = Yp_ar_m.join(Xp_exog, how='left')
+
+        Xf_exog_m = Yf_exog_opt[y_name_m].drop('constant')
+
+        Xp_arx_m = Xp_all_features[Xf_exog_m]
 
         if add_constant:
             Xp_ar_m.insert(0, 'constant', 1)
 
-        Xp_tot = Xp_ar_m.join(Xp_arx_m, how='left').join(Xp_exog, how='left')
+        Xp_tot = Xp_ar_m.join(Xp_arx_m, how='left')
 
         Y_pred[y_name_m] = fitted_models[y_name_m].predict(Xp_tot)
 
+    # TODO CONTINUE HERE
     # product_nm = Yp_ar_nm.columns[0]
     for product_nm in Yp_ar_nm.columns:
-        y_name_nm = product_nm[:-6]  # remove '_lag_1 or 2'
+        y_name_nm = product_nm[:-7]  # remove '_lag_1 or 2'
 
         lag_index = [y_name_nm in x for x in Yp_ar_nm.columns]
         Xp_ar_nm = Yp_ar_nm.iloc[:, lag_index]
@@ -232,11 +249,20 @@ if __name__ == '__main__':
     Y_cross_ar = fit_dict['correlations']
     model = model_type
 
-    Yis_fit, model_fits, model_features = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
+    Yp_ar_m = predict_dict[cn.Y_AR_M]
+    Yp_ar_nm = predict_dict[cn.Y_AR_NM]
+    Xp_exog = predict_dict[cn.X_EXOG]
+    Yf_ar_opt = ar_f
+    Yf_exog_opt = exog_f
+    fitted_models = model_fits
+    find_comparable_model = True
+    prediction_window = 2
+
+    Yis_fit, model_fits, ar_f, exog_f = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
                                                           X_exog=fit_dict[cn.X_EXOG], model=model_type)
 
     Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
-                                     Xp_exog=predict_dict[cn.X_EXOG], Y_cross_ar=fit_dict["correlations"],
+                                     Xp_exog=predict_dict[cn.X_EXOG], Yf_ar_opt=ar_f, Yf_exog_opt=exog_f,
                                      fitted_models=model_fits,
                                      find_comparable_model=True, prediction_window=2)
 

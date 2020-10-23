@@ -118,8 +118,8 @@ def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, pred
     X_exog_fit = X_exog_l.loc[y_ar_m_fit.index]
     y_true_fit = y_m.loc[y_ar_m_fit.index]
 
-    yl_ar_m_prd = y_m.loc[last_train_date]
-    yl_ar_nm_prd = y_nm.loc[last_train_date]
+    yl_ar_m_prd = y_m_lags.loc[last_train_date]
+    yl_ar_nm_prd = y_nm_lags.loc[last_train_date]
     X_exog_prd = X_exog_l.loc[last_train_date]
 
     yl_ar_m_prd.name += datetime.timedelta(days=hold_out * 7)
