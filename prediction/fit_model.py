@@ -1,12 +1,43 @@
 import statsmodels.api as sm
 import pandas as pd
+import numpy as np
 import prediction.general_purpose_functions as gf
 import prediction.file_management as fm
 import prediction.column_names as cn
 
-y = Y['Boerenmetworst BLK 90g HF']
-lag_index = [y.name in x for x in Y_ar.columns]
-y_ar = Y_ar.iloc[:, lag_index]
+
+def get_top_correlations(y, y_lags, top_correl=5):
+    # Rowwise mean of input arrays & subtract from input arrays themeselves
+
+    A_mA = y - y.mean()
+    B_mB = y_lags - y_lags.mean()
+
+    # Sum of squares across rows
+    ssA = (A_mA**2).sum()
+    ssB = (B_mB**2).sum()
+
+    numerator = np.dot(A_mA.T, B_mB)
+    denominator = np.sqrt(np.dot(pd.DataFrame(ssA), pd.DataFrame(ssB).T))
+    correls = abs(numerator / denominator)
+
+    corrs = pd.DataFrame(correls, index=y.columns, columns=y_lags.columns)
+
+    for i in corrs.index:
+        for j in corrs.columns:
+            if i == j[:-7]:
+                corrs.loc[i, j] = -1e9
+
+    top_correlations = {}
+    if len(y.columns) == 1 & top_correl == 1:
+        top_name = corrs.T.idxmax()[0]
+        top_value = round(corrs[top_name].values[0], 3)
+        return top_name, top_value
+    else:
+        for p in corrs.index:
+            top_correlations[p] = corrs.loc[p].sort_values(ascending=False)[:top_correl].index
+
+        # Finally get corr coeff
+        return top_correlations, corrs
 
 
 def optimize_ar_model(y, y_ar, X_exog, constant=True, model='OLS'):
@@ -37,7 +68,9 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model='OLS'):
 
     lag_values = y_ar.iloc[:, :optimal_lags]
 
-    return lag_values.join(use_level_features, how='left')
+    X_exog_rf = X_exog.drop(columns=level_cols, inplace=False, errors='ignore')
+
+    return lag_values.join(use_level_features, how='left'), X_exog_rf
 
 
 def fit_model(y, X, model='OLS'):
@@ -74,28 +107,43 @@ def fit_model(y, X, model='OLS'):
 
 def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
     Y_pred = pd.DataFrame(index=Y.index)
-
-
-
-
     fitted_models = {}
-    # y_name = Y.columns[0]
+    optimized_features = {}
+
     for product in Y.columns:
         y_name = product
         y = Y[y_name]
-
         lag_index = [y_name in x for x in Y_ar.columns]
         y_ar = Y_ar.iloc[:, lag_index]
 
-        ar_baseline = optimize_ar_model(y=y,y_ar=y_ar, X_exog=X_exog,constant=add_constant, model=model)
+        lag_index_other = [y_name not in x for x in Y_ar.columns]
+        y_ar_other = Y_ar.iloc[:, lag_index_other]
 
-        X_tot = x_ar.join(Y_arx, how='left').join(X_exog, how='left')
-        temp_fit = fit_model(y=y, X=X_tot, add_constant=True, model='OLS')
+        ar_baseline, X_exog_rf = optimize_ar_model(y=y, y_ar=y_ar, X_exog=X_exog, constant=add_constant, model=model)
+        baseline_fit = fit_model(y=y, X=ar_baseline, model=model)
 
-        Y_pred[y_name] = temp_fit.predict()
-        fitted_models[y_name] = temp_fit
+        all_possible_features = y_ar_other.join(X_exog_rf, how='left')
 
-    return Y_pred, fitted_models
+        resid = y - baseline_fit.predict()
+        correlation_val = 1
+        selected_features = ar_baseline.copy(deep=True)
+
+        if add_constant:
+            selected_features.insert(0, 'constant', 1)
+
+        while correlation_val > 0.10 and selected_features.shape[1] < 20:
+
+            corr_name, correlation_val = get_top_correlations(y=pd.DataFrame(resid), y_lags=all_possible_features,
+                                                              top_correl=1)
+            selected_features = selected_features.join(all_possible_features[corr_name], how='left')
+            mdl_fit = fit_model(y=y, X=selected_features, model=model)
+            resid = y - mdl_fit.predict()
+
+        Y_pred[y_name] = mdl_fit.predict()
+        fitted_models[y_name] = mdl_fit
+        optimized_features[y_name] = selected_features.columns
+
+    return Y_pred, fitted_models, optimized_features
 
 
 def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, Y_cross_ar, fitted_models, prediction_window,
@@ -184,10 +232,8 @@ if __name__ == '__main__':
     Y_cross_ar = fit_dict['correlations']
     model = model_type
 
-
-
-    Yis_fit, model_fits = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR], X_exog=fit_dict[cn.X_EXOG],
-                                          Y_cross_ar=fit_dict['correlations'], model=model_type)
+    Yis_fit, model_fits, model_features = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
+                                                          X_exog=fit_dict[cn.X_EXOG], model=model_type)
 
     Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
                                      Xp_exog=predict_dict[cn.X_EXOG], Y_cross_ar=fit_dict["correlations"],
