@@ -4,53 +4,93 @@ import prediction.general_purpose_functions as gf
 import prediction.file_management as fm
 import prediction.column_names as cn
 
+y = Y['Boerenmetworst BLK 90g HF']
+lag_index = [y.name in x for x in Y_ar.columns]
+y_ar = Y_ar.iloc[:, lag_index]
 
-def batch_fit_model(Y, Y_ar, X_exog, Y_cross_ar, add_constant=True, model='Negative-Binomial'):
+
+def optimize_ar_model(y, y_ar, X_exog, constant=True, model='OLS'):
+    level_cols = ['period_2', 'period_3', 'trans_period_1', 'trans_period_2']
+    all_level_features = X_exog[level_cols]
+    sorted_lags = y_ar.columns.sort_values(ascending=True)
+
+    use_level_features = all_level_features.loc[:, (all_level_features != 0).any(axis=0)]
+
+    optimal_lags = 1
+    min_fit_val = 1e9
+
+    for lag in range(1, len(sorted_lags)+1):
+        _y_ar = y_ar.iloc[:, :lag]
+        X_ar = _y_ar.join(use_level_features, how='left')
+
+        if constant:
+            X_ar.insert(0, 'constant', 1)
+
+        _fit = fit_model(y=y, X=X_ar, model=model)
+
+        _fit_value = round((abs(y - _fit.predict())/y).median(), 5)
+        print("Current fit value {}, with {} lags".format(_fit_value, lag))
+
+        if _fit_value < min_fit_val:
+            min_fit_val = _fit_value
+            optimal_lags = lag
+
+    lag_values = y_ar.iloc[:, :optimal_lags]
+
+    return lag_values.join(use_level_features, how='left')
+
+
+def fit_model(y, X, model='OLS'):
+
+    if model == 'OLS':
+        temp_mdl = sm.OLS(y, X, missing='drop')
+
+    elif model == 'Poisson':
+        temp_mdl = sm.GLM(y, X,
+                          family=sm.families.Poisson(),
+                          missing='drop')
+
+    elif model == 'Negative-Binomial':
+        aux_reg_feat = pd.DataFrame(index=y.index)
+
+        temp_mdl_poisson = sm.GLM(y, X,
+                                  family=sm.families.Poisson(),
+                                  missing='drop')
+
+        temp_poisson_fit = temp_mdl_poisson.fit()
+
+        aux_reg_feat['lambda'] = temp_poisson_fit.mu
+        aux_reg_feat['dep_var'] = ((y - temp_poisson_fit.mu) ** 2 - y) / temp_poisson_fit.mu
+        aux_reg = sm.OLS(aux_reg_feat['dep_var'], aux_reg_feat['lambda']).fit()
+
+        alpha_fit = aux_reg.params[0]
+
+        temp_mdl = sm.GLM(y, X,
+                          family=sm.families.NegativeBinomial(alpha=alpha_fit),
+                          missing='drop')
+
+    return temp_mdl.fit()
+
+
+def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
     Y_pred = pd.DataFrame(index=Y.index)
+
+
+
 
     fitted_models = {}
     # y_name = Y.columns[0]
     for product in Y.columns:
         y_name = product
         y = Y[y_name]
-        Y_arx = Y_ar[Y_cross_ar[y_name]]
 
         lag_index = [y_name in x for x in Y_ar.columns]
-        x_ar = Y_ar.iloc[:, lag_index]
+        y_ar = Y_ar.iloc[:, lag_index]
 
-        if add_constant:
-            x_ar.insert(0, 'constant', 1)
+        ar_baseline = optimize_ar_model(y=y,y_ar=y_ar, X_exog=X_exog,constant=add_constant, model=model)
 
         X_tot = x_ar.join(Y_arx, how='left').join(X_exog, how='left')
-
-        if model == 'OLS':
-            temp_mdl = sm.OLS(y, X_tot, missing='drop')
-
-        elif model == 'Poisson':
-            temp_mdl = sm.GLM(y, X_tot,
-                              family=sm.families.Poisson(),
-                              missing='drop')
-
-        elif model == 'Negative-Binomial':
-            aux_reg_feat = pd.DataFrame(index=y.index)
-
-            temp_mdl_poisson = sm.GLM(y, X_tot,
-                              family=sm.families.Poisson(),
-                              missing='drop')
-
-            temp_poisson_fit = temp_mdl_poisson.fit()
-
-            aux_reg_feat['lambda'] = temp_poisson_fit.mu
-            aux_reg_feat['dep_var'] = ((y - temp_poisson_fit.mu)**2 - y) / temp_poisson_fit.mu
-            aux_reg = sm.OLS(aux_reg_feat['dep_var'], aux_reg_feat['lambda']).fit()
-
-            alpha_fit = aux_reg.params[0]
-
-            temp_mdl = sm.GLM(y, X_tot,
-                              family=sm.families.NegativeBinomial(alpha=alpha_fit),
-                              missing='drop')
-
-        temp_fit = temp_mdl.fit()
+        temp_fit = fit_model(y=y, X=X_tot, add_constant=True, model='OLS')
 
         Y_pred[y_name] = temp_fit.predict()
         fitted_models[y_name] = temp_fit
@@ -135,13 +175,24 @@ def fit_and_predict(fit_dict, predict_dict, prediction_window, model_type='OLS')
 
 if __name__ == '__main__':
 
+    fit_dict = gf.read_pkl(file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC)
+    predict_dict = gf.read_pkl(file_name=fm.PREDICT_DATA, data_loc=fm.SAVE_LOC)
+    model_type = 'OLS'
+    Y = fit_dict[cn.Y_TRUE]
+    Y_ar = fit_dict[cn.Y_AR]
+    X_exog = fit_dict[cn.X_EXOG]
+    Y_cross_ar = fit_dict['correlations']
+    model = model_type
 
 
 
-    Yos_pred = batch_make_prediction(Yp_ar_m=predict_data[cn.Y_AR_M], Yp_ar_nm=predict_data[cn.Y_AR_NM],
-                                     Xp_exog=predict_data[cn.X_EXOG], Y_cross_ar=fit_data["correlations"],
+    Yis_fit, model_fits = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR], X_exog=fit_dict[cn.X_EXOG],
+                                          Y_cross_ar=fit_dict['correlations'], model=model_type)
+
+    Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
+                                     Xp_exog=predict_dict[cn.X_EXOG], Y_cross_ar=fit_dict["correlations"],
                                      fitted_models=model_fits,
-                                     find_comparable_model=True, prediction_window=1)
+                                     find_comparable_model=True, prediction_window=2)
 
     gf.save_to_csv(data=Yis_fit, file_name="insample_fit", folder=fm.SAVE_LOC)
 

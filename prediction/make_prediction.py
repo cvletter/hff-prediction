@@ -42,8 +42,7 @@ def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION
         agg_weekly=True, exclude_su=True,
         save_to_csv=False)
 
-    exogenous_features = prep_exogenous_features(weather_data_processed=weather_data_processed, save_to_csv=False,
-                                                 prediction_window=prediction_window)
+    exogenous_features = prep_exogenous_features(weather_data_processed=weather_data_processed, save_to_csv=False)
 
     fit_data, predict_data = prediction_setup_wrapper(
         prediction_date=pred_date,

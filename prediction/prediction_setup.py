@@ -51,7 +51,7 @@ def get_top_correlations(y, y_lags, top_correl=5):
 
     for i in corrs.index:
         for j in corrs.columns:
-            if i == j[:-6]:
+            if i == j[:-7]:
                 corrs.loc[i, j] = -1e9
 
     top_correlations = {}
@@ -67,13 +67,10 @@ def create_lags(input_data, n_lags=cn.N_LAGS):
 
     for i in input_data.columns:
         for k in range(0, n_lags):
-            if k == 0:
-                _temp_name = "{}_current_w".format(i)
-            else:
-                _temp_name = "{}_last{}w".format(i, k)
+            _temp_name = "{}_last{}w".format(i, k)
             data_lags[_temp_name] = input_data[i].shift(-k)
 
-    return data_lags
+    return data_lags[:-n_lags]
 
 
 def first_difference_data(undifferenced_data, delta=1, scale=True):
@@ -189,7 +186,7 @@ if __name__ == '__main__':
                                         data_loc=fm.SAVE_LOC,
                                         set_index=True)
 
-    data_fitting, data_prediction = prediction_setup_wrapper(prediction_date='2020-08-31',
+    data_fitting, data_prediction = prediction_setup_wrapper(prediction_date='2020-10-05',
                                                              prediction_window=2,
                                                              train_obs=cn.TRAIN_OBS,
                                                              nlags=3,
@@ -199,3 +196,4 @@ if __name__ == '__main__':
                                                              save_to_pkl=True)
 
     gf.save_to_pkl(data=data_fitting, file_name='fit_data', folder=fm.SAVE_LOC)
+    gf.save_to_pkl(data=data_prediction, file_name='predict_data', folder=fm.SAVE_LOC)

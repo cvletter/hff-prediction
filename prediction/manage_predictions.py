@@ -6,7 +6,7 @@ import prediction.general_purpose_functions as gf
 import pandas as pd
 
 
-prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-5', periods=40, freq='W-MON').astype(str),
+prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-5', periods=3, freq='W-MON').astype(str),
                                 columns=[cn.FIRST_DOW])
 
 ols1_settings = {'prediction_window': 1, 'train_size': 60, 'differencing': False, 'ar_lags': 4,
