@@ -1,5 +1,5 @@
 from prediction.data_preparation import data_prep_wrapper
-from prediction.create_features import prep_exogenous_features
+from prediction.create_features import prep_all_features
 from prediction.prediction_setup import prediction_setup_wrapper
 from prediction.fit_model import fit_and_predict
 from prediction.prediction_evaluation import in_sample_plot
@@ -32,7 +32,7 @@ def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION
         return avg_fit_error_df, avg_pct_fit_error_df
 
     # Import and prepare data
-    active_products, inactive_products, weather_data_processed = data_prep_wrapper(
+    active_products, inactive_products, weather_data_processed, order_data_su = data_prep_wrapper(
         prediction_date=pred_date,
         prediction_window=prediction_window,
         reload_data=False,
@@ -42,7 +42,12 @@ def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION
         agg_weekly=True, exclude_su=True,
         save_to_csv=False)
 
-    exogenous_features = prep_exogenous_features(weather_data_processed=weather_data_processed, save_to_csv=False)
+    exogenous_features = prep_all_features(weather_data_processed=weather_data_processed,
+                                           order_data_su=order_data_su,
+                                           prediction_date=pred_date,
+                                           hold_out=prediction_window,
+                                           train_obs=train_obs,
+                                           save_to_csv=False)
 
     fit_data, predict_data = prediction_setup_wrapper(
         prediction_date=pred_date,
@@ -55,7 +60,7 @@ def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION
         save_to_pkl=False)
 
     in_sample_fit, out_of_sample_prediction = fit_and_predict(fit_dict=fit_data, predict_dict=predict_data,
-                                                              model_type=model_type, prediction_window=prediction_window)
+                                                              model_type=model_type)
 
     fit_data['avg_fit_error'], fit_data['avg_pct_fit_error'] = in_sample_error(all_fits=in_sample_fit,
                                                                                all_true_values=fit_data['y_true'])
@@ -115,7 +120,7 @@ if __name__ == '__main__':
                                                                order_data=fm.RAW_DATA,
                                                                weather_data=fm.WEER_DATA,
                                                                product_data=fm.PRODUCT_STATUS,
-                                                               model_type='Negative-Binomial')
+                                                               model_type='OLS')
 
     active_products_act = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT, data_loc=fm.SAVE_LOC)
     inactive_products_act = gf.import_temp_file(file_name=fm.ORDER_DATA_INACT, data_loc=fm.SAVE_LOC)
@@ -129,4 +134,4 @@ if __name__ == '__main__':
     gf.save_to_csv(data=is_performance1, file_name="insample_2p_nb", folder=fm.SAVE_LOC)
 
     is_performance2 = in_sample_plot(y_true=fit_data2, y_fit=is_fit2,
-                                    title="test", name=prod_name)
+                                    title="test")

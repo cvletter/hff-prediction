@@ -6,7 +6,7 @@ import prediction.general_purpose_functions as gf
 import pandas as pd
 
 
-prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-5', periods=3, freq='W-MON').astype(str),
+prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-5', periods=40, freq='W-MON').astype(str),
                                 columns=[cn.FIRST_DOW])
 
 ols1_settings = {'prediction_window': 1, 'train_size': 60, 'differencing': False, 'ar_lags': 4,
@@ -15,7 +15,7 @@ ols1_settings = {'prediction_window': 1, 'train_size': 60, 'differencing': False
 pred_ols1, is_abs_ols1, is_pct_ols1, mod_prod_ols1, non_mod_prod_ols1 = pred.batch_prediction(
     prediction_dates=prediction_dates, model_settings=ols1_settings)
 
-ols2_settings = {'prediction_window': 2, 'train_size': 60, 'differencing': False, 'ar_lags': 4,
+ols2_settings = {'prediction_window': 2, 'train_size': 60, 'differencing': False, 'ar_lags': 2,
                     'fit_model': 'OLS'}
 
 pred_ols2, is_abs_ols2, is_pct_ols2, mod_prod_ols2, non_mod_prod_ols2 = pred.batch_prediction(

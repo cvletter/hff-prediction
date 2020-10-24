@@ -5,6 +5,59 @@ import prediction.general_purpose_functions as gf
 import datetime
 
 
+def prep_su_features(input_order_data, prediction_date=cn.PREDICTION_DATE, hold_out=cn.PREDICTION_WINDOW,
+                     train_obs=cn.TRAIN_OBS, index_col=cn.FIRST_DOW):
+
+    if type(prediction_date) == str:
+        prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
+
+    def rename_cols(input_data, suffix='SU_pct'):
+        new_cols = ["{}_{}".format(x, suffix) for x in input_data.columns]
+        input_data.columns = new_cols
+
+    if not input_order_data.index.name == index_col:
+        input_order_data.reset_index(inplace=True, drop=True)
+        input_order_data.set_index(index_col, inplace=True)
+
+    input_order_data.sort_index(ascending=False, inplace=True)
+
+    last_train_date = prediction_date - datetime.timedelta(weeks=hold_out)
+    first_train_date = last_train_date - datetime.timedelta(weeks=train_obs)
+    fitting_window = input_order_data.loc[last_train_date:first_train_date]
+
+    fitting_window.reset_index(inplace=True, drop=False)
+
+    su_totals = fitting_window.groupby([cn.ORGANISATIE], as_index=False).agg(
+        {cn.CE_BESTELD: 'sum', cn.INKOOP_RECEPT_NM: 'nunique'})
+
+    su_totals.set_index(cn.ORGANISATIE, inplace=True)
+
+    su_totals['pct_total'] = round(su_totals[cn.CE_BESTELD] / su_totals[cn.CE_BESTELD].sum(), 3)
+    su_totals['ce_pp'] = round(su_totals[cn.CE_BESTELD] / su_totals[cn.INKOOP_RECEPT_NM], 3)
+    su_totals['ce_pp_pct'] = round(su_totals['ce_pp'] / su_totals['ce_pp'].sum(), 3)
+
+    su_totals.reset_index(inplace=True, drop=False)
+
+    su_totals_grouped = pd.merge(fitting_window, su_totals[[cn.ORGANISATIE, 'ce_pp_pct']], how='left',
+                                 left_on=cn.ORGANISATIE, right_on=cn.ORGANISATIE)
+
+    su_totals_wk = su_totals_grouped.groupby([cn.FIRST_DOW, cn.INKOOP_RECEPT_NM], as_index=False).agg(
+        {cn.CE_BESTELD: 'sum', cn.ORGANISATIE: 'nunique', 'ce_pp_pct': 'sum'})
+
+    su_pct = pd.DataFrame(su_totals_wk.pivot(index=cn.FIRST_DOW,
+                                             columns=cn.INKOOP_RECEPT_NM,
+                                             values='ce_pp_pct'))
+
+    su_n = pd.DataFrame(su_totals_wk.pivot(index=cn.FIRST_DOW,
+                                           columns=cn.INKOOP_RECEPT_NM,
+                                           values=cn.ORGANISATIE))
+
+    rename_cols(input_data=su_pct, suffix='SU_perct')
+    rename_cols(input_data=su_n, suffix='SU_count')
+
+    return su_pct, su_n
+
+
 def prep_weather_features(input_weer_data, index_col=cn.FIRST_DOW):
     if not input_weer_data.index.name == index_col:
         input_weer_data.reset_index(inplace=True, drop=True)
@@ -127,7 +180,9 @@ def prep_covid_features():
     return covid_dates.groupby(cn.FIRST_DOW, as_index=True).max()
 
 
-def prep_exogenous_features(weather_data_processed, import_file=False, save_to_csv=False):
+def prep_all_features(weather_data_processed, order_data_su, import_file=False, save_to_csv=False,
+                      prediction_date=cn.PREDICTION_DATE, hold_out=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
+                      index_col=cn.FIRST_DOW):
     if import_file:
         weather_data_processed = gf.import_temp_file(file_name=weather_data_processed,
                                                      data_loc=fm.SAVE_LOC, set_index=False)
@@ -136,6 +191,9 @@ def prep_exogenous_features(weather_data_processed, import_file=False, save_to_c
     holiday_f = prep_holiday_features()
     covid_f = prep_covid_features()
     level_f = prep_level_shifts()
+
+    su_pct, su_n = prep_su_features(input_order_data=order_data_su, prediction_date=prediction_date, hold_out=hold_out,
+                                    train_obs=train_obs, index_col=index_col)
 
     def create_lagged_features(data, lag_range=None):
 
@@ -154,11 +212,18 @@ def prep_exogenous_features(weather_data_processed, import_file=False, save_to_c
 
         return data
 
-    all_shift_features = weather_f.join(holiday_f, how='left').join(covid_f, how='left')
+    all_shift_features = weather_f.join(
+        holiday_f, how='left').join(
+        covid_f, how='left')
+
+    # all_su_features = su_pct.join(su_n, how='left')
+    # all_su_features_lags = create_lagged_features(data=all_su_features, lag_range=[2, 1, -1, -2])
 
     all_shift_features_lags = create_lagged_features(data=all_shift_features)
 
-    all_exog_features = all_shift_features_lags.join(level_f, how='left')
+    all_exog_features = all_shift_features_lags.join(level_f, how='left')\
+
+    #.join(all_su_features_lags, how='left')
 
     if save_to_csv:
         gf.save_to_csv(data=all_exog_features, file_name='exogenous_features', folder=fm.SAVE_LOC)
@@ -168,11 +233,17 @@ def prep_exogenous_features(weather_data_processed, import_file=False, save_to_c
 
 if __name__ == '__main__':
     # Import weer data
+    order_data_su = gf.import_temp_file(file_name='actieve_halffabricaten_wk_su_20201024_1230.csv', data_loc=fm.SAVE_LOC,
+                                        set_index=True)
+
     weather_data = gf.import_temp_file(file_name=fm.WEER_DATA_PREP, data_loc=fm.SAVE_LOC, set_index=False)
     weather_features = prep_weather_features(input_weer_data=weather_data)
     holiday_features = prep_holiday_features()
     covid_features = prep_covid_features()
 
-    exog_features = prep_exogenous_features(weather_data_processed=weather_data, save_to_csv=False)
+    exog_features = prep_all_features(weather_data_processed=weather_data, order_data_su=order_data_su,
+                                      prediction_date=cn.PREDICTION_DATE, hold_out=cn.PREDICTION_WINDOW,
+                                      train_obs=cn.TRAIN_OBS, save_to_csv=False)
+
 
     gf.save_to_csv(data=exog_features, file_name='exogenous_features', folder=fm.SAVE_LOC)

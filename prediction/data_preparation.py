@@ -222,8 +222,8 @@ def process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA, r_p
     order_data_wk = data_aggregation(filtered_data=order_data_filtered, weekly=agg_weekly, exclude_su=exclude_su)
     gf.add_first_day_week(add_to=order_data_wk, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
 
-    # order_data_wk_su = data_aggregation(filtered_data=order_data_filtered, weekly=agg_weekly, exclude_su=False)
-    # gf.add_first_day_week(add_to=order_data_wk_su, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
+    order_data_wk_su = data_aggregation(filtered_data=order_data_filtered, weekly=agg_weekly, exclude_su=False)
+    gf.add_first_day_week(add_to=order_data_wk_su, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
 
     # Pivoteren van data
 
@@ -234,9 +234,9 @@ def process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA, r_p
     if save_to_csv:
         gf.save_to_csv(data=weer_data, file_name='weather_data_pre_processed', folder=fm.SAVE_LOC)
         gf.save_to_csv(data=order_data_pivot_wk, file_name='order_data_pivot_wk_proc', folder=fm.SAVE_LOC)
-        # gf.save_to_csv(data=order_data_wk_su, file_name='order_data_wk_su_proc', folder=fm.SAVE_LOC)
+        gf.save_to_csv(data=order_data_wk_su, file_name='order_data_wk_su_proc', folder=fm.SAVE_LOC)
 
-    return order_data_pivot_wk, weer_data
+    return order_data_pivot_wk, weer_data, order_data_wk_su
 
 
 # Wrapping function to do entire data preparation
@@ -250,7 +250,7 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data=
     last_train_date = prediction_date - datetime.timedelta(weeks=prediction_window)
 
     if reload_data:
-        order_data_pivot_wk, weer_data = process_data(
+        order_data_pivot_wk, weer_data, order_data_wk_su = process_data(
             r_order_data_loc=order_data_loc, r_weer_data_loc=weer_data_loc,
             r_product_data_loc=product_data_loc, agg_weekly=agg_weekly,
             exclude_su=exclude_su, save_to_csv=False)
@@ -262,27 +262,31 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data=
         weer_data = gf.import_temp_file(file_name=fm.WEER_DATA_PRE_PROC, data_loc=fm.SAVE_LOC,
                                                   set_index=True)
 
-        # order_data_wk_su = gf.import_temp_file(file_name=fm.ORDER_DATA_WK_SU, data_loc=fm.SAVE_LOC, set_index=True)
+        order_data_wk_su = gf.import_temp_file(file_name=fm.ORDER_DATA_WK_SU, data_loc=fm.SAVE_LOC, set_index=True)
 
     # Actieve producten selecteren: 66 actief; 45 inactief
     order_data_wk_a, order_data_wk_ia = find_active_products(
         raw_product_ts=order_data_pivot_wk,
         eval_week=last_train_date)
 
+    order_data_wk_su_a = order_data_wk_su[order_data_wk_su['inkooprecept_naam'].isin(order_data_wk_a.columns)]
+
     if save_to_csv:
         gf.save_to_csv(data=weer_data, file_name='weer_data_processed', folder=fm.SAVE_LOC)
         gf.save_to_csv(data=order_data_wk_a, file_name='actieve_halffabricaten_wk', folder=fm.SAVE_LOC)
         gf.save_to_csv(data=order_data_wk_ia, file_name='inactieve_halffabricaten_wk', folder=fm.SAVE_LOC)
+        gf.save_to_csv(data=order_data_wk_su_a, file_name='actieve_halffabricaten_wk_su', folder=fm.SAVE_LOC)
 
-    return order_data_wk_a, order_data_wk_ia, weer_data
+    return order_data_wk_a, order_data_wk_ia, weer_data, order_data_wk_su_a
 
 
 if __name__ == '__main__':
 
     pred_date = datetime.datetime.strptime('2020-10-05', "%Y-%m-%d")
-    order_data_wk_a, order_data_wk_ia, weer_data = data_prep_wrapper(prediction_date=pred_date,
-                                                                     reload_data=True,
-                                                                     prediction_window=2)
+    order_data_wk_a, order_data_wk_ia, weer_data, order_data_wk_su_a = data_prep_wrapper(
+        prediction_date=pred_date,
+        reload_data=True,
+        prediction_window=2)
 
     gf.save_to_csv(data=weer_data, file_name='weer_data_processed', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=order_data_wk_a, file_name='actieve_halffabricaten_wk', folder=fm.SAVE_LOC)
