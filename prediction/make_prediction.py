@@ -12,7 +12,10 @@ import time
 
 def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
                    difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
-                   product_data=fm.PRODUCT_STATUS, model_type='OLS'):
+                   product_data=fm.PRODUCT_STATUS, model_type='OLS', feature_threshold=None):
+
+    if feature_threshold is None:
+        feature_threshold = [0.2, 15]
 
     def convert_series_to_dataframe(input_series, date_val, index_name=cn.FIRST_DOW):
         input_df = pd.DataFrame(input_series).T
@@ -60,7 +63,9 @@ def run_prediction(pred_date=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION
         save_to_pkl=False)
 
     in_sample_fit, out_of_sample_prediction = fit_and_predict(fit_dict=fit_data, predict_dict=predict_data,
-                                                              model_type=model_type)
+                                                              model_type=model_type,
+                                                              feature_threshold=[feature_threshold[0],
+                                                                                 feature_threshold[1]])
 
     fit_data['avg_fit_error'], fit_data['avg_pct_fit_error'] = in_sample_error(all_fits=in_sample_fit,
                                                                                all_true_values=fit_data['y_true'])
@@ -74,6 +79,7 @@ def batch_prediction(prediction_dates, model_settings):
     differencing = model_settings['differencing']
     ar_lags = model_settings['ar_lags']
     fit_model = model_settings['fit_model']
+    feature_threshold = model_settings['feature_threshold']
 
     all_is_abs_errors = pd.DataFrame([])
     all_is_pct_errors = pd.DataFrame([])
@@ -85,7 +91,8 @@ def batch_prediction(prediction_dates, model_settings):
         _fit, _predict, _fitdata, _predictdata = run_prediction(
             pred_date=p_date, prediction_window=p_window, train_obs=train_size,
             difference=differencing, lags=ar_lags, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
-            product_data=fm.PRODUCT_STATUS, model_type=fit_model)
+            product_data=fm.PRODUCT_STATUS, model_type=fit_model, feature_threshold=[feature_threshold[0],
+                                                                                     feature_threshold[1]])
 
         all_is_abs_errors = pd.concat([all_is_abs_errors, _fitdata['avg_fit_error']], axis=0)
         all_is_pct_errors = pd.concat([all_is_pct_errors, _fitdata['avg_pct_fit_error']], axis=0)
@@ -108,7 +115,8 @@ if __name__ == '__main__':
                                                                order_data=fm.RAW_DATA,
                                                                weather_data=fm.WEER_DATA,
                                                                product_data=fm.PRODUCT_STATUS,
-                                                               model_type='OLS')
+                                                               model_type='OLS',
+                                                               feature_threshold=[0.2, 15])
 
     elapsed = round((time.time() - start), 2)
     print("It takes {} seconds to run a prediction.".format(elapsed))
@@ -120,18 +128,15 @@ if __name__ == '__main__':
                                                                order_data=fm.RAW_DATA,
                                                                weather_data=fm.WEER_DATA,
                                                                product_data=fm.PRODUCT_STATUS,
-                                                               model_type='OLS')
+                                                               model_type='OLS',
+                                                               feature_threshold=[0.2, 15])
 
     active_products_act = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT, data_loc=fm.SAVE_LOC)
     inactive_products_act = gf.import_temp_file(file_name=fm.ORDER_DATA_INACT, data_loc=fm.SAVE_LOC)
     all_products_act = active_products_act.join(inactive_products_act, how='outer')
 
-    prod_name = 'Garnalen Knoflook 140g HF'
-
     is_performance1 = in_sample_plot(y_true=fit_data1, y_fit=is_fit1,
                                     title="test")
-
-    gf.save_to_csv(data=is_performance1, file_name="insample_2p_nb", folder=fm.SAVE_LOC)
 
     is_performance2 = in_sample_plot(y_true=fit_data2, y_fit=is_fit2,
                                     title="test")

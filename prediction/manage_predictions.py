@@ -10,13 +10,13 @@ prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-5', periods=40, freq=
                                 columns=[cn.FIRST_DOW])
 
 ols1_settings = {'prediction_window': 1, 'train_size': 60, 'differencing': False, 'ar_lags': 4,
-                    'fit_model': 'OLS'}
+                 'fit_model': 'OLS', 'feature_threshold': [0.2, 15]}
 
 pred_ols1, is_abs_ols1, is_pct_ols1, mod_prod_ols1, non_mod_prod_ols1 = pred.batch_prediction(
     prediction_dates=prediction_dates, model_settings=ols1_settings)
 
-ols2_settings = {'prediction_window': 2, 'train_size': 60, 'differencing': False, 'ar_lags': 2,
-                    'fit_model': 'OLS'}
+ols2_settings = {'prediction_window': 2, 'train_size': 70, 'differencing': False, 'ar_lags': 2,
+                 'fit_model': 'OLS', 'feature_threshold': [0.2, 10]}
 
 pred_ols2, is_abs_ols2, is_pct_ols2, mod_prod_ols2, non_mod_prod_ols2 = pred.batch_prediction(
     prediction_dates=prediction_dates, model_settings=ols2_settings)
@@ -28,8 +28,8 @@ negbin1_settings = {'prediction_window': 1, 'train_size': 60, 'differencing': Fa
 pred_nb1, is_abs_nb1, is_pct_nb1, mod_prod_nb1, non_mod_prod_nb1 = pred.batch_prediction(
     prediction_dates=prediction_dates, model_settings=negbin1_settings)
 
-negbin2_settings = {'prediction_window': 2, 'train_size': 60, 'differencing': False, 'ar_lags': 4,
-                    'fit_model': 'Negative-Binomial'}
+negbin2_settings = {'prediction_window': 2, 'train_size': 60, 'differencing': False, 'ar_lags': 2,
+                    'fit_model': 'Negative-Binomial', 'feature_threshold': [0.2, 15]}
 
 pred_nb2, is_abs_nb2, is_pct_nb2, mod_prod_nb2, non_mod_prod_nb2 = pred.batch_prediction(
     prediction_dates=prediction_dates,

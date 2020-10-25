@@ -1,7 +1,7 @@
 import statsmodels.api as sm
 import pandas as pd
 import numpy as np
-np.seterr(divide='ignore', invalid='ignore')
+# np.seterr(divide='ignore', invalid='ignore')
 
 import prediction.general_purpose_functions as gf
 import prediction.file_management as fm
@@ -20,7 +20,8 @@ def get_top_correlations(y, y_lags, top_correl=5):
 
     numerator = np.dot(A_mA.T, B_mB)
     denominator = np.sqrt(np.dot(pd.DataFrame(ssA), pd.DataFrame(ssB).T))
-    correls = abs(numerator / denominator)
+    # correls = abs(numerator / denominator)
+    correls = np.divide(numerator, denominator, out=np.zeros_like(numerator), where=denominator!=0)
 
     corrs = pd.DataFrame(correls, index=y.columns, columns=y_lags.columns)
 
@@ -86,6 +87,7 @@ def fit_model(y, X, model='OLS'):
                           missing='drop')
 
     elif model == 'Negative-Binomial':
+
         aux_reg_feat = pd.DataFrame(index=y.index)
 
         temp_mdl_poisson = sm.GLM(y, X,
@@ -107,7 +109,11 @@ def fit_model(y, X, model='OLS'):
     return temp_mdl.fit()
 
 
-def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
+def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS', feature_threshold=None, pred_interval=False):
+
+    if feature_threshold is None:
+        feature_threshold = [0.2, 15]
+
     Y_pred = pd.DataFrame(index=Y.index)
     fitted_models = {}
     optimized_ar_features = {}
@@ -134,11 +140,13 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
         if add_constant:
             selected_features.insert(0, 'constant', 1)
 
-        while correlation_val > 0.10 and selected_features.shape[1] < 20:
+        while correlation_val > feature_threshold[0] and selected_features.shape[1] < feature_threshold[1]:
 
             corr_name, correlation_val = get_top_correlations(y=pd.DataFrame(resid), y_lags=all_possible_features,
                                                               top_correl=1)
             selected_features = selected_features.join(all_possible_features[corr_name], how='left')
+            all_possible_features.drop(corr_name, axis=1, inplace=True)
+
             mdl_fit = fit_model(y=y, X=selected_features, model=model)
             resid = y - mdl_fit.predict()
 
@@ -153,6 +161,19 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
         fitted_models[y_name] = mdl_fit
         optimized_ar_features[y_name] = ar_features.columns
         optimized_exog_features[y_name] = exog_features.columns
+
+        # Determine Prediction intervals
+        if pred_interval:
+            sigma2_est = np.sum((y - mdl_fit.predict) ** 2) / len(y) - 2
+
+            Xs = selected_features
+
+            y_pred_se = np.linalg.inv(np.dot(np.transpose(Xs), Xs))
+            y_pred_se = np.dot(np.dot(x_new, y_pred_se), np.transpose(x_new))
+            y_pred_se = np.identity(len(x_new)) + y_pred_se
+            y_pred_se = sigma2_est * y_pred_se
+            y_pred_se = np.sqrt(np.diag(y_pred_se))
+
 
     return Y_pred, fitted_models, optimized_ar_features, optimized_exog_features
 
@@ -170,8 +191,6 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
 
     Y_pred = pd.DataFrame(index=Yp_ar_m.index)
 
-    # Yp_ar_m = pd.DataFrame(Yp_ar_m).T
-    product_m = Yp_ar_m.columns[0]
     for product_m in Yp_ar_m.columns:
         y_name_m = product_m[:-7]
 
@@ -194,9 +213,6 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
 
         Y_pred[y_name_m] = fitted_models[y_name_m].predict(Xp_tot)
 
-    # TODO CONTINUE HERE
-    # Yp_ar_nm = pd.DataFrame(Yp_ar_nm).T
-    product_nm = Yp_ar_nm.columns[0]
     for product_nm in Yp_ar_nm.columns:
         y_name_nm = product_nm[:-7]  # remove '_lag_1 or 2'
 
@@ -218,9 +234,6 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
         else:
             closest_product_name = cn.MOD_PROD_SUM
 
-        # lag_index = [y_name_nm in x for x in Yp_ar_nm.columns]
-        # Xp_ar_nm = Yp_ar_nm.iloc[:, lag_index]
-
         Xf_ar_cp = Yf_ar_opt[closest_product_name]
         Xp_ar_nm = Xp_ar_nm.iloc[:, :Xf_ar_cp.shape[0]]
 
@@ -240,11 +253,15 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
     return Y_pred
 
 
-def fit_and_predict(fit_dict, predict_dict, model_type='OLS'):
+def fit_and_predict(fit_dict, predict_dict, model_type='OLS', feature_threshold=None):
+
+    if feature_threshold is None:
+        feature_threshold = [0.2, 15]
 
     Yis_fit, model_fits,Yar_opt, X_opt = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
                                                          add_constant=True, X_exog=fit_dict[cn.X_EXOG],
-                                                         model=model_type)
+                                                         model=model_type, feature_threshold=[feature_threshold[0],
+                                                                                              feature_threshold[1]])
 
     Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
                                      Xp_exog=predict_dict[cn.X_EXOG], fitted_models=model_fits, Yf_ar_opt=Yar_opt,
@@ -274,7 +291,7 @@ if __name__ == '__main__':
     prediction_window = 2
 
     Yis_fit, model_fits, ar_f, exog_f = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
-                                                          X_exog=fit_dict[cn.X_EXOG], model=model_type)
+                                                          X_exog=fit_dict[cn.X_EXOG], model='OLS')
 
     Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
                                      Xp_exog=predict_dict[cn.X_EXOG], Yf_ar_opt=ar_f, Yf_exog_opt=exog_f,
