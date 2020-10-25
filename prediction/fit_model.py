@@ -2,6 +2,7 @@ import statsmodels.api as sm
 import pandas as pd
 import numpy as np
 np.seterr(divide='ignore', invalid='ignore')
+
 import prediction.general_purpose_functions as gf
 import prediction.file_management as fm
 import prediction.column_names as cn
@@ -141,7 +142,9 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS'):
             mdl_fit = fit_model(y=y, X=selected_features, model=model)
             resid = y - mdl_fit.predict()
 
-        ar_cols = [y_name in x for x in selected_features.columns]
+        ar_name = "{}_last".format(y_name)
+        ar_cols = [ar_name in x for x in selected_features.columns]
+
         exog_cols = [not x for x in ar_cols]
         ar_features = selected_features.iloc[:, ar_cols]
         exog_features = selected_features.iloc[:, exog_cols]

@@ -182,7 +182,7 @@ if __name__ == '__main__':
                                             data_loc=fm.SAVE_LOC,
                                             set_index=True)
 
-    exog_features = gf.import_temp_file(file_name=fm.EXOG_FEATURES,
+    exog_features = gf.import_temp_file(file_name='exogenous_features_20201025_955.csv',
                                         data_loc=fm.SAVE_LOC,
                                         set_index=True)
 

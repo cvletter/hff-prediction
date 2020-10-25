@@ -5,8 +5,8 @@ import prediction.general_purpose_functions as gf
 import datetime
 
 
-def prep_su_features(input_order_data, prediction_date=cn.PREDICTION_DATE, hold_out=cn.PREDICTION_WINDOW,
-                     train_obs=cn.TRAIN_OBS, index_col=cn.FIRST_DOW):
+def prep_su_features(input_order_data, prediction_date, hold_out,
+                     train_obs, index_col):
 
     if type(prediction_date) == str:
         prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
@@ -21,9 +21,8 @@ def prep_su_features(input_order_data, prediction_date=cn.PREDICTION_DATE, hold_
 
     input_order_data.sort_index(ascending=False, inplace=True)
 
-    last_train_date = prediction_date - datetime.timedelta(weeks=hold_out)
-    first_train_date = last_train_date - datetime.timedelta(weeks=train_obs)
-    fitting_window = input_order_data.loc[last_train_date:first_train_date]
+    first_train_date = prediction_date - datetime.timedelta(weeks=train_obs)
+    fitting_window = input_order_data.loc[prediction_date:first_train_date]
 
     fitting_window.reset_index(inplace=True, drop=False)
 
@@ -55,7 +54,7 @@ def prep_su_features(input_order_data, prediction_date=cn.PREDICTION_DATE, hold_
     rename_cols(input_data=su_pct, suffix='SU_perct')
     rename_cols(input_data=su_n, suffix='SU_count')
 
-    return su_pct, su_n
+    return su_pct.sort_index(ascending=False, inplace=False), su_n.sort_index(ascending=False, inplace=False)
 
 
 def prep_weather_features(input_weer_data, index_col=cn.FIRST_DOW):
@@ -180,9 +179,9 @@ def prep_covid_features():
     return covid_dates.groupby(cn.FIRST_DOW, as_index=True).max()
 
 
-def prep_all_features(weather_data_processed, order_data_su, import_file=False, save_to_csv=False,
-                      prediction_date=cn.PREDICTION_DATE, hold_out=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
-                      index_col=cn.FIRST_DOW):
+def prep_all_features(weather_data_processed, order_data_su,
+                      prediction_date, hold_out, train_obs,
+                      index_col=cn.FIRST_DOW, import_file=False, save_to_csv=False):
     if import_file:
         weather_data_processed = gf.import_temp_file(file_name=weather_data_processed,
                                                      data_loc=fm.SAVE_LOC, set_index=False)
@@ -216,14 +215,15 @@ def prep_all_features(weather_data_processed, order_data_su, import_file=False, 
         holiday_f, how='left').join(
         covid_f, how='left')
 
-    # all_su_features = su_pct.join(su_n, how='left')
-    # all_su_features_lags = create_lagged_features(data=all_su_features, lag_range=[2, 1, -1, -2])
+    all_shift_features.sort_index(ascending=False, inplace=True)
+
+    all_su_features = su_pct.join(su_n, how='left')
+    all_su_features.sort_index(ascending=False, inplace=True)
+    all_su_features_lags = create_lagged_features(data=all_su_features, lag_range=[2, 1, -1, -2])
 
     all_shift_features_lags = create_lagged_features(data=all_shift_features)
 
-    all_exog_features = all_shift_features_lags.join(level_f, how='left')\
-
-    #.join(all_su_features_lags, how='left')
+    all_exog_features = all_shift_features_lags.join(level_f, how='left').join(all_su_features_lags, how='left')
 
     if save_to_csv:
         gf.save_to_csv(data=all_exog_features, file_name='exogenous_features', folder=fm.SAVE_LOC)
@@ -242,8 +242,8 @@ if __name__ == '__main__':
     covid_features = prep_covid_features()
 
     exog_features = prep_all_features(weather_data_processed=weather_data, order_data_su=order_data_su,
-                                      prediction_date=cn.PREDICTION_DATE, hold_out=cn.PREDICTION_WINDOW,
-                                      train_obs=cn.TRAIN_OBS, save_to_csv=False)
+                                      prediction_date='2020-10-05', hold_out=cn.PREDICTION_WINDOW,
+                                      train_obs=cn.TRAIN_OBS, save_to_csv=False, index_col=cn.FIRST_DOW)
 
 
     gf.save_to_csv(data=exog_features, file_name='exogenous_features', folder=fm.SAVE_LOC)
