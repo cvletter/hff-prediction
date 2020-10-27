@@ -5,8 +5,7 @@ import prediction.general_purpose_functions as gf
 import datetime
 
 
-def prep_su_features(input_order_data, prediction_date, hold_out,
-                     train_obs, index_col):
+def prep_su_features(input_order_data, prediction_date, train_obs, index_col):
 
     if type(prediction_date) == str:
         prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
@@ -51,7 +50,7 @@ def prep_su_features(input_order_data, prediction_date, hold_out,
                                            columns=cn.INKOOP_RECEPT_NM,
                                            values=cn.ORGANISATIE))
 
-    rename_cols(input_data=su_pct, suffix='SU_perct')
+    rename_cols(input_data=su_pct, suffix='SU_pct')
     rename_cols(input_data=su_n, suffix='SU_count')
 
     return su_pct.sort_index(ascending=False, inplace=False), su_n.sort_index(ascending=False, inplace=False)
@@ -180,7 +179,7 @@ def prep_covid_features():
 
 
 def prep_all_features(weather_data_processed, order_data_su,
-                      prediction_date, hold_out, train_obs,
+                      prediction_date, train_obs,
                       index_col=cn.FIRST_DOW, import_file=False, save_to_csv=False):
     if import_file:
         weather_data_processed = gf.import_temp_file(file_name=weather_data_processed,
@@ -191,7 +190,7 @@ def prep_all_features(weather_data_processed, order_data_su,
     covid_f = prep_covid_features()
     level_f = prep_level_shifts()
 
-    su_pct, su_n = prep_su_features(input_order_data=order_data_su, prediction_date=prediction_date, hold_out=hold_out,
+    su_pct, su_n = prep_su_features(input_order_data=order_data_su, prediction_date=prediction_date,
                                     train_obs=train_obs, index_col=index_col)
 
     def create_lagged_features(data, lag_range=None):
@@ -242,8 +241,7 @@ if __name__ == '__main__':
     covid_features = prep_covid_features()
 
     exog_features = prep_all_features(weather_data_processed=weather_data, order_data_su=order_data_su,
-                                      prediction_date='2020-10-05', hold_out=cn.PREDICTION_WINDOW,
-                                      train_obs=cn.TRAIN_OBS, save_to_csv=False, index_col=cn.FIRST_DOW)
+                                      prediction_date='2020-10-05', train_obs=cn.TRAIN_OBS, save_to_csv=False, index_col=cn.FIRST_DOW)
 
 
     gf.save_to_csv(data=exog_features, file_name='exogenous_features', folder=fm.SAVE_LOC)

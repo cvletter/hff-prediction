@@ -2,8 +2,6 @@ import statsmodels.api as sm
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
-# np.seterr(divide='ignore', invalid='ignore')
-
 import prediction.general_purpose_functions as gf
 import prediction.file_management as fm
 import prediction.column_names as cn
@@ -21,9 +19,7 @@ def get_top_correlations(y, y_lags, top_correl=5):
 
     numerator = np.dot(A_mA.T, B_mB)
     denominator = np.sqrt(np.dot(pd.DataFrame(ssA), pd.DataFrame(ssB).T))
-    # correls = abs(numerator / denominator)
     correls = np.divide(numerator, denominator, out=np.zeros_like(numerator), where=denominator!=0)
-
     corrs = pd.DataFrame(correls, index=y.columns, columns=y_lags.columns)
 
     for i in corrs.index:
@@ -122,7 +118,6 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS', feature_thr
     optimized_ar_features = {}
     optimized_exog_features = {}
 
-    y_name = Y.columns[0]
     for product in Y.columns:
         y_name = product
         y = Y[y_name]
@@ -192,9 +187,9 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
     Yh_pred = pd.DataFrame(index=Yp_ar_m.index)
     Ym_width = {}
 
-    for product_m in Yp_ar_m.columns:
-        y_name_m = product_m[:-7]
+    Ym_products = list(set([x[:-7] for x in Yp_ar_m.columns]))
 
+    for y_name_m in Ym_products:
         lag_index = [y_name_m in x for x in Yp_ar_m.columns]
         Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
 
@@ -224,8 +219,8 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
         Yl_pred[y_name_m] = Y_pred[y_name_m] - Ym_width[y_name_m]
         Yh_pred[y_name_m] = Y_pred[y_name_m] + Ym_width[y_name_m]
 
-    for product_nm in Yp_ar_nm.columns:
-        y_name_nm = product_nm[:-7]  # remove '_lag_1 or 2'
+    Ynm_products = list(set([x[:-7] for x in Yp_ar_nm.columns]))
+    for y_name_nm in Ynm_products:
 
         lag_index = [y_name_nm in x for x in Yp_ar_nm.columns]
         Xp_ar_nm = Yp_ar_nm.iloc[:, lag_index]
@@ -289,6 +284,9 @@ if __name__ == '__main__':
 
     fit_dict = gf.read_pkl(file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC)
     predict_dict = gf.read_pkl(file_name=fm.PREDICT_DATA, data_loc=fm.SAVE_LOC)
+
+    fit_dict = fit_data
+    predict_dict = predict_data
     model_type = 'OLS'
     Y = fit_dict[cn.Y_TRUE]
     Y_ar = fit_dict[cn.Y_AR]
@@ -303,10 +301,11 @@ if __name__ == '__main__':
     Yf_exog_opt = exog_f
     fitted_models = model_fits
     find_comparable_model = True
-    prediction_window = 2
+    prediction_window = 1
 
-    Yis_fit, model_fits, ar_f, exog_f = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
-                                                          X_exog=fit_dict[cn.X_EXOG], model='OLS')
+    Yis_fit, model_fits, ar_f, exog_f, ypredse, sigma2 = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
+                                                        X_exog=fit_dict[cn.X_EXOG], model='OLS',
+                                                        feature_threshold=[0.2, 15])
 
     Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
                                      Xp_exog=predict_dict[cn.X_EXOG], Yf_ar_opt=ar_f, Yf_exog_opt=exog_f,

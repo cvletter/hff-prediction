@@ -6,8 +6,8 @@ import prediction.column_names as cn
 import prediction.file_management as fm
 
 
-def order_data_processing(order_data_loc: str) -> pd.DataFrame:
-    raw_data = pd.read_excel(order_data_loc,
+def process_order_data(order_data: str) -> pd.DataFrame:
+    raw_data = pd.read_excel(order_data,
                              dtype={'Consumentgroep': str,
                                     'Inkooprecept': str,
                                     'VerkString': str,
@@ -55,7 +55,7 @@ def order_data_processing(order_data_loc: str) -> pd.DataFrame:
                      cn.CONSUMENT_GROEP_NR]]
 
 
-def weer_data_processing(weer_data_loc: str, weekly=True) -> pd.DataFrame:
+def process_weather_data(weer_data_loc: str, weekly=True) -> pd.DataFrame:
     raw_weer_data = pd.read_csv(weer_data_loc, sep=";")
 
     raw_weer_data.columns = [cn.W_DATE, cn.TEMP_GEM, cn.TEMP_MIN,
@@ -88,7 +88,7 @@ def weer_data_processing(weer_data_loc: str, weekly=True) -> pd.DataFrame:
 
 # TODO Afmaken column_names
 
-def product_status_processing(product_data_loc: str) -> pd.DataFrame:
+def pocess_product_status(product_data_loc: str) -> pd.DataFrame:
     raw_product_status = pd.read_excel(product_data_loc,
                                        sheet_name='Blad2',
                                        dtype={'Nummer': str,
@@ -106,6 +106,7 @@ def product_status_processing(product_data_loc: str) -> pd.DataFrame:
     raw_product_status.set_index('inkooprecept_nr', inplace=True)
 
     return raw_product_status
+
 
 # Toevoegen van de status van een product, 'geblokkeerd' of nog 'actief'
 def add_product_status(order_data_processed: pd.DataFrame, product_status_processed:  pd.DataFrame,
@@ -203,14 +204,14 @@ def process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA, r_p
                  agg_weekly=True, exclude_su=True, save_to_csv=False) -> [pd.DataFrame, pd.DataFrame]:
 
     # Importeren van order data
-    order_data = order_data_processing(order_data_loc=r_order_data_loc)
+    order_data = process_order_data(order_data=r_order_data_loc)
 
     # Importeren van weer data, op wekelijks niveau
-    weer_data = weer_data_processing(weer_data_loc=r_weer_data_loc, weekly=agg_weekly)
+    weer_data = process_weather_data(weer_data_loc=r_weer_data_loc, weekly=agg_weekly)
     gf.add_first_day_week(add_to=weer_data, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
 
     # Importeren van product status data
-    product_status = product_status_processing(product_data_loc=r_product_data_loc)
+    product_status = pocess_product_status(product_data_loc=r_product_data_loc)
 
     # Toevoegen van product status
     add_product_status(order_data_processed=order_data, product_status_processed=product_status)
@@ -250,7 +251,7 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data=
     last_train_date = prediction_date - datetime.timedelta(weeks=prediction_window)
 
     if reload_data:
-        order_data_pivot_wk, weer_data, order_data_wk_su = process_data(
+        order_data_pivot_wk, weather_data, order_data_wk_su = process_data(
             r_order_data_loc=order_data_loc, r_weer_data_loc=weer_data_loc,
             r_product_data_loc=product_data_loc, agg_weekly=agg_weekly,
             exclude_su=exclude_su, save_to_csv=False)
@@ -259,8 +260,8 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data=
         order_data_pivot_wk = gf.import_temp_file(file_name=fm.ORDER_DATA_PIVOT_WK, data_loc=fm.SAVE_LOC,
                                                   set_index=True)
 
-        weer_data = gf.import_temp_file(file_name=fm.WEER_DATA_PRE_PROC, data_loc=fm.SAVE_LOC,
-                                                  set_index=True)
+        weather_data = gf.import_temp_file(file_name=fm.WEER_DATA_PRE_PROC, data_loc=fm.SAVE_LOC,
+                                           set_index=True)
 
         order_data_wk_su = gf.import_temp_file(file_name=fm.ORDER_DATA_WK_SU, data_loc=fm.SAVE_LOC, set_index=True)
 
@@ -272,12 +273,12 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data=
     order_data_wk_su_a = order_data_wk_su[order_data_wk_su['inkooprecept_naam'].isin(order_data_wk_a.columns)]
 
     if save_to_csv:
-        gf.save_to_csv(data=weer_data, file_name='weer_data_processed', folder=fm.SAVE_LOC)
+        gf.save_to_csv(data=weather_data, file_name='weer_data_processed', folder=fm.SAVE_LOC)
         gf.save_to_csv(data=order_data_wk_a, file_name='actieve_halffabricaten_wk', folder=fm.SAVE_LOC)
         gf.save_to_csv(data=order_data_wk_ia, file_name='inactieve_halffabricaten_wk', folder=fm.SAVE_LOC)
         gf.save_to_csv(data=order_data_wk_su_a, file_name='actieve_halffabricaten_wk_su', folder=fm.SAVE_LOC)
 
-    return order_data_wk_a, order_data_wk_ia, weer_data, order_data_wk_su_a
+    return order_data_wk_a, order_data_wk_ia, weather_data, order_data_wk_su_a
 
 
 if __name__ == '__main__':

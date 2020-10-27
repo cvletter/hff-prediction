@@ -34,34 +34,6 @@ def fill_missing_values(data):
     data.fillna(value=0, inplace=True)
 
 
-def get_top_correlations(y, y_lags, top_correl=5):
-    # Rowwise mean of input arrays & subtract from input arrays themeselves
-    A_mA = y - y.mean()
-    B_mB = y_lags - y_lags.mean()
-
-    # Sum of squares across rows
-    ssA = (A_mA**2).sum()
-    ssB = (B_mB**2).sum()
-
-    numerator = np.dot(A_mA.T, B_mB)
-    denominator = np.sqrt(np.dot(pd.DataFrame(ssA), pd.DataFrame(ssB).T))
-    correls = abs(numerator / denominator)
-
-    corrs = pd.DataFrame(correls, index=y.columns, columns=y_lags.columns)
-
-    for i in corrs.index:
-        for j in corrs.columns:
-            if i == j[:-7]:
-                corrs.loc[i, j] = -1e9
-
-    top_correlations = {}
-    for p in corrs.index:
-        top_correlations[p] = corrs.loc[p].sort_values(ascending=False)[:top_correl].index
-
-    # Finally get corr coeff
-    return top_correlations
-
-
 def create_lags(input_data, n_lags=cn.N_LAGS):
     data_lags = pd.DataFrame(index=input_data.index)
 
@@ -107,7 +79,6 @@ def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, pred
         y_m = first_difference_data(undifferenced_data=y_m, delta=1, scale=False)
         y_nm = first_difference_data(undifferenced_data=y_nm, delta=1, scale=False)
 
-    # TODO CREATE CORRELATION FEATURE SELECTION HERE
     y_m_lags = create_lags(input_data=y_m, n_lags=lags)
     y_nm_lags = create_lags(input_data=y_nm, n_lags=lags)
 
@@ -126,12 +97,10 @@ def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, pred
     yl_ar_nm_prd.name += datetime.timedelta(days=hold_out * 7)
     X_exog_prd.name += datetime.timedelta(days=hold_out * 7)
 
-    top_corr = get_top_correlations(y=y_true_fit, y_lags=y_ar_m_fit, top_correl=5)
     
     model_fitting = {cn.Y_TRUE: y_true_fit,
                      cn.Y_AR: y_ar_m_fit,
                      cn.X_EXOG: X_exog_fit,
-                     cn.CORREL: top_corr,
                      cn.MOD_PROD: y_m.columns,
                      cn.NON_MOD_PROD: y_nm.columns}
 
@@ -174,26 +143,26 @@ def prediction_setup_wrapper(prediction_date, prediction_window, train_obs,
 
 if __name__ == '__main__':
 
-    active_products = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT,
-                                          data_loc=fm.SAVE_LOC,
-                                          set_index=True)
-
-    inactive_products = gf.import_temp_file(file_name=fm.ORDER_DATA_INACT,
+    active_products_t = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT,
                                             data_loc=fm.SAVE_LOC,
                                             set_index=True)
 
-    exog_features = gf.import_temp_file(file_name='exogenous_features_20201025_955.csv',
-                                        data_loc=fm.SAVE_LOC,
-                                        set_index=True)
+    inactive_products_t = gf.import_temp_file(file_name=fm.ORDER_DATA_INACT,
+                                              data_loc=fm.SAVE_LOC,
+                                              set_index=True)
 
-    data_fitting, data_prediction = prediction_setup_wrapper(prediction_date='2020-10-05',
-                                                             prediction_window=2,
-                                                             train_obs=cn.TRAIN_OBS,
-                                                             nlags=3,
-                                                             difference=False,
-                                                             act_products=active_products,
-                                                             exog_features=exog_features,
-                                                             save_to_pkl=True)
+    exog_features_t = gf.import_temp_file(file_name='exogenous_features_20201025_955.csv',
+                                          data_loc=fm.SAVE_LOC,
+                                          set_index=True)
 
-    gf.save_to_pkl(data=data_fitting, file_name='fit_data', folder=fm.SAVE_LOC)
-    gf.save_to_pkl(data=data_prediction, file_name='predict_data', folder=fm.SAVE_LOC)
+    data_fitting_t, data_prediction_t = prediction_setup_wrapper(prediction_date='2020-08-10',
+                                                                 prediction_window=2,
+                                                                 train_obs=cn.TRAIN_OBS,
+                                                                 nlags=3,
+                                                                 difference=False,
+                                                                 act_products=active_products_t,
+                                                                 exog_features=exog_features_t,
+                                                                 save_to_pkl=True)
+
+    gf.save_to_pkl(data=data_fitting_t, file_name='fit_data', folder=fm.SAVE_LOC)
+    gf.save_to_pkl(data=data_prediction_t, file_name='predict_data', folder=fm.SAVE_LOC)
