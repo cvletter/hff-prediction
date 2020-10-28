@@ -112,8 +112,6 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS', feature_thr
         feature_threshold = [0.2, 15]
 
     Y_pred = pd.DataFrame(index=Y.index)
-    Y_pred_se = {}
-    sigma_2 = {}
     fitted_models = {}
     optimized_ar_features = {}
     optimized_exog_features = {}
@@ -163,16 +161,11 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS', feature_thr
 
         # Determine Prediction intervals
 
-        sigma_2[y_name] = np.sum((y - mdl_fit.predict()) ** 2) / (len(y) - 2)
-
-        Xs = selected_features
-        Y_pred_se[y_name] = np.linalg.inv(np.dot(np.transpose(Xs), Xs))
-
-    return Y_pred, fitted_models, optimized_ar_features, optimized_exog_features, Y_pred_se, sigma_2
+    return Y_pred, fitted_models, optimized_ar_features, optimized_exog_features
 
 
 def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, Yf_exog_opt,
-                          Y_pred_se, sigma_2, add_constant=True, prep_input=True, find_comparable_model=True):
+                          add_constant=True, prep_input=True, find_comparable_model=True):
 
     def series_to_dataframe(pd_series):
         return pd.DataFrame(pd_series).transpose()
@@ -183,9 +176,6 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
         Xp_exog = series_to_dataframe(Xp_exog)
 
     Y_pred = pd.DataFrame(index=Yp_ar_m.index)
-    Yl_pred = pd.DataFrame(index=Yp_ar_m.index)
-    Yh_pred = pd.DataFrame(index=Yp_ar_m.index)
-    Ym_width = {}
 
     Ym_products = list(set([x[:-7] for x in Yp_ar_m.columns]))
 
@@ -208,16 +198,6 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
         Xp_tot = Xp_ar_m.join(Xp_arx_m, how='left')
 
         Y_pred[y_name_m] = fitted_models[y_name_m].predict(Xp_tot)
-
-        y_pred_se = np.dot(np.dot(Xp_tot, Y_pred_se[y_name_m]), np.transpose(Xp_tot))
-        y_pred_se = np.identity(len(Xp_tot)) + y_pred_se
-        y_pred_se = sigma_2[y_name_m] * y_pred_se
-        y_pred_se = np.sqrt(np.diag(y_pred_se))
-        alpha = 0.05
-        Ym_width[y_name_m] = stats.t.ppf(q=1-alpha/2, df=cn.TRAIN_OBS-2) * y_pred_se
-
-        Yl_pred[y_name_m] = Y_pred[y_name_m] - Ym_width[y_name_m]
-        Yh_pred[y_name_m] = Y_pred[y_name_m] + Ym_width[y_name_m]
 
     Ynm_products = list(set([x[:-7] for x in Yp_ar_nm.columns]))
     for y_name_nm in Ynm_products:
@@ -255,29 +235,50 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
         Xp_tot = Xp_ar_nm.join(Xp_arx_cp, how='left')
 
         Y_pred[y_name_nm] = fitted_models[closest_product_name].predict(Xp_tot)
-        Yh_pred[y_name_nm] = Y_pred[y_name_nm] + Ym_width[closest_product_name]
-        Yl_pred[y_name_nm] = Y_pred[y_name_nm] - Ym_width[closest_product_name]
 
-    return Y_pred, Yh_pred, Yl_pred
+    return Y_pred
 
 
-def fit_and_predict(fit_dict, predict_dict, model_type='OLS', feature_threshold=None):
+def fit_and_predict(fit_dict, predict_dict, model_type='OLS', bootstrap=False, feature_threshold=None):
+
+    def reset_index(data):
+        data_new = data.reset_index(drop=True, inplace=False)
+        data_new["bootstrap_index"] = np.arange(data.shape[0])
+        return data_new.set_index("bootstrap_index", inplace=False, drop=True)
 
     if feature_threshold is None:
         feature_threshold = [0.2, 15]
 
-    Yis_fit, model_fits,Yar_opt, X_opt, Ypred_se, sigma2 = batch_fit_model(
-        Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
-        add_constant=True, X_exog=fit_dict[cn.X_EXOG],
+    Y_org = fit_dict[cn.Y_TRUE]
+    Yar_org = fit_dict[cn.Y_AR]
+    X_org = fit_dict[cn.X_EXOG]
+
+    Y_org.sample(n=Y_org.shape[0], replace=True)
+    if bootstrap:
+        Y_fit = Y_org.sample(n=Y_org.shape[0], replace=True)
+        Yar_fit = Yar_org.loc[Y_fit.index, :]
+        X_fit = X_org.loc[Y_fit.index, :]
+
+        Y_fit = reset_index(data=Y_fit)
+        Yar_fit = reset_index(data=Yar_fit)
+        X_fit = reset_index(data=X_fit)
+
+    else:
+        Y_fit = Y_org
+        Yar_fit = Yar_org
+        X_fit = X_org
+
+    Yis_fit, model_fits, Yar_opt, X_opt = batch_fit_model(
+        Y=Y_fit, Y_ar=Yar_fit,
+        add_constant=True, X_exog=X_fit,
         model=model_type, feature_threshold=[feature_threshold[0], feature_threshold[1]])
 
-    Yos_pred, Yos_hpred, Yos_lpred = batch_make_prediction(
+    Yos_pred = batch_make_prediction(
         Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
-        Y_pred_se=Ypred_se, sigma_2=sigma2,
         Xp_exog=predict_dict[cn.X_EXOG], fitted_models=model_fits, Yf_ar_opt=Yar_opt,
         Yf_exog_opt=X_opt, add_constant=True, find_comparable_model=True)
 
-    return Yis_fit, Yos_pred, Yos_hpred, Yos_lpred
+    return Yis_fit, Yos_pred
 
 
 if __name__ == '__main__':
@@ -285,8 +286,6 @@ if __name__ == '__main__':
     fit_dict = gf.read_pkl(file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC)
     predict_dict = gf.read_pkl(file_name=fm.PREDICT_DATA, data_loc=fm.SAVE_LOC)
 
-    fit_dict = fit_data
-    predict_dict = predict_data
     model_type = 'OLS'
     Y = fit_dict[cn.Y_TRUE]
     Y_ar = fit_dict[cn.Y_AR]
@@ -297,23 +296,29 @@ if __name__ == '__main__':
     Yp_ar_m = predict_dict[cn.Y_AR_M]
     Yp_ar_nm = predict_dict[cn.Y_AR_NM]
     Xp_exog = predict_dict[cn.X_EXOG]
+
+
     Yf_ar_opt = ar_f
     Yf_exog_opt = exog_f
     fitted_models = model_fits
     find_comparable_model = True
     prediction_window = 1
 
-    Yis_fit, model_fits, ar_f, exog_f, ypredse, sigma2 = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
+    Y_org = fit_dict[cn.Y_TRUE]
+    Yar_org = fit_dict[cn.Y_AR]
+    X_org = fit_dict[cn.X_EXOG]
+
+
+    Yis_fit, model_fits, ar_f, exog_f = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
                                                         X_exog=fit_dict[cn.X_EXOG], model='OLS',
                                                         feature_threshold=[0.2, 15])
 
-    Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
+    Yis_fit, Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
                                      Xp_exog=predict_dict[cn.X_EXOG], Yf_ar_opt=ar_f, Yf_exog_opt=exog_f,
                                      fitted_models=model_fits,
                                      find_comparable_model=True)
 
-    Yis_fit, Yos_pred, Yos_hpred, Yos_lpred = fit_and_predict(fit_dict=fit_dict,
-                                                              predict_dict=predict_dict, model_type='OLS')
+    Yis_fit_b, Yos_pred_b = fit_and_predict(fit_dict=fit_dict, predict_dict=predict_dict, bootstrap=True, model_type='OLS')
 
     gf.save_to_csv(data=Yis_fit, file_name="insample_fit", folder=fm.SAVE_LOC)
 
