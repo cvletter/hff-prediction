@@ -6,7 +6,7 @@ import prediction.general_purpose_functions as gf
 import pandas as pd
 
 # Predictions
-prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-5', periods=1, freq='W-MON').astype(str),
+prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-5', periods=2, freq='W-MON').astype(str),
                                 columns=[cn.FIRST_DOW])
 
 ols1_settings = {'prediction_window': 1, 'train_size': 60, 'differencing': False, 'ar_lags': 4,
@@ -33,3 +33,7 @@ eval_ols2 = eval_pred.prediction_performance_evaluation(Y_true=all_products_act,
                                                        Y_pred_mod=mod_prod_ols2, Y_pred_non_mod=non_mod_prod_ols2)
 
 eval_is_ols1_time, eval_is_ols1_prod = eval_pred.in_sample_evaluation(pct_fits=is_pct_ols1)
+
+
+
+

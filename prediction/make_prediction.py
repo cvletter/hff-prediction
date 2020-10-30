@@ -60,7 +60,7 @@ def run_prediction(date_to_predict=cn.PREDICTION_DATE, prediction_window=cn.PRED
         exog_features=exogenous_features,
         save_to_pkl=False)
 
-    in_sample_fit, prediction_os, prediction_os_h, prediction_os_l = fit_and_predict(
+    in_sample_fit, prediction_os = fit_and_predict(
         fit_dict=fit_data, predict_dict=predict_data,
         model_type=model_type,
         feature_threshold=[feature_threshold[0],
@@ -69,7 +69,7 @@ def run_prediction(date_to_predict=cn.PREDICTION_DATE, prediction_window=cn.PRED
     fit_data['avg_fit_error'], fit_data['avg_pct_fit_error'] = in_sample_error(all_fits=in_sample_fit,
                                                                                all_true_values=fit_data['y_true'])
 
-    return in_sample_fit, prediction_os, prediction_os_h, prediction_os_l, fit_data, predict_data
+    return in_sample_fit, prediction_os, fit_data, predict_data
 
 
 def batch_prediction(prediction_dates, model_settings):
@@ -89,7 +89,7 @@ def batch_prediction(prediction_dates, model_settings):
     all_non_mod_prod = {}
 
     for p_date in prediction_dates[cn.FIRST_DOW]:
-        _fit, _predict, _predict_h, _predict_l, _fitdata, _predictdata = run_prediction(
+        _fit, _predict, _fitdata, _predictdata = run_prediction(
             date_to_predict=p_date, prediction_window=p_window, train_obs=train_size,
             difference=differencing, lags=ar_lags, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
             product_data=fm.PRODUCT_STATUS, model_type=fit_model, feature_threshold=[feature_threshold[0],
@@ -98,20 +98,16 @@ def batch_prediction(prediction_dates, model_settings):
         all_is_abs_errors = pd.concat([all_is_abs_errors, _fitdata['avg_fit_error']], axis=0)
         all_is_pct_errors = pd.concat([all_is_pct_errors, _fitdata['avg_pct_fit_error']], axis=0)
         all_os_predictions = pd.concat([all_os_predictions, _predict], axis=0)
-        all_los_predictions = pd.concat([all_los_predictions, _predict_l], axis=0)
-        all_hos_predictions = pd.concat([all_hos_predictions, _predict_h], axis=0)
-
         all_mod_prod[p_date] = _fitdata[cn.MOD_PROD]
         all_non_mod_prod[p_date] = _fitdata[cn.NON_MOD_PROD]
 
-    return all_os_predictions, all_hos_predictions, all_los_predictions, all_is_abs_errors, \
-           all_is_pct_errors, all_mod_prod, all_non_mod_prod
+    return all_os_predictions, all_is_abs_errors, all_is_pct_errors, all_mod_prod, all_non_mod_prod
 
 
 if __name__ == '__main__':
     start = time.time()
     # In sample testing of 2020-31-8
-    is_fit1, os_pr1, os_h_pr1, os_l_pr1, fit_data1, predict_data1 = run_prediction(date_to_predict='2020-08-10',
+    is_fit1, os_pr1, fit_data1, predict_data1 = run_prediction(date_to_predict='2020-08-10',
                                                                                    prediction_window=1,
                                                                                    train_obs=cn.TRAIN_OBS,
                                                                                    difference=False, lags=4,

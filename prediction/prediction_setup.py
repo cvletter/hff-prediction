@@ -163,6 +163,3 @@ if __name__ == '__main__':
                                                                  act_products=active_products_t,
                                                                  exog_features=exog_features_t,
                                                                  save_to_pkl=True)
-
-    gf.save_to_pkl(data=data_fitting_t, file_name='fit_data', folder=fm.SAVE_LOC)
-    gf.save_to_pkl(data=data_prediction_t, file_name='predict_data', folder=fm.SAVE_LOC)

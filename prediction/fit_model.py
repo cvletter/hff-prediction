@@ -5,7 +5,7 @@ import scipy.stats as stats
 import prediction.general_purpose_functions as gf
 import prediction.file_management as fm
 import prediction.column_names as cn
-
+import time
 
 def get_top_correlations(y, y_lags, top_correl=5):
     # Rowwise mean of input arrays & subtract from input arrays themeselves
@@ -281,10 +281,24 @@ def fit_and_predict(fit_dict, predict_dict, model_type='OLS', bootstrap=False, f
     return Yis_fit, Yos_pred
 
 
+def bootstrap_prediction(fit_dict, predict_dict, samples=5):
+
+    all_predictions = pd.DataFrame([])
+
+    for i in samples:
+        __, Yos_pred_b = fit_and_predict(fit_dict=fit_dict, predict_dict=predict_dict,
+                                         bootstrap=True, model_type='OLS')
+
+        all_predictions = pd.concat([all_predictions, Yos_pred_b])
+
+    return all_predictions
+
+
 if __name__ == '__main__':
 
     fit_dict = gf.read_pkl(file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC)
     predict_dict = gf.read_pkl(file_name=fm.PREDICT_DATA, data_loc=fm.SAVE_LOC)
+    num_samples = 3
 
     model_type = 'OLS'
     Y = fit_dict[cn.Y_TRUE]
@@ -309,6 +323,7 @@ if __name__ == '__main__':
     X_org = fit_dict[cn.X_EXOG]
 
 
+
     Yis_fit, model_fits, ar_f, exog_f = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
                                                         X_exog=fit_dict[cn.X_EXOG], model='OLS',
                                                         feature_threshold=[0.2, 15])
@@ -318,8 +333,10 @@ if __name__ == '__main__':
                                      fitted_models=model_fits,
                                      find_comparable_model=True)
 
-    Yis_fit_b, Yos_pred_b = fit_and_predict(fit_dict=fit_dict, predict_dict=predict_dict, bootstrap=True, model_type='OLS')
 
-    gf.save_to_csv(data=Yis_fit, file_name="insample_fit", folder=fm.SAVE_LOC)
+    __, Yos_pred_b = fit_and_predict(fit_dict=fit_dict, predict_dict=predict_dict,
+                                     bootstrap=True, model_type='OLS')
+
+
 
 
