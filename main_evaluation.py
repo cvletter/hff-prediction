@@ -3,6 +3,8 @@ from prediction import file_management as fm
 from prediction import column_names as cn
 import pandas as pd
 from datetime import datetime
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 if __name__ == '__main__':
     results = gf.read_pkl(file_name='test_result_bs_20201031_1548.p',
@@ -53,11 +55,9 @@ if __name__ == '__main__':
         return all_predictions
 
     all_mods, all_nmods = get_mod_products(result_dict=all_dicts)
-    all_predictions = get_predictions(result_dict=all_dicts)
-
+    all_preds = get_predictions(result_dict=all_dicts)
     all_true_values = all_products_act
-    all_mod_prod = all_mods
-    all_non_mod_prod = all_nmods
+
 
     def out_of_sample_performance(all_predictions, all_true_values, all_mod_prod, all_non_mod_prod, zero_pred=True):
 
@@ -81,19 +81,31 @@ if __name__ == '__main__':
         prediction_perror_nmod = pd.DataFrame(index=all_prediction_dates)
 
         predictions_mod_total = pd.DataFrame(index=all_prediction_dates,
-                                             columns=['prediction', 'true_value', 'pct_error', 'low_bound', 'upper_bound'])
+                                             columns=['prediction', 'true_value', 'pct_error', 'lower_bound', 'upper_bound'])
 
         predictions_nmod_total = pd.DataFrame(index=all_prediction_dates,
-                                             columns=['prediction', 'true_value', 'pct_error', 'low_bound', 'upper_bound'])
+                                             columns=['prediction', 'true_value', 'pct_error', 'lower_bound', 'upper_bound'])
 
         predictions_tot = pd.DataFrame(index=all_prediction_dates,
-                                             columns=['prediction', 'true_value', 'pct_error', 'low_bound', 'upper_bound'])
+                                             columns=['prediction', 'true_value', 'pct_error', 'lower_bound', 'upper_bound'])
 
 
         for d in all_prediction_dates:
             _d = d.strftime("%Y-%m-%d")
             _mod = all_mod_prod[_d].drop(cn.MOD_PROD_SUM)
             _nmod = all_non_mod_prod[_d]
+
+            _bootstrap_mod = bootstraps_total.loc[_d, _mod].sum(axis=1)
+            _pred_int_mod_low = _bootstrap_mod.quantile(0.20)
+            _pred_int_mod_high = _bootstrap_mod.quantile(0.80)
+
+            _bootstrap_nmod = bootstraps_total.loc[_d, _mod].sum(axis=1)
+            _pred_int_nmod_low = _bootstrap_mod.quantile(0.20)
+            _pred_int_nmod_high = _bootstrap_mod.quantile(0.80)
+
+            _bootstrap_tot = _bootstrap_mod + _bootstrap_nmod
+            _pred_int_tot_low = _bootstrap_mod.quantile(0.20)
+            _pred_int_tot_high = _bootstrap_mod.quantile(0.80)
 
             # Create
             _pred_mod = round(predictions_total.loc[_d, _mod], 0)
@@ -138,18 +150,40 @@ if __name__ == '__main__':
             predictions_mod_total.loc[d, 'prediction'] = _pred_mod_sum
             predictions_mod_total.loc[d, 'true_value'] = _truev_mod_sum
             predictions_mod_total.loc[d, 'pct_error'] = _pred_err_mod_sum
+            predictions_mod_total.loc[d, 'lower_bound'] = _pred_int_mod_low
+            predictions_mod_total.loc[d, 'upper_bound'] = _pred_int_mod_high
 
             predictions_nmod_total.loc[d, 'prediction'] = _pred_nmod_sum
             predictions_nmod_total.loc[d, 'true_value'] = _truev_nmod_sum
             predictions_nmod_total.loc[d, 'pct_error'] = _pred_err_nmod_sum
+            predictions_nmod_total.loc[d, 'lower_bound'] = _pred_int_nmod_low
+            predictions_nmod_total.loc[d, 'upper_bound'] = _pred_int_nmod_high
 
             predictions_tot.loc[d, 'prediction'] = _pred_tot
             predictions_tot.loc[d, 'true_value'] = _truev_tot
             predictions_tot.loc[d, 'pct_error'] = _pred_err_tot
+            predictions_tot.loc[d, 'lower_bound'] = _pred_int_tot_low
+            predictions_tot.loc[d, 'upper_bound'] = _pred_int_tot_high
+
+        return predictions_tot, predictions_mod_total, predictions_nmod_total
 
 
+    all_mods, all_nmods = get_mod_products(result_dict=all_dicts)
+    all_preds = get_predictions(result_dict=all_dicts)
+    all_true_values = all_products_act
 
+    pred_t, pred_m, pred_nm = out_of_sample_performance(all_predictions=all_preds,
+                                                        all_true_values=all_true_values,
+                                                        all_mod_prod=all_mods,
+                                                        all_non_mod_prod=all_nmods)
 
-
-
+    def plot_results(results):
+        plot_data = results.drop('pct_error', axis=1, inplace=False)
+        pct_error = round((abs(plot_data['prediction'] - plot_data['true_value']) / plot_data['true_value']).mean(), 2)
+        plot_data.fillna(0, inplace=True)
+        graph_fit = sns.relplot(data=plot_data, kind='line')
+        graph_fit.set(xlabel='week', ylabel='productie (CE)')
+        title = "Predictions all production, average error: {}".format(pct_error)
+        graph_fit.fig.suptitle(title, fontsize=10)
+        plt.show()
 
