@@ -14,7 +14,7 @@ model_settings = {'prediction_window': 2,
                   'ar_lags': 4,
                   'fit_model': 'OLS',
                   'feature_threshold': [0.2, 15],
-                  'bootstraps': 40}
+                  'bootstraps': 20}
 
 
 def batch_prediction_bs(prediction_date):

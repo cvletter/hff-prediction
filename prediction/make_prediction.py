@@ -103,9 +103,6 @@ def run_prediction_bootstrap(date_to_predict=cn.PREDICTION_DATE, prediction_wind
             na_values = all_predictions.isna().sum().sum()
             print("In {} there are {} na_values".format(date_to_predict, na_values))
 
-            if na_values > 0:
-                break
-
     all_output[date_to_predict][cn.PREDICTION_OS] = all_predictions
 
     return all_output
