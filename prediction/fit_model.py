@@ -253,7 +253,8 @@ def fit_and_predict(fit_dict, predict_dict, model_type='OLS', bootstrap=False, f
     Yar_org = fit_dict[cn.Y_AR]
     X_org = fit_dict[cn.X_EXOG]
 
-    Y_org.sample(n=Y_org.shape[0], replace=True)
+    # Y_org.sample(n=Y_org.shape[0], replace=True)
+
     if bootstrap:
         Y_fit = Y_org.sample(n=Y_org.shape[0], replace=True)
         Yar_fit = Yar_org.loc[Y_fit.index, :]
@@ -277,6 +278,7 @@ def fit_and_predict(fit_dict, predict_dict, model_type='OLS', bootstrap=False, f
         Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
         Xp_exog=predict_dict[cn.X_EXOG], fitted_models=model_fits, Yf_ar_opt=Yar_opt,
         Yf_exog_opt=X_opt, add_constant=True, find_comparable_model=True)
+
 
     return Yis_fit, Yos_pred
 
@@ -321,8 +323,6 @@ if __name__ == '__main__':
     Y_org = fit_dict[cn.Y_TRUE]
     Yar_org = fit_dict[cn.Y_AR]
     X_org = fit_dict[cn.X_EXOG]
-
-
 
     Yis_fit, model_fits, ar_f, exog_f = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
                                                         X_exog=fit_dict[cn.X_EXOG], model='OLS',

@@ -8,11 +8,11 @@ import multiprocessing
 import time
 
 # Prediction
-model_settings = {'prediction_window': 1, 'train_size': 60, 'differencing': False, 'ar_lags': 4,
+model_settings = {'prediction_window': 2, 'train_size': 60, 'differencing': False, 'ar_lags': 4,
                  'fit_model': 'OLS', 'feature_threshold': [0.2, 15]}
 
 
-def batch_prediction(prediction_date):
+def batch_prediction_bs(prediction_date):
 
     print("Starting for date: {}".format(prediction_date))
 
@@ -34,7 +34,8 @@ def batch_prediction(prediction_date):
 
 if __name__ == "__main__":
     start = time.time()
-    prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-5', periods=10, freq='W-MON').astype(str),
+
+    prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-5', periods=2, freq='W-MON').astype(str),
                                     columns=[cn.FIRST_DOW])
 
     pred_dates = list(prediction_dates[cn.FIRST_DOW])
@@ -42,12 +43,13 @@ if __name__ == "__main__":
     num_cores = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(num_cores)
 
-    results = pool.map(batch_prediction, pred_dates)
+    results = pool.map(batch_prediction_bs, pred_dates)
     pool.close()
     pool.join()
 
     all_preds = pd.concat(results)
 
+    # print(results)
     print(all_preds)
 
     elapsed = round((time.time() - start), 2)

@@ -65,7 +65,7 @@ def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, pred
         exog_f = exog_f.loc[mod.index]
 
         return mod.shift(-hold_out)[:-hold_out], non_mod.shift(-hold_out)[:-hold_out], \
-               exog_f.shift(-hold_out)[:-hold_out]
+               exog_f.shift(-hold_out)[:-hold_out], exog_f
 
     last_train_date = prediction_date - datetime.timedelta(weeks=hold_out)
 
@@ -82,7 +82,7 @@ def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, pred
     y_m_lags = create_lags(input_data=y_m, n_lags=lags)
     y_nm_lags = create_lags(input_data=y_nm, n_lags=lags)
 
-    y_ar_m, y_ar_nm, X_exog_l = create_predictive_context(mod=y_m_lags, non_mod=y_nm_lags, exog_f=X_exog,
+    y_ar_m, y_ar_nm, X_exog_l, X_exog_t = create_predictive_context(mod=y_m_lags, non_mod=y_nm_lags, exog_f=X_exog,
                                                           hold_out=hold_out)
 
     y_ar_m_fit = y_ar_m.loc[last_train_date:]
@@ -91,13 +91,13 @@ def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, pred
 
     yl_ar_m_prd = y_m_lags.loc[last_train_date]
     yl_ar_nm_prd = y_nm_lags.loc[last_train_date]
-    X_exog_prd = X_exog.loc[last_train_date]
+    X_exog_prd = X_exog_t.loc[last_train_date]
 
     yl_ar_m_prd.name += datetime.timedelta(days=hold_out * 7)
     yl_ar_nm_prd.name += datetime.timedelta(days=hold_out * 7)
     X_exog_prd.name += datetime.timedelta(days=hold_out * 7)
 
-    
+
     model_fitting = {cn.Y_TRUE: y_true_fit,
                      cn.Y_AR: y_ar_m_fit,
                      cn.X_EXOG: X_exog_fit,
@@ -136,7 +136,7 @@ def prediction_setup_wrapper(prediction_date, prediction_window, train_obs,
 
     if save_to_pkl:
         gf.save_to_pkl(data=data_fitting, file_name='fit_data', folder=fm.SAVE_LOC)
-        gf.save_to_pkl(data=data_prediction, file_name='prediction_data', folder=fm.SAVE_LOC)
+        gf.save_to_pkl(data=data_prediction, file_name='predict_data', folder=fm.SAVE_LOC)
 
     return data_fitting, data_prediction
 
@@ -163,3 +163,8 @@ if __name__ == '__main__':
                                                                  act_products=active_products_t,
                                                                  exog_features=exog_features_t,
                                                                  save_to_pkl=True)
+
+    gf.save_to_pkl(data=data_fitting_t, file_name='fit_data', folder=fm.SAVE_LOC)
+    gf.save_to_pkl(data=data_prediction_t, file_name='predict_data', folder=fm.SAVE_LOC)
+
+

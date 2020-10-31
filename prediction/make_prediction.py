@@ -69,7 +69,7 @@ def run_prediction_bootstrap(date_to_predict=cn.PREDICTION_DATE, prediction_wind
 
     all_predictions['iteration'] = 0
 
-    for i in range(1, 40):
+    for i in range(1, 3):
         print("Running iterations {}".format(i))
         __, temp_os = fit_and_predict(fit_dict=fit_data, predict_dict=predict_data, bootstrap=True,
                                       model_type=model_type, feature_threshold=[feature_threshold[0],
@@ -77,12 +77,6 @@ def run_prediction_bootstrap(date_to_predict=cn.PREDICTION_DATE, prediction_wind
         temp_os['iteration'] = i
 
         all_predictions = pd.concat([all_predictions, temp_os])
-
-
-
-
-    # fit_data['avg_fit_error'], fit_data['avg_pct_fit_error'] = in_sample_error(all_fits=in_sample_fit, all_true_values=fit_data['y_true'])
-    # in_sample_fit, prediction_os, fit_data, predict_data
 
     return all_predictions
 
@@ -204,3 +198,12 @@ if __name__ == '__main__':
     is_performance1 = in_sample_plot(y_true=fit_data1, y_fit=is_fit1,
                                      title="test")
 
+    test = run_prediction_bootstrap(date_to_predict='2020-10-5', prediction_window=2, train_obs=cn.TRAIN_OBS,
+                                    difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA,
+                                    weather_data=fm.WEER_DATA, product_data=fm.PRODUCT_STATUS,
+                                    model_type='OLS', feature_threshold=None)
+
+    test2 = run_prediction_bootstrap(date_to_predict='2020-09-28', prediction_window=2, train_obs=cn.TRAIN_OBS,
+                                    difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA,
+                                    weather_data=fm.WEER_DATA, product_data=fm.PRODUCT_STATUS,
+                                    model_type='OLS', feature_threshold=None)
