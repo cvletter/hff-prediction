@@ -197,6 +197,7 @@ def prep_all_features(weather_data_processed, order_data_su,
 
         if lag_range is None:
             lag_range = [1, -1, -2]
+
         data_columns = data.columns
 
         for i in data_columns:

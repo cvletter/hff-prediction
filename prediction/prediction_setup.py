@@ -91,7 +91,7 @@ def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, pred
 
     yl_ar_m_prd = y_m_lags.loc[last_train_date]
     yl_ar_nm_prd = y_nm_lags.loc[last_train_date]
-    X_exog_prd = X_exog_l.loc[last_train_date]
+    X_exog_prd = X_exog.loc[last_train_date]
 
     yl_ar_m_prd.name += datetime.timedelta(days=hold_out * 7)
     yl_ar_nm_prd.name += datetime.timedelta(days=hold_out * 7)
@@ -151,11 +151,11 @@ if __name__ == '__main__':
                                               data_loc=fm.SAVE_LOC,
                                               set_index=True)
 
-    exog_features_t = gf.import_temp_file(file_name='exogenous_features_20201025_955.csv',
+    exog_features_t = gf.import_temp_file(file_name=fm.EXOG_FEATURES,
                                           data_loc=fm.SAVE_LOC,
                                           set_index=True)
 
-    data_fitting_t, data_prediction_t = prediction_setup_wrapper(prediction_date='2020-08-10',
+    data_fitting_t, data_prediction_t = prediction_setup_wrapper(prediction_date='2020-10-05',
                                                                  prediction_window=2,
                                                                  train_obs=cn.TRAIN_OBS,
                                                                  nlags=3,

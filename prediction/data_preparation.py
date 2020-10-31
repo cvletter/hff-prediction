@@ -143,6 +143,8 @@ def data_filtering(unfiltered_data: pd.DataFrame, su_filter=True) -> pd.DataFram
     if su_filter:
         filter_2 = filter_1[(filter_1[cn.SELECT_ORG] == 'Superunie')]
         print("Bestellingen leden: {} lines".format(len(filter_2)))
+    else:
+        filter_2 = filter_1
 
     # Bestellingen na 1 augustus 2018, vanaf dat moment bestellingen betrouwbaar
     filter_3 = filter_2[filter_2['besteldatum'] >= pd.Timestamp(year=2018, month=8, day=1)]
@@ -209,6 +211,7 @@ def process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA, r_p
     # Importeren van weer data, op wekelijks niveau
     weer_data = process_weather_data(weer_data_loc=r_weer_data_loc, weekly=agg_weekly)
     gf.add_first_day_week(add_to=weer_data, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
+    weer_data.sort_index(ascending=False, inplace=True)
 
     # Importeren van product status data
     product_status = pocess_product_status(product_data_loc=r_product_data_loc)
@@ -283,13 +286,19 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data=
 
 if __name__ == '__main__':
 
+    order_data, weer_data, order_data_su = process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA,
+                                                        r_product_data_loc=fm.PRODUCT_STATUS,
+                                                        agg_weekly=True, exclude_su=True, save_to_csv=True)
+
     pred_date = datetime.datetime.strptime('2020-10-05', "%Y-%m-%d")
-    order_data_wk_a, order_data_wk_ia, weer_data, order_data_wk_su_a = data_prep_wrapper(
+    order_data_wk_a, order_data_wk_ia, weer_data_f, order_data_wk_su_a = data_prep_wrapper(
         prediction_date=pred_date,
         reload_data=True,
         prediction_window=2)
 
-    gf.save_to_csv(data=weer_data, file_name='weer_data_processed', folder=fm.SAVE_LOC)
+    gf.save_to_csv(data=weer_data_f, file_name='weer_data_processed', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=order_data_wk_a, file_name='actieve_halffabricaten_wk', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=order_data_wk_ia, file_name='inactieve_halffabricaten_wk', folder=fm.SAVE_LOC)
+    gf.save_to_csv(data=order_data_wk_su_a, file_name='actieve_halffabricaten_wk_su', folder=fm.SAVE_LOC)
+
 
