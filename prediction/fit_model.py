@@ -113,6 +113,7 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS', feature_thr
 
     Y_pred = pd.DataFrame(index=Y.index)
     fitted_models = {}
+    all_params = {}
     optimized_ar_features = {}
     optimized_exog_features = {}
 
@@ -156,12 +157,13 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS', feature_thr
 
         Y_pred[y_name] = mdl_fit.predict()
         fitted_models[y_name] = mdl_fit
+        all_params[y_name] = mdl_fit.params.index
         optimized_ar_features[y_name] = ar_features.columns
         optimized_exog_features[y_name] = exog_features.columns
 
         # Determine Prediction intervals
 
-    return Y_pred, fitted_models, optimized_ar_features, optimized_exog_features
+    return Y_pred, fitted_models, all_params, optimized_ar_features, optimized_exog_features
 
 
 def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, Yf_exog_opt,
@@ -178,6 +180,7 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
     Y_pred = pd.DataFrame(index=Yp_ar_m.index)
 
     Ym_products = list(set([x[:-7] for x in Yp_ar_m.columns]))
+
 
     for y_name_m in Ym_products:
         lag_index = [y_name_m in x for x in Yp_ar_m.columns]
@@ -269,7 +272,7 @@ def fit_and_predict(fit_dict, predict_dict, model_type='OLS', bootstrap=False, f
         Yar_fit = Yar_org
         X_fit = X_org
 
-    Yis_fit, model_fits, Yar_opt, X_opt = batch_fit_model(
+    Yis_fit, model_fits, all_pars, Yar_opt, X_opt = batch_fit_model(
         Y=Y_fit, Y_ar=Yar_fit,
         add_constant=True, X_exog=X_fit,
         model=model_type, feature_threshold=[feature_threshold[0], feature_threshold[1]])
@@ -279,21 +282,7 @@ def fit_and_predict(fit_dict, predict_dict, model_type='OLS', bootstrap=False, f
         Xp_exog=predict_dict[cn.X_EXOG], fitted_models=model_fits, Yf_ar_opt=Yar_opt,
         Yf_exog_opt=X_opt, add_constant=True, find_comparable_model=True)
 
-
-    return Yis_fit, Yos_pred
-
-
-def bootstrap_prediction(fit_dict, predict_dict, samples=5):
-
-    all_predictions = pd.DataFrame([])
-
-    for i in samples:
-        __, Yos_pred_b = fit_and_predict(fit_dict=fit_dict, predict_dict=predict_dict,
-                                         bootstrap=True, model_type='OLS')
-
-        all_predictions = pd.concat([all_predictions, Yos_pred_b])
-
-    return all_predictions
+    return Yis_fit, Yos_pred, all_pars
 
 
 if __name__ == '__main__':
@@ -324,18 +313,17 @@ if __name__ == '__main__':
     Yar_org = fit_dict[cn.Y_AR]
     X_org = fit_dict[cn.X_EXOG]
 
-    Yis_fit, model_fits, ar_f, exog_f = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
+    Yis_fit, model_fits, all_pars, ar_f, exog_f = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
                                                         X_exog=fit_dict[cn.X_EXOG], model='OLS',
                                                         feature_threshold=[0.2, 15])
 
-    Yis_fit, Yos_pred = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
+    Yis_fit, Yos_pred, all_pars = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
                                      Xp_exog=predict_dict[cn.X_EXOG], Yf_ar_opt=ar_f, Yf_exog_opt=exog_f,
                                      fitted_models=model_fits,
                                      find_comparable_model=True)
 
 
-    __, Yos_pred_b = fit_and_predict(fit_dict=fit_dict, predict_dict=predict_dict,
-                                     bootstrap=True, model_type='OLS')
+
 
 
 

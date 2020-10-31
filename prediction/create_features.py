@@ -225,15 +225,20 @@ def prep_all_features(weather_data_processed, order_data_su,
 
     all_exog_features = all_shift_features_lags.join(level_f, how='left').join(all_su_features_lags, how='left')
 
-    if save_to_csv:
-        gf.save_to_csv(data=all_exog_features, file_name='exogenous_features', folder=fm.SAVE_LOC)
+    eval_cols = all_exog_features.loc[prediction_date].T
+    cols_include = eval_cols.dropna(how='any', axis=0)
 
-    return all_exog_features
+    all_exog_features_non_zero = all_exog_features[cols_include.index]
+
+    if save_to_csv:
+        gf.save_to_csv(data=all_exog_features_non_zero, file_name='exogenous_features', folder=fm.SAVE_LOC)
+
+    return all_exog_features_non_zero
 
 
 if __name__ == '__main__':
     # Import weer data
-    order_data_su = gf.import_temp_file(file_name='actieve_halffabricaten_wk_su_20201024_1230.csv', data_loc=fm.SAVE_LOC,
+    order_data_su = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT_SU, data_loc=fm.SAVE_LOC,
                                         set_index=True)
 
     weather_data = gf.import_temp_file(file_name=fm.WEER_DATA_PREP, data_loc=fm.SAVE_LOC, set_index=False)

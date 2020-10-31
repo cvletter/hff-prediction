@@ -57,6 +57,12 @@ CORREL = 'correlations'
 
 MOD_PROD = 'modelable_products'
 NON_MOD_PROD = 'non_modelable_products'
+SELECTED_FEATURES = 'selected_features'
+
+FIT_ERROR_ABS = 'in_sample_fit_error'
+FIT_ERROR_PCT = 'in_sample_fit_perror'
+BOOTSTRAP_ITER = 'bootstrap_iteration'
+PREDICTION_OS = 'prediction_os'
 
 # INPUT VARIABLES
 

@@ -13,9 +13,16 @@ import numpy as np
 
 def run_prediction_bootstrap(date_to_predict=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
                              difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
-                             product_data=fm.PRODUCT_STATUS, model_type='OLS', feature_threshold=None):
+                             product_data=fm.PRODUCT_STATUS, model_type='OLS', feature_threshold=None,
+                             bootstrap_iter=None):
     if feature_threshold is None:
         feature_threshold = [0.2, 15]
+
+    if bootstrap_iter is None:
+        do_bootstrap = False
+
+    else:
+        do_bootstrap = True
 
     def convert_series_to_dataframe(input_series, date_val, index_name=cn.FIRST_DOW):
         input_df = pd.DataFrame(input_series).T
@@ -33,6 +40,9 @@ def run_prediction_bootstrap(date_to_predict=cn.PREDICTION_DATE, prediction_wind
         avg_pct_fit_error_df = convert_series_to_dataframe(input_series=avg_pct_fit_error, date_val=date_to_predict)
 
         return avg_fit_error_df, avg_pct_fit_error_df
+
+    #Catch all output
+    all_output = {}
 
     # Import and prepare data
     active_products, inactive_products, weather_data_processed, order_data_su = data_prep_wrapper(
@@ -61,24 +71,44 @@ def run_prediction_bootstrap(date_to_predict=cn.PREDICTION_DATE, prediction_wind
         exog_features=exogenous_features,
         save_to_pkl=False)
 
-    __, all_predictions = fit_and_predict(
+    in_sample_fits, all_predictions, all_pars = fit_and_predict(
         fit_dict=fit_data, predict_dict=predict_data,
         model_type=model_type,
         feature_threshold=[feature_threshold[0],
                            feature_threshold[1]])
 
-    all_predictions['iteration'] = 0
+    all_output[date_to_predict] = {}
+    all_output[date_to_predict][cn.MOD_PROD] = fit_data[cn.MOD_PROD]
+    all_output[date_to_predict][cn.NON_MOD_PROD] = fit_data[cn.NON_MOD_PROD]
 
-    for i in range(1, 3):
-        print("Running iterations {}".format(i))
-        __, temp_os = fit_and_predict(fit_dict=fit_data, predict_dict=predict_data, bootstrap=True,
-                                      model_type=model_type, feature_threshold=[feature_threshold[0],
-                                                                                feature_threshold[1]])
-        temp_os['iteration'] = i
+    all_output[date_to_predict][cn.SELECTED_FEATURES] = all_pars
 
-        all_predictions = pd.concat([all_predictions, temp_os])
+    avg_fit_err, avg_pct_err = in_sample_error(all_fits=in_sample_fits, all_true_values=fit_data[cn.Y_TRUE])
 
-    return all_predictions
+    all_output[date_to_predict][cn.FIT_ERROR_ABS] = avg_fit_err
+    all_output[date_to_predict][cn.FIT_ERROR_PCT] = avg_pct_err
+
+    if do_bootstrap:
+        all_predictions[cn.BOOTSTRAP_ITER] = 0
+
+        for i in range(1, bootstrap_iter):
+            print("Running iteration {} of {}".format(i, bootstrap_iter))
+            fits, temp_os, pars = fit_and_predict(fit_dict=fit_data, predict_dict=predict_data, bootstrap=True,
+                                                  model_type=model_type, feature_threshold=[feature_threshold[0],
+                                                                                            feature_threshold[1]])
+            temp_os[cn.BOOTSTRAP_ITER] = i
+
+            all_predictions = pd.concat([all_predictions, temp_os])
+
+            na_values = all_predictions.isna().sum().sum()
+            print("In {} there are {} na_values".format(date_to_predict, na_values))
+
+            if na_values > 0:
+                break
+
+    all_output[date_to_predict][cn.PREDICTION_OS] = all_predictions
+
+    return all_output
 
 
 def run_prediction(date_to_predict=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
@@ -131,7 +161,7 @@ def run_prediction(date_to_predict=cn.PREDICTION_DATE, prediction_window=cn.PRED
         exog_features=exogenous_features,
         save_to_pkl=False)
 
-    in_sample_fit, prediction_os = fit_and_predict(
+    in_sample_fit, prediction_os, __ = fit_and_predict(
         fit_dict=fit_data, predict_dict=predict_data,
         model_type=model_type,
         feature_threshold=[feature_threshold[0],
@@ -198,12 +228,24 @@ if __name__ == '__main__':
     is_performance1 = in_sample_plot(y_true=fit_data1, y_fit=is_fit1,
                                      title="test")
 
-    test = run_prediction_bootstrap(date_to_predict='2020-10-5', prediction_window=2, train_obs=cn.TRAIN_OBS,
+    date_to_predict = '2020-06-22'
+    prediction_window = 2
+    train_obs = cn.TRAIN_OBS
+    difference = False
+    lags = cn.N_LAGS
+    order_data = fm.RAW_DATA
+    weather_data = fm.WEER_DATA
+    product_data = fm.PRODUCT_STATUS
+    model_type = 'OLS'
+    feature_threshold = None
+    bootstrap_iter = 20
+
+    test = run_prediction_bootstrap(date_to_predict='2020-06-22', prediction_window=2, train_obs=cn.TRAIN_OBS,
                                     difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA,
                                     weather_data=fm.WEER_DATA, product_data=fm.PRODUCT_STATUS,
-                                    model_type='OLS', feature_threshold=None)
+                                    model_type='OLS', feature_threshold=None, bootstrap_iter=20)
 
     test2 = run_prediction_bootstrap(date_to_predict='2020-09-28', prediction_window=2, train_obs=cn.TRAIN_OBS,
                                     difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA,
                                     weather_data=fm.WEER_DATA, product_data=fm.PRODUCT_STATUS,
-                                    model_type='OLS', feature_threshold=None)
+                                    model_type='OLS', feature_threshold=None, bootstrap_iter=None)

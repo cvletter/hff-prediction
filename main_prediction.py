@@ -8,8 +8,13 @@ import multiprocessing
 import time
 
 # Prediction
-model_settings = {'prediction_window': 2, 'train_size': 60, 'differencing': False, 'ar_lags': 4,
-                 'fit_model': 'OLS', 'feature_threshold': [0.2, 15]}
+model_settings = {'prediction_window': 2,
+                  'train_size': 60,
+                  'differencing': False,
+                  'ar_lags': 4,
+                  'fit_model': 'OLS',
+                  'feature_threshold': [0.2, 15],
+                  'bootstraps': 40}
 
 
 def batch_prediction_bs(prediction_date):
@@ -22,12 +27,14 @@ def batch_prediction_bs(prediction_date):
     ar_lags = model_settings['ar_lags']
     fit_model = model_settings['fit_model']
     feature_threshold = model_settings['feature_threshold']
+    bootstrap_iterations = model_settings['bootstraps']
 
     _predict = pred.run_prediction_bootstrap(
         date_to_predict=prediction_date, prediction_window=p_window, train_obs=train_size,
         difference=differencing, lags=ar_lags, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
         product_data=fm.PRODUCT_STATUS, model_type=fit_model, feature_threshold=[feature_threshold[0],
-                                                                                 feature_threshold[1]])
+                                                                                 feature_threshold[1]],
+        bootstrap_iter=bootstrap_iterations)
 
     return _predict
 
@@ -35,7 +42,7 @@ def batch_prediction_bs(prediction_date):
 if __name__ == "__main__":
     start = time.time()
 
-    prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-5', periods=2, freq='W-MON').astype(str),
+    prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-5', periods=16, freq='W-MON').astype(str),
                                     columns=[cn.FIRST_DOW])
 
     pred_dates = list(prediction_dates[cn.FIRST_DOW])
@@ -47,13 +54,27 @@ if __name__ == "__main__":
     pool.close()
     pool.join()
 
-    all_preds = pd.concat(results)
+    #all_preds = pd.concat(results)
+    print(results)
+    # print(all_preds)
 
-    # print(results)
-    print(all_preds)
+    gf.save_to_pkl(data=results, file_name='test_result_bs', folder=fm.SAVE_LOC)
 
     elapsed = round((time.time() - start), 2)
     print("It takes {} seconds to run a prediction.".format(elapsed))
+
+    """
+
+    test_rsults = gf.read_pkl(file_name='test_result_bs_20201031_1247.p', data_loc=fm.SAVE_LOC)
+
+    test = pd.read_json(test_rsults)
+    test = str(test_rsults)
+    test1 = test_rsults[0]
+    test2 = test_rsults[1]
+    
+    test1.update(test2) #join dictstest
+    """
+
 
 
 
