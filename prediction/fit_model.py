@@ -41,11 +41,14 @@ def get_top_correlations(y, y_lags, top_correl=5):
 
 
 def optimize_ar_model(y, y_ar, X_exog, constant=True, model='OLS'):
-    level_cols = ['period_2', 'period_3', 'trans_period_1', 'trans_period_2']
+    level_cols = ['trans_period_1', 'period_2', 'trans_period_2', 'period_3']
     all_level_features = X_exog[level_cols]
     sorted_lags = y_ar.columns.sort_values(ascending=True)
 
     use_level_features = all_level_features.loc[:, (all_level_features != 0).any(axis=0)]
+
+    if use_level_features.sum(axis=1).sum() == len(y):
+        use_level_features = use_level_features.iloc[:, 1:]
 
     optimal_lags = 1
     min_fit_val = 1e9
@@ -181,7 +184,6 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
 
     Ym_products = list(set([x[:-7] for x in Yp_ar_m.columns]))
 
-
     for y_name_m in Ym_products:
         lag_index = [y_name_m in x for x in Yp_ar_m.columns]
         Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
@@ -295,7 +297,7 @@ if __name__ == '__main__':
     Y = fit_dict[cn.Y_TRUE]
     Y_ar = fit_dict[cn.Y_AR]
     X_exog = fit_dict[cn.X_EXOG]
-    Y_cross_ar = fit_dict['correlations']
+    #Y_cross_ar = fit_dict['correlations']
     model = model_type
 
     Yp_ar_m = predict_dict[cn.Y_AR_M]
@@ -321,6 +323,9 @@ if __name__ == '__main__':
                                      Xp_exog=predict_dict[cn.X_EXOG], Yf_ar_opt=ar_f, Yf_exog_opt=exog_f,
                                      fitted_models=model_fits,
                                      find_comparable_model=True)
+
+    yisfit, yosfit, pars = fit_and_predict(fit_dict=fit_dict, predict_dict=predict_dict)
+
 
 
 

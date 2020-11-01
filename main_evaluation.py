@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 if __name__ == '__main__':
-    results = gf.read_pkl(file_name='test_result_bs_20201031_1548.p',
+    results = gf.read_pkl(file_name='test_result_bs_1p_2020111_1214.p',
                           data_loc=fm.SAVE_LOC)
 
     active_products_act = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT,
@@ -15,6 +15,18 @@ if __name__ == '__main__':
     inactive_products_act = gf.import_temp_file(file_name=fm.ORDER_DATA_INACT,
                                                 data_loc=fm.SAVE_LOC)
     all_products_act = active_products_act.join(inactive_products_act, how='outer')
+
+    a = "no"
+
+    if a == "yes":
+        from collections import Counter
+
+        all_params = []
+        for k in pars.keys():
+            all_params += list(pars[k])
+
+        Counter(all_params)
+
 
     def output_to_dict(result_file):
         for i in range(0, len(result_file)):
@@ -54,16 +66,15 @@ if __name__ == '__main__':
 
         return all_predictions
 
-    all_mods, all_nmods = get_mod_products(result_dict=all_dicts)
-    all_preds = get_predictions(result_dict=all_dicts)
+    all_mod_prod, all_non_mod_prod = get_mod_products(result_dict=all_dicts)
+    all_predictions = get_predictions(result_dict=all_dicts)
     all_true_values = all_products_act
 
 
     def out_of_sample_performance(all_predictions, all_true_values, all_mod_prod, all_non_mod_prod, zero_pred=True):
 
-
         if zero_pred:
-             all_predictions[all_predictions < 0] = 0
+            all_predictions[all_predictions < 0] = 0
 
         predictions_total = all_predictions[all_predictions[cn.BOOTSTRAP_ITER] == 0]
         bootstraps_total = all_predictions[all_predictions[cn.BOOTSTRAP_ITER] != 0]
@@ -81,13 +92,13 @@ if __name__ == '__main__':
         prediction_perror_nmod = pd.DataFrame(index=all_prediction_dates)
 
         predictions_mod_total = pd.DataFrame(index=all_prediction_dates,
-                                             columns=['prediction', 'true_value', 'pct_error', 'lower_bound', 'upper_bound'])
+                                             columns=['prediction', 'q_prediction', 'true_value', 'pct_error', 'pct_qerror', 'lower_bound', 'upper_bound'])
 
         predictions_nmod_total = pd.DataFrame(index=all_prediction_dates,
-                                             columns=['prediction', 'true_value', 'pct_error', 'lower_bound', 'upper_bound'])
+                                             columns=['prediction', 'q_prediction', 'true_value', 'pct_error', 'pct_qerror', 'lower_bound', 'upper_bound'])
 
         predictions_tot = pd.DataFrame(index=all_prediction_dates,
-                                             columns=['prediction', 'true_value', 'pct_error', 'lower_bound', 'upper_bound'])
+                                             columns=['prediction', 'q_prediction', 'true_value', 'pct_error', 'pct_qerror', 'lower_bound', 'upper_bound'])
 
 
         for d in all_prediction_dates:
@@ -95,17 +106,18 @@ if __name__ == '__main__':
             _mod = all_mod_prod[_d].drop(cn.MOD_PROD_SUM)
             _nmod = all_non_mod_prod[_d]
 
-            _bootstrap_mod = bootstraps_total.loc[_d, _mod].sum(axis=1)
-            _pred_int_mod_low = _bootstrap_mod.quantile(0.20)
-            _pred_int_mod_high = _bootstrap_mod.quantile(0.80)
+            _pred_int_mod_low = round(all_predictions.loc[_d, _mod].quantile(0.025, axis=0).sum(), 0)
+            _pred_int_mod_high = round(all_predictions.loc[_d, _mod].quantile(0.975, axis=0).sum(), 0)
 
-            _bootstrap_nmod = bootstraps_total.loc[_d, _mod].sum(axis=1)
-            _pred_int_nmod_low = _bootstrap_mod.quantile(0.20)
-            _pred_int_nmod_high = _bootstrap_mod.quantile(0.80)
+            _pred_int_nmod_low = round(all_predictions.loc[_d, _nmod].quantile(0.025, axis=0).sum(), 0)
+            _pred_int_nmod_high = round(all_predictions.loc[_d, _nmod].quantile(0.975, axis=0).sum(), 0)
 
-            _bootstrap_tot = _bootstrap_mod + _bootstrap_nmod
-            _pred_int_tot_low = _bootstrap_mod.quantile(0.20)
-            _pred_int_tot_high = _bootstrap_mod.quantile(0.80)
+            _pred_int_tot_low = _pred_int_mod_low + _pred_int_nmod_low
+            _pred_int_tot_high = _pred_int_mod_high + _pred_int_nmod_high
+
+            _pred_mod_med = round(all_predictions.loc[_d, _mod].quantile(0.5, axis=0).sum(), 0)
+            _pred_nmod_med = round(all_predictions.loc[_d, _nmod].quantile(0.5, axis=0).sum(), 0)
+            _pred_tot_med = _pred_mod_med + _pred_nmod_med
 
             # Create
             _pred_mod = round(predictions_total.loc[_d, _mod], 0)
@@ -134,6 +146,10 @@ if __name__ == '__main__':
             _pred_err_nmod_sum = round(abs(_pred_nmod_sum - _truev_nmod_sum) / _truev_nmod_sum, 3)
             _pred_err_tot = round(abs(_pred_tot - _truev_tot) / _truev_tot, 3)
 
+            _predq_err_mod = round(abs(_pred_mod_med - _truev_mod_sum) / _truev_mod_sum, 3)
+            _predq_err_nmod = round(abs(_pred_nmod_med - _truev_nmod_sum) / _truev_nmod_sum, 3)
+            _predq_err_tot = round(abs(_pred_tot_med - _truev_mod_sum) / _truev_tot, 3)
+
             # Collect
             predictions_mod.loc[d, _mod] = _pred_mod
             predictions_nmod.loc[d, _nmod] = _pred_nmod
@@ -148,20 +164,26 @@ if __name__ == '__main__':
             prediction_perror_nmod.loc[d, _nmod] = _pred_perr_nmod
 
             predictions_mod_total.loc[d, 'prediction'] = _pred_mod_sum
+            predictions_mod_total.loc[d, 'q_prediction'] = _pred_mod_med
             predictions_mod_total.loc[d, 'true_value'] = _truev_mod_sum
             predictions_mod_total.loc[d, 'pct_error'] = _pred_err_mod_sum
+            predictions_mod_total.loc[d, 'pct_qerror'] = _predq_err_mod
             predictions_mod_total.loc[d, 'lower_bound'] = _pred_int_mod_low
             predictions_mod_total.loc[d, 'upper_bound'] = _pred_int_mod_high
 
             predictions_nmod_total.loc[d, 'prediction'] = _pred_nmod_sum
+            predictions_nmod_total.loc[d, 'q_prediction'] = _pred_nmod_med
             predictions_nmod_total.loc[d, 'true_value'] = _truev_nmod_sum
             predictions_nmod_total.loc[d, 'pct_error'] = _pred_err_nmod_sum
+            predictions_mod_total.loc[d, 'pct_qerror'] = _predq_err_nmod
             predictions_nmod_total.loc[d, 'lower_bound'] = _pred_int_nmod_low
             predictions_nmod_total.loc[d, 'upper_bound'] = _pred_int_nmod_high
 
             predictions_tot.loc[d, 'prediction'] = _pred_tot
+            predictions_tot.loc[d, 'q_prediction'] = _pred_tot_med
             predictions_tot.loc[d, 'true_value'] = _truev_tot
             predictions_tot.loc[d, 'pct_error'] = _pred_err_tot
+            predictions_tot.loc[d, 'pct_qerror'] = _predq_err_tot
             predictions_tot.loc[d, 'lower_bound'] = _pred_int_tot_low
             predictions_tot.loc[d, 'upper_bound'] = _pred_int_tot_high
 
@@ -187,3 +209,10 @@ if __name__ == '__main__':
         graph_fit.fig.suptitle(title, fontsize=10)
         plt.show()
 
+    gf.save_to_csv(data=pred_t, file_name='total_predictions_1p', folder=fm.SAVE_LOC)
+    gf.save_to_csv(data=pred_m, file_name='total_mod_predictions_1p', folder=fm.SAVE_LOC)
+    gf.save_to_csv(data=pred_nm, file_name='total_nonmod_predictions_1p', folder=fm.SAVE_LOC)
+
+plot_results(pred_t)
+plot_results(pred_m)
+plot_results(pred_nm)
