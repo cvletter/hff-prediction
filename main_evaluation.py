@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 if __name__ == '__main__':
-    results = gf.read_pkl(file_name='test_result_bs_1p_2020111_1214.p',
+    results = gf.read_pkl(file_name='test_result_bs_1p_2l_2020111_1741.p',
                           data_loc=fm.SAVE_LOC)
 
     active_products_act = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT,
@@ -100,11 +100,21 @@ if __name__ == '__main__':
         predictions_tot = pd.DataFrame(index=all_prediction_dates,
                                              columns=['prediction', 'q_prediction', 'true_value', 'pct_error', 'pct_qerror', 'lower_bound', 'upper_bound'])
 
-
         for d in all_prediction_dates:
             _d = d.strftime("%Y-%m-%d")
-            _mod = all_mod_prod[_d].drop(cn.MOD_PROD_SUM)
-            _nmod = all_non_mod_prod[_d]
+            _raw_mod = all_mod_prod[_d].drop(cn.MOD_PROD_SUM)
+            _raw_nmod = all_non_mod_prod[_d]
+
+            _truev_mod = all_true_values.loc[d, _raw_mod]
+            _truev_mod_sum = _truev_mod.sum()
+
+            _truev_nmod = all_true_values.loc[d, _raw_nmod]
+            _truev_nmod_sum = _truev_nmod.sum()
+
+            _mod = _truev_mod.index[_truev_mod.notna()]
+            _nmod = _truev_nmod.index[_truev_nmod.notna()]
+
+            _truev_tot = _truev_mod_sum + _truev_nmod_sum
 
             _pred_int_mod_low = round(all_predictions.loc[_d, _mod].quantile(0.025, axis=0).sum(), 0)
             _pred_int_mod_high = round(all_predictions.loc[_d, _mod].quantile(0.975, axis=0).sum(), 0)
@@ -128,13 +138,7 @@ if __name__ == '__main__':
 
             _pred_tot = _pred_mod_sum + _pred_nmod_sum
 
-            _truev_mod = all_true_values.loc[d, _mod]
-            _truev_mod_sum = _truev_mod.sum()
 
-            _truev_nmod = all_true_values.loc[d, _nmod]
-            _truev_nmod_sum = _truev_nmod.sum()
-
-            _truev_tot = _truev_mod_sum + _truev_nmod_sum
 
             _pred_err_mod = abs(_pred_mod - _truev_mod)
             _pred_err_nmod = abs(_pred_nmod - _truev_nmod)
@@ -199,6 +203,21 @@ if __name__ == '__main__':
                                                         all_mod_prod=all_mods,
                                                         all_non_mod_prod=all_nmods)
 
+    print("Average pct error, total: {}, modelable: {}, non-modelable: {}".format(
+        round(pred_t['pct_error'].mean(), 2),
+        round(pred_m['pct_error'].mean(), 2),
+        round(pred_nm['pct_error'].mean(), 2)))
+
+    pred_t_f = pred_t[(pred_t.index > '2020-06-01') | (pred_t.index < '2020-05-11')]
+    pred_m_f = pred_m[(pred_m.index > '2020-06-01') | (pred_m.index < '2020-05-11')]
+    pred_nm_f = pred_nm[(pred_nm.index > '2020-06-01') | (pred_nm.index < '2020-05-11')]
+
+    print("Average pct error without peak-period, total: {}, modelable: {}, non-modelable: {}".format(
+        round(pred_t_f['pct_error'].mean(), 2),
+        round(pred_m_f['pct_error'].mean(), 2),
+        round(pred_nm_f['pct_error'].mean(),2)))
+
+
     def plot_results(results):
         plot_data = results.drop('pct_error', axis=1, inplace=False)
         pct_error = round((abs(plot_data['prediction'] - plot_data['true_value']) / plot_data['true_value']).mean(), 2)
@@ -209,10 +228,7 @@ if __name__ == '__main__':
         graph_fit.fig.suptitle(title, fontsize=10)
         plt.show()
 
-    gf.save_to_csv(data=pred_t, file_name='total_predictions_1p', folder=fm.SAVE_LOC)
-    gf.save_to_csv(data=pred_m, file_name='total_mod_predictions_1p', folder=fm.SAVE_LOC)
-    gf.save_to_csv(data=pred_nm, file_name='total_nonmod_predictions_1p', folder=fm.SAVE_LOC)
+    #gf.save_to_csv(data=pred_t, file_name='total_predictions_1p_2l', folder=fm.SAVE_LOC)
+    #gf.save_to_csv(data=pred_m, file_name='total_mod_predictions_1p_2l', folder=fm.SAVE_LOC)
+    #gf.save_to_csv(data=pred_nm, file_name='total_nonmod_predictions_1p_2l', folder=fm.SAVE_LOC)
 
-plot_results(pred_t)
-plot_results(pred_m)
-plot_results(pred_nm)
