@@ -18,7 +18,7 @@ if __name__ == '__main__':
     weather_data = fm.WEER_DATA
     product_data = fm.PRODUCT_STATUS
     model_type = 'OLS'
-    feature_threshold = [0.2, 15]
+    feature_threshold = [0.2, 25]
 
     # Import and prepare data
     active_products, inactive_products, weather_data_processed, order_data_su = data_prep_wrapper(
@@ -48,14 +48,18 @@ if __name__ == '__main__':
         save_to_pkl=False)
 
     from statsmodels.tsa.seasonal import seasonal_decompose
-
-    Y_true = fit_data[cn.Y_TRUE]
-    y_sum = Y_true[cn.MOD_PROD_SUM]
-
-
     import statsmodels.api as sm
     import numpy as np
     import matplotlib.pyplot as plt
+
+    Y_true = fit_data[cn.Y_TRUE]
+    y_sum = fit_data[cn.Y_TRUE]
+
+    for i in Y_true.columns:
+        y = Y_true[i]
+        y = y.diff
+
+
     features = pd.DataFrame(index=y_sum.index)
     features['constant'] = 1
     features['trend'] = sorted(np.arange(1, len(y_sum)+1), reverse=True)
@@ -66,8 +70,8 @@ if __name__ == '__main__':
     features2 = pd.DataFrame(index=y_sum.index)
     features2['constant'] = 1
     features2['trend'] = sorted(np.arange(1, len(y_sum)+1), reverse=True)
-  #  features2['lag1'] = y_sum.shift(-1)
-  #  features2['lag2'] = y_sum.shift(-2)
+    features2['lag1'] = y_sum.shift(-1)
+    features2['lag2'] = y_sum.shift(-2)
 
     y_sum_fit = y_sum[:-2]
     features2 = features2[:-2]

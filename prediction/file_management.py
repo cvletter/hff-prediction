@@ -3,6 +3,7 @@ RAW_DATA = 'U:\\Data\Bestellingen per HF-Artikel Update 09-10-2020 11.18.15.xlsx
 PRODUCT_STATUS = 'U:\\Data\productstatus.xlsx'
 SAVE_LOC = 'U:\\Data\Prepared'
 WEER_DATA = 'U:\\Data\knmi_201007_debilt.csv'
+CAMPAIGN_DATA = 'U:\\Data\campagne_overzicht_totaal.csv'
 
 
 # PREPARED DATA

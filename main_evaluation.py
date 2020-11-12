@@ -222,7 +222,7 @@ if __name__ == '__main__':
 
 
     def plot_results(results):
-        plot_data = results.drop('pct_error', axis=1, inplace=False)
+        plot_data = results[['prediction', 'true_value']]
         pct_error = round((abs(plot_data['prediction'] - plot_data['true_value']) / plot_data['true_value']).mean(), 2)
         plot_data.fillna(0, inplace=True)
         graph_fit = sns.relplot(data=plot_data, kind='line')
@@ -231,11 +231,13 @@ if __name__ == '__main__':
         graph_fit.fig.suptitle(title, fontsize=10)
         plt.show()
 
-    #plot_results(results=pred_t)
+    plot_results(results=pred_m)
+
+    """
     gf.save_to_csv(data=r_predmod, file_name='raw_pred_2p_2p_mod', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=r_truemod, file_name='raw_truev_2p_2p_mod', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=pred_m, file_name='total_mod_predictions_2p_2l', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=pred_t, file_name='total_predictions_2p_2l', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=pred_m, file_name='total_mod_predictions_2p_2l', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=pred_nm, file_name='total_nonmod_predictions_2p_2l', folder=fm.SAVE_LOC)
-
+    """

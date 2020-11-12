@@ -86,9 +86,21 @@ def process_weather_data(weer_data_loc: str, weekly=True) -> pd.DataFrame:
     return raw_weer_data
 
 
+def process_campaigns(campaign_data_loc: str) -> pd.DataFrame:
+    raw_campaign_data = pd.read_csv(campaign_data_loc, sep=";")
+    raw_campaign_data['Datum'] = pd.to_datetime(raw_campaign_data['Datum'], format="%d-%m-%Y")
+    raw_campaign_data.set_index('Datum', inplace=True)
+    raw_campaign_data.index.name = cn.FIRST_DOW
+
+    raw_campaign_data.columns = ['Camp_Boni', 'Camp_Boon', 'Camp_Coop', 'Camp_Deen', 'Camp_Detailresult',
+                                 'Camp_Hoogvliet', 'Camp_Linders', 'Camp_Nettorama', 'Camp_Plus', 'Camp_Poiesz',
+                                 'Camp_Sligro', 'Camp_Spar', 'Camp_Picnic', 'Camp_Vomar', 'Camp_Emte', 'Camp_Total']
+
+    return raw_campaign_data
+
 # TODO Afmaken column_names
 
-def pocess_product_status(product_data_loc: str) -> pd.DataFrame:
+def process_product_status(product_data_loc: str) -> pd.DataFrame:
     raw_product_status = pd.read_excel(product_data_loc,
                                        sheet_name='Blad2',
                                        dtype={'Nummer': str,
@@ -214,7 +226,7 @@ def process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA, r_p
     weer_data.sort_index(ascending=False, inplace=True)
 
     # Importeren van product status data
-    product_status = pocess_product_status(product_data_loc=r_product_data_loc)
+    product_status = process_product_status(product_data_loc=r_product_data_loc)
 
     # Toevoegen van product status
     add_product_status(order_data_processed=order_data, product_status_processed=product_status)
@@ -276,13 +288,15 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data=
 
     order_data_wk_su_a = order_data_wk_su[order_data_wk_su['inkooprecept_naam'].isin(order_data_wk_a.columns)]
 
+    campaign_data = process_campaigns(campaign_data_loc=fm.CAMPAIGN_DATA)
+
     if save_to_csv:
         gf.save_to_csv(data=weather_data, file_name='weer_data_processed', folder=fm.SAVE_LOC)
         gf.save_to_csv(data=order_data_wk_a, file_name='actieve_halffabricaten_wk', folder=fm.SAVE_LOC)
         gf.save_to_csv(data=order_data_wk_ia, file_name='inactieve_halffabricaten_wk', folder=fm.SAVE_LOC)
         gf.save_to_csv(data=order_data_wk_su_a, file_name='actieve_halffabricaten_wk_su', folder=fm.SAVE_LOC)
 
-    return order_data_wk_a, order_data_wk_ia, weather_data, order_data_wk_su_a
+    return order_data_wk_a, order_data_wk_ia, weather_data, order_data_wk_su_a, campaign_data
 
 
 if __name__ == '__main__':

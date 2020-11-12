@@ -73,6 +73,11 @@ def prep_weather_features(input_weer_data, index_col=cn.FIRST_DOW):
     return weer_data_a.join(weer_data_d, how='left').dropna(how='any')
 
 
+def prep_campaign_features():
+    campaign_data = gf.import_temp_file()
+    pass
+
+
 def prep_seasonal_features():
     seasonal_dates = pd.DataFrame(pd.date_range('2018-01-01', periods=1200, freq='D'), columns=['day'])
 
