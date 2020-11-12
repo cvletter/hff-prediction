@@ -41,7 +41,8 @@ def get_top_correlations(y, y_lags, top_correl=5):
 
 
 def optimize_ar_model(y, y_ar, X_exog, constant=True, model='OLS'):
-    level_cols = ['trans_period_1', 'period_2', 'trans_period_2', 'period_3']
+    level_cols = cn.SEASONAL_COLS
+    #level_cols = ['trans_period_1', 'period_2', 'trans_period_2', 'period_3']
     all_level_features = X_exog[level_cols]
     sorted_lags = y_ar.columns.sort_values(ascending=True)
 
@@ -185,6 +186,7 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
     Ym_products = list(set([x[:-7] for x in Yp_ar_m.columns]))
 
     for y_name_m in Ym_products:
+        print(y_name_m)
         lag_index = [y_name_m in x for x in Yp_ar_m.columns]
         Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
 
@@ -309,7 +311,7 @@ if __name__ == '__main__':
     Yf_exog_opt = exog_f
     fitted_models = model_fits
     find_comparable_model = True
-    prediction_window = 1
+    prediction_window = 2
 
     Y_org = fit_dict[cn.Y_TRUE]
     Yar_org = fit_dict[cn.Y_AR]
@@ -317,14 +319,14 @@ if __name__ == '__main__':
 
     Yis_fit, model_fits, all_pars, ar_f, exog_f = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
                                                         X_exog=fit_dict[cn.X_EXOG], model='OLS',
-                                                        feature_threshold=[0.2, 15])
+                                                        feature_threshold=[0.2, 25])
 
     Yis_fit, Yos_pred, all_pars = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
                                      Xp_exog=predict_dict[cn.X_EXOG], Yf_ar_opt=ar_f, Yf_exog_opt=exog_f,
                                      fitted_models=model_fits,
                                      find_comparable_model=True)
 
-    yisfit, yosfit, pars = fit_and_predict(fit_dict=fit_dict, predict_dict=predict_dict)
+    yisfit, yosfit, pars = fit_and_predict(fit_dict=fit_dict, predict_dict=predict_dict, feature_threshold=[0.2, 25])
 
 
 

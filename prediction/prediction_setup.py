@@ -82,8 +82,14 @@ def create_model_setup(y_m, y_nm, X_exog, difference=False, lags=cn.N_LAGS, pred
     y_m_lags = create_lags(input_data=y_m, n_lags=lags)
     y_nm_lags = create_lags(input_data=y_nm, n_lags=lags)
 
-    y_ar_m, y_ar_nm, X_exog_l, X_exog_t = create_predictive_context(mod=y_m_lags, non_mod=y_nm_lags, exog_f=X_exog,
+    X_exog_nl = X_exog[cn.SEASONAL_COLS]
+    X_exog_ml = X_exog.drop(cn.SEASONAL_COLS, axis=1)
+
+    y_ar_m, y_ar_nm, X_exog_mll, X_exog_mlt = create_predictive_context(mod=y_m_lags, non_mod=y_nm_lags, exog_f=X_exog_ml,
                                                           hold_out=hold_out)
+
+    X_exog_l = pd.concat([X_exog_mll, X_exog_nl], axis=1)
+    X_exog_t = pd.concat([X_exog_mlt, X_exog_nl.shift(hold_out)], axis=1)
 
     y_ar_m_fit = y_ar_m.loc[last_train_date:]
     X_exog_fit = X_exog_l.loc[y_ar_m_fit.index]
@@ -125,6 +131,15 @@ def prediction_setup_wrapper(prediction_date, prediction_window, train_obs,
                                                      min_obs=train_obs,
                                                      prediction_date=prediction_date,
                                                      hold_out=prediction_window)
+
+    if products_model.shape[1] == 1:
+        train_obs_reduced = train_obs - 10
+        products_model, products_nmodel = split_products(active_products=act_products,
+                                                         min_obs=train_obs_reduced,
+                                                         prediction_date=prediction_date,
+                                                         hold_out=prediction_window)
+
+        print("Reduced train obs to have modelable products.")
 
     data_fitting, data_prediction = create_model_setup(y_m=products_model,
                                                        y_nm=products_nmodel,

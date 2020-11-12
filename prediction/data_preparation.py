@@ -227,6 +227,7 @@ def process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA, r_p
     gf.add_first_day_week(add_to=order_data_wk, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
 
     order_data_wk_su = data_aggregation(filtered_data=order_data_filtered, weekly=agg_weekly, exclude_su=False)
+
     gf.add_first_day_week(add_to=order_data_wk_su, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
 
     # Pivoteren van data
@@ -289,6 +290,17 @@ if __name__ == '__main__':
     order_data, weer_data, order_data_su = process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA,
                                                         r_product_data_loc=fm.PRODUCT_STATUS,
                                                         agg_weekly=True, exclude_su=True, save_to_csv=True)
+
+    order_data_su.reset_index(inplace=True, drop=False)
+    order_data_su_agg = order_data_su.groupby([cn.FIRST_DOW, cn.ORGANISATIE], as_index=False).agg({cn.CE_BESTELD: 'sum'})
+
+    su_pivot = pd.DataFrame(order_data_su_agg.pivot(index=cn.FIRST_DOW,
+                                                      columns=cn.ORGANISATIE,
+                                                      values=cn.CE_BESTELD))
+
+    su_pivot.sort_index(ascending=False, inplace=True)
+    su_pivot = su_pivot[su_pivot.index <= '2020-10-05']
+    gf.save_to_csv(data=su_pivot, file_name='superunie_per_week', folder=fm.SAVE_LOC)
 
     pred_date = datetime.datetime.strptime('2020-10-05', "%Y-%m-%d")
     order_data_wk_a, order_data_wk_ia, weer_data_f, order_data_wk_su_a = data_prep_wrapper(

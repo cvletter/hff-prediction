@@ -225,7 +225,7 @@ if __name__ == '__main__':
     is_performance1 = in_sample_plot(y_true=fit_data1, y_fit=is_fit1,
                                      title="test")
 
-    date_to_predict = '2020-06-22'
+    date_to_predict = '2020-10-05'
     prediction_window = 2
     train_obs = cn.TRAIN_OBS
     difference = False

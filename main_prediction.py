@@ -8,13 +8,13 @@ import multiprocessing
 import time
 
 # Prediction
-model_settings = {'prediction_window': 1,
-                  'train_size': 60,
+model_settings = {'prediction_window': 2,
+                  'train_size': 70,
                   'differencing': False,
-                  'ar_lags': 4,
+                  'ar_lags': 2,
                   'fit_model': 'OLS',
-                  'feature_threshold': [0.2, 15],
-                  'bootstraps': 40}
+                  'feature_threshold': [0.2, 20],
+                  'bootstraps': 2}
 
 
 def batch_prediction_bs(prediction_date):
@@ -42,7 +42,7 @@ def batch_prediction_bs(prediction_date):
 if __name__ == "__main__":
     start = time.time()
 
-    prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-5', periods=40, freq='W-MON').astype(str),
+    prediction_dates = pd.DataFrame(pd.date_range(end='2020-10-05', periods=40, freq='W-MON').astype(str),
                                     columns=[cn.FIRST_DOW])
 
     pred_dates = list(prediction_dates[cn.FIRST_DOW])
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     # print(results)
     # print(all_preds)
 
-    gf.save_to_pkl(data=results, file_name='test_result_bs_1p', folder=fm.SAVE_LOC)
+    gf.save_to_pkl(data=results, file_name='test_result_bs_2p_2l_70obs', folder=fm.SAVE_LOC)
 
     elapsed = round((time.time() - start), 2)
     print("It takes {} seconds to run a prediction.".format(elapsed))

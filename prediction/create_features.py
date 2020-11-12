@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import prediction.column_names as cn
 import prediction.file_management as fm
 import prediction.general_purpose_functions as gf
@@ -70,6 +71,23 @@ def prep_weather_features(input_weer_data, index_col=cn.FIRST_DOW):
     weer_data_d.columns = ['d_temperatuur_gem', 'd_neerslag_mm', 'd_zonuren']
 
     return weer_data_a.join(weer_data_d, how='left').dropna(how='any')
+
+
+def prep_seasonal_features():
+    seasonal_dates = pd.DataFrame(pd.date_range('2018-01-01', periods=1200, freq='D'), columns=['day'])
+
+    for i in range(1, 12):
+        name = "month_{}".format(i)
+        seasonal_dates[name] = [1 if x.month == i else 0 for x in seasonal_dates['day']]
+
+    gf.add_week_year(data=seasonal_dates, date_name='day')
+    gf.add_first_day_week(add_to=seasonal_dates, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
+    seasonal_dates.drop('day', axis=1, inplace=True)
+
+    seasonal_dates = seasonal_dates.groupby(cn.FIRST_DOW, as_index=True).max()
+    seasonal_dates['trend'] = np.arange(1, len(seasonal_dates)+1)
+
+    return seasonal_dates
 
 
 def prep_holiday_features():
@@ -189,6 +207,7 @@ def prep_all_features(weather_data_processed, order_data_su,
     holiday_f = prep_holiday_features()
     covid_f = prep_covid_features()
     level_f = prep_level_shifts()
+    season_f = prep_seasonal_features()
 
     su_pct, su_n = prep_su_features(input_order_data=order_data_su, prediction_date=prediction_date,
                                     train_obs=train_obs, index_col=index_col)
@@ -223,7 +242,8 @@ def prep_all_features(weather_data_processed, order_data_su,
 
     all_shift_features_lags = create_lagged_features(data=all_shift_features)
 
-    all_exog_features = all_shift_features_lags.join(level_f, how='left').join(all_su_features_lags, how='left')
+    all_exog_features = all_shift_features_lags.join(all_su_features_lags, how='left').join(season_f)
+    #.join(level_f, how='left') excluded level features
 
     eval_cols = all_exog_features.loc[prediction_date].T
     cols_include = eval_cols.dropna(how='any', axis=0)

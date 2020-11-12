@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 if __name__ == '__main__':
-    results = gf.read_pkl(file_name='test_result_bs_1p_2l_2020111_1741.p',
+    results = gf.read_pkl(file_name='test_result_bs_2p_2l_70obs_20201112_1723.p',
                           data_loc=fm.SAVE_LOC)
 
     active_products_act = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT,
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     all_mod_prod, all_non_mod_prod = get_mod_products(result_dict=all_dicts)
     all_predictions = get_predictions(result_dict=all_dicts)
     all_true_values = all_products_act
-
+    zero_pred=True
 
     def out_of_sample_performance(all_predictions, all_true_values, all_mod_prod, all_non_mod_prod, zero_pred=True):
 
@@ -114,6 +114,11 @@ if __name__ == '__main__':
             _mod = _truev_mod.index[_truev_mod.notna()]
             _nmod = _truev_nmod.index[_truev_nmod.notna()]
 
+            delm = len(_raw_mod) - len(_mod)
+            delnm = len(_raw_nmod) - len(_nmod)
+
+            print("Deleted {} mod prod, {} nonmod prod".format(delm, delnm))
+
             _truev_tot = _truev_mod_sum + _truev_nmod_sum
 
             _pred_int_mod_low = round(all_predictions.loc[_d, _mod].quantile(0.025, axis=0).sum(), 0)
@@ -137,8 +142,6 @@ if __name__ == '__main__':
             _pred_nmod_sum = _pred_nmod.sum()
 
             _pred_tot = _pred_mod_sum + _pred_nmod_sum
-
-
 
             _pred_err_mod = abs(_pred_mod - _truev_mod)
             _pred_err_nmod = abs(_pred_nmod - _truev_nmod)
@@ -179,7 +182,7 @@ if __name__ == '__main__':
             predictions_nmod_total.loc[d, 'q_prediction'] = _pred_nmod_med
             predictions_nmod_total.loc[d, 'true_value'] = _truev_nmod_sum
             predictions_nmod_total.loc[d, 'pct_error'] = _pred_err_nmod_sum
-            predictions_mod_total.loc[d, 'pct_qerror'] = _predq_err_nmod
+            predictions_nmod_total.loc[d, 'pct_qerror'] = _predq_err_nmod
             predictions_nmod_total.loc[d, 'lower_bound'] = _pred_int_nmod_low
             predictions_nmod_total.loc[d, 'upper_bound'] = _pred_int_nmod_high
 
@@ -191,14 +194,14 @@ if __name__ == '__main__':
             predictions_tot.loc[d, 'lower_bound'] = _pred_int_tot_low
             predictions_tot.loc[d, 'upper_bound'] = _pred_int_tot_high
 
-        return predictions_tot, predictions_mod_total, predictions_nmod_total
+        return predictions_tot, predictions_mod_total, predictions_nmod_total, predictions_mod, true_values_mod
 
 
     all_mods, all_nmods = get_mod_products(result_dict=all_dicts)
     all_preds = get_predictions(result_dict=all_dicts)
     all_true_values = all_products_act
 
-    pred_t, pred_m, pred_nm = out_of_sample_performance(all_predictions=all_preds,
+    pred_t, pred_m, pred_nm, r_predmod, r_truemod = out_of_sample_performance(all_predictions=all_preds,
                                                         all_true_values=all_true_values,
                                                         all_mod_prod=all_mods,
                                                         all_non_mod_prod=all_nmods)
@@ -228,7 +231,11 @@ if __name__ == '__main__':
         graph_fit.fig.suptitle(title, fontsize=10)
         plt.show()
 
-    #gf.save_to_csv(data=pred_t, file_name='total_predictions_1p_2l', folder=fm.SAVE_LOC)
-    #gf.save_to_csv(data=pred_m, file_name='total_mod_predictions_1p_2l', folder=fm.SAVE_LOC)
-    #gf.save_to_csv(data=pred_nm, file_name='total_nonmod_predictions_1p_2l', folder=fm.SAVE_LOC)
+    #plot_results(results=pred_t)
+    gf.save_to_csv(data=r_predmod, file_name='raw_pred_2p_2p_mod', folder=fm.SAVE_LOC)
+    gf.save_to_csv(data=r_truemod, file_name='raw_truev_2p_2p_mod', folder=fm.SAVE_LOC)
+    gf.save_to_csv(data=pred_m, file_name='total_mod_predictions_2p_2l', folder=fm.SAVE_LOC)
+    gf.save_to_csv(data=pred_t, file_name='total_predictions_2p_2l', folder=fm.SAVE_LOC)
+    gf.save_to_csv(data=pred_m, file_name='total_mod_predictions_2p_2l', folder=fm.SAVE_LOC)
+    gf.save_to_csv(data=pred_nm, file_name='total_nonmod_predictions_2p_2l', folder=fm.SAVE_LOC)
 
