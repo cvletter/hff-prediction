@@ -26,6 +26,16 @@ def prep_su_features(input_order_data, prediction_date, train_obs, index_col):
 
     fitting_window.reset_index(inplace=True, drop=False)
 
+    products_p_su = fitting_window.groupby([cn.FIRST_DOW, cn.ORGANISATIE], as_index=False).agg(
+        {cn.CE_BESTELD: 'sum', cn.INKOOP_RECEPT_NM: 'nunique'})
+
+    products_p_su_t = pd.DataFrame(products_p_su.pivot(index=cn.FIRST_DOW,
+                                          columns=cn.ORGANISATIE,
+                                          values=cn.INKOOP_RECEPT_NM))
+    products_p_su_ce = pd.DataFrame(products_p_su.pivot(index=cn.FIRST_DOW,
+                                          columns=cn.ORGANISATIE,
+                                          values=cn.CE_BESTELD))
+
     su_totals = fitting_window.groupby([cn.ORGANISATIE], as_index=False).agg(
         {cn.CE_BESTELD: 'sum', cn.INKOOP_RECEPT_NM: 'nunique'})
 
@@ -73,24 +83,24 @@ def prep_weather_features(input_weer_data, index_col=cn.FIRST_DOW):
     return weer_data_a.join(weer_data_d, how='left').dropna(how='any')
 
 
-def prep_campaign_features():
-    campaign_data = gf.import_temp_file()
-    pass
+def prep_campaign_features(campaign_data):
+
+    return campaign_data
 
 
 def prep_seasonal_features():
     seasonal_dates = pd.DataFrame(pd.date_range('2018-01-01', periods=1200, freq='D'), columns=['day'])
 
-    for i in range(1, 12):
-        name = "month_{}".format(i)
-        seasonal_dates[name] = [1 if x.month == i else 0 for x in seasonal_dates['day']]
+    seasonal_dates['winter'] = [1 if (x.month <= 2) or (x.month == 12) else 0 for x in seasonal_dates['day']]
+    seasonal_dates['lente'] = [1 if 3 <= x.month <= 5 else 0 for x in seasonal_dates['day']]
+    seasonal_dates['zomer'] = [1 if 6 <= x.month <= 8 else 0 for x in seasonal_dates['day']]
 
     gf.add_week_year(data=seasonal_dates, date_name='day')
     gf.add_first_day_week(add_to=seasonal_dates, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
     seasonal_dates.drop('day', axis=1, inplace=True)
 
     seasonal_dates = seasonal_dates.groupby(cn.FIRST_DOW, as_index=True).max()
-    seasonal_dates['trend'] = np.arange(1, len(seasonal_dates)+1)
+    # seasonal_dates['trend'] = np.arange(1, len(seasonal_dates)+1)
 
     return seasonal_dates
 
@@ -121,14 +131,19 @@ def prep_level_shifts():
 
     # this becomes the new constant
     # level_shifts['period_1'] = [1 if x <= str2date('2019-03-11') else 0 for x in level_shifts['day']]
-    level_shifts['period_2'] = [1 if str2date('2019-04-15') <= x <= str2date('2020-04-27') else 0 for x in
+    level_shifts['a_trans_period_1'] = [1 if (str2date('2019-03-18') <= x <= str2date('2019-04-08')) else 0 for x in
+                                      level_shifts['day']]
+
+    level_shifts['b_period_2'] = [1 if str2date('2019-04-15') <= x <= str2date('2020-04-27') else 0 for x in
                                 level_shifts['day']]
 
-    level_shifts['period_3'] = [1 if x >= str2date('2020-06-01') else 0 for x in level_shifts['day']]
-    level_shifts['trans_period_1'] = [1 if (str2date('2019-03-18') <= x <= str2date('2019-04-08')) else 0 for x in
+    level_shifts['c_trans_period_2'] = [1 if (str2date('2020-05-04') <= x <= str2date('2020-05-25')) else 0 for x in
                                       level_shifts['day']]
-    level_shifts['trans_period_2'] = [1 if (str2date('2020-05-04') <= x <= str2date('2020-05-25')) else 0 for x in
+
+    level_shifts['d_trans_period_2b'] = [1 if (str2date('2020-06-01') <= x <= str2date('2020-06-29')) else 0 for x in
                                       level_shifts['day']]
+
+    level_shifts['e_period_3'] = [1 if x >= str2date('2020-06-01') else 0 for x in level_shifts['day']]
 
     gf.add_week_year(data=level_shifts, date_name='day')
     gf.add_first_day_week(add_to=level_shifts, week_col_name=cn.WEEK_NUMBER, set_as_index=True)
@@ -201,7 +216,7 @@ def prep_covid_features():
     return covid_dates.groupby(cn.FIRST_DOW, as_index=True).max()
 
 
-def prep_all_features(weather_data_processed, order_data_su,
+def prep_all_features(weather_data_processed, order_data_su, campaign_data_su,
                       prediction_date, train_obs,
                       index_col=cn.FIRST_DOW, import_file=False, save_to_csv=False):
     if import_file:
@@ -213,6 +228,7 @@ def prep_all_features(weather_data_processed, order_data_su,
     covid_f = prep_covid_features()
     level_f = prep_level_shifts()
     season_f = prep_seasonal_features()
+    campaign_f = prep_campaign_features(campaign_data_su)
 
     su_pct, su_n = prep_su_features(input_order_data=order_data_su, prediction_date=prediction_date,
                                     train_obs=train_obs, index_col=index_col)
@@ -241,14 +257,16 @@ def prep_all_features(weather_data_processed, order_data_su,
 
     all_shift_features.sort_index(ascending=False, inplace=True)
 
-    all_su_features = su_pct.join(su_n, how='left')
+    all_su_features = su_pct.join(su_n, how='left').join(campaign_f, how='left')
     all_su_features.sort_index(ascending=False, inplace=True)
     all_su_features_lags = create_lagged_features(data=all_su_features, lag_range=[2, 1, -1, -2])
 
     all_shift_features_lags = create_lagged_features(data=all_shift_features)
 
-    all_exog_features = all_shift_features_lags.join(all_su_features_lags, how='left').join(season_f)
-    #.join(level_f, how='left') excluded level features
+    all_exog_features = all_shift_features_lags.join(
+        all_su_features_lags, how='left').join(
+        season_f).join(
+        level_f, how='left')
 
     eval_cols = all_exog_features.loc[prediction_date].T
     cols_include = eval_cols.dropna(how='any', axis=0)
@@ -266,12 +284,15 @@ if __name__ == '__main__':
     order_data_su = gf.import_temp_file(file_name=fm.ORDER_DATA_ACT_SU, data_loc=fm.SAVE_LOC,
                                         set_index=True)
 
+    campaign_data = gf.import_temp_file(file_name="campaign_data_processed_20201114_1222.csv", data_loc=fm.SAVE_LOC,
+                                        set_index=True)
+
     weather_data = gf.import_temp_file(file_name=fm.WEER_DATA_PREP, data_loc=fm.SAVE_LOC, set_index=False)
     weather_features = prep_weather_features(input_weer_data=weather_data)
     holiday_features = prep_holiday_features()
     covid_features = prep_covid_features()
 
-    exog_features = prep_all_features(weather_data_processed=weather_data, order_data_su=order_data_su,
+    exog_features = prep_all_features(weather_data_processed=weather_data, order_data_su=order_data_su, campaign_data_su=campaign_data,
                                       prediction_date='2020-10-05', train_obs=cn.TRAIN_OBS, save_to_csv=False, index_col=cn.FIRST_DOW)
 
 

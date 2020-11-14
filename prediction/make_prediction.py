@@ -11,8 +11,10 @@ import time
 import numpy as np
 
 
-def run_prediction_bootstrap(date_to_predict=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW, train_obs=cn.TRAIN_OBS,
+def run_prediction_bootstrap(date_to_predict=cn.PREDICTION_DATE, prediction_window=cn.PREDICTION_WINDOW,
+                             train_obs=cn.TRAIN_OBS,
                              difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA, weather_data=fm.WEER_DATA,
+                             campaign_data=fm.CAMPAIGN_DATA,
                              product_data=fm.PRODUCT_STATUS, model_type='OLS', feature_threshold=None,
                              bootstrap_iter=None):
     if feature_threshold is None:
@@ -45,10 +47,11 @@ def run_prediction_bootstrap(date_to_predict=cn.PREDICTION_DATE, prediction_wind
     all_output = {}
 
     # Import and prepare data
-    active_products, inactive_products, weather_data_processed, order_data_su = data_prep_wrapper(
+    active_products, inactive_products, weather_data_processed, order_data_su, campaign_data_pr = data_prep_wrapper(
         prediction_date=date_to_predict,
         prediction_window=prediction_window,
         reload_data=False,
+        campaign_data_loc=campaign_data,
         order_data_loc=order_data,
         weer_data_loc=weather_data,
         product_data_loc=product_data,
@@ -57,6 +60,7 @@ def run_prediction_bootstrap(date_to_predict=cn.PREDICTION_DATE, prediction_wind
 
     exogenous_features = prep_all_features(weather_data_processed=weather_data_processed,
                                            order_data_su=order_data_su,
+                                           campaign_data_su=campaign_data_pr,
                                            prediction_date=date_to_predict,
                                            train_obs=train_obs,
                                            save_to_csv=False)
@@ -235,12 +239,12 @@ if __name__ == '__main__':
     product_data = fm.PRODUCT_STATUS
     model_type = 'OLS'
     feature_threshold = None
-    bootstrap_iter = 20
+    bootstrap_iter = 2
 
     test = run_prediction_bootstrap(date_to_predict='2020-06-22', prediction_window=2, train_obs=cn.TRAIN_OBS,
-                                    difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA,
+                                    difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA, campaign_data=fm.CAMPAIGN_DATA,
                                     weather_data=fm.WEER_DATA, product_data=fm.PRODUCT_STATUS,
-                                    model_type='OLS', feature_threshold=None, bootstrap_iter=20)
+                                    model_type='OLS', feature_threshold=None, bootstrap_iter=2)
 
     test2 = run_prediction_bootstrap(date_to_predict='2020-09-28', prediction_window=2, train_obs=cn.TRAIN_OBS,
                                     difference=False, lags=cn.N_LAGS, order_data=fm.RAW_DATA,

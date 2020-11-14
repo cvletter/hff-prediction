@@ -98,8 +98,8 @@ def process_campaigns(campaign_data_loc: str) -> pd.DataFrame:
 
     return raw_campaign_data
 
-# TODO Afmaken column_names
 
+# TODO Afmaken column_names
 def process_product_status(product_data_loc: str) -> pd.DataFrame:
     raw_product_status = pd.read_excel(product_data_loc,
                                        sheet_name='Blad2',
@@ -215,6 +215,7 @@ def find_active_products(raw_product_ts: pd.DataFrame, eval_week=cn.LAST_TRAIN_D
 
 
 def process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA, r_product_data_loc=fm.PRODUCT_STATUS,
+                 r_campaign_data_loc=fm.CAMPAIGN_DATA,
                  agg_weekly=True, exclude_su=True, save_to_csv=False) -> [pd.DataFrame, pd.DataFrame]:
 
     # Importeren van order data
@@ -248,17 +249,21 @@ def process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA, r_p
     order_data_pivot_wk = make_pivot(aggregated_data=order_data_wk,
                                      weekly=True)
 
+    campaign_data = process_campaigns(campaign_data_loc=r_campaign_data_loc)
+
     if save_to_csv:
         gf.save_to_csv(data=weer_data, file_name='weather_data_pre_processed', folder=fm.SAVE_LOC)
         gf.save_to_csv(data=order_data_pivot_wk, file_name='order_data_pivot_wk_proc', folder=fm.SAVE_LOC)
         gf.save_to_csv(data=order_data_wk_su, file_name='order_data_wk_su_proc', folder=fm.SAVE_LOC)
+        gf.save_to_csv(data=campaign_data, file_name='campaign_data_proc', folder=fm.SAVE_LOC)
 
-    return order_data_pivot_wk, weer_data, order_data_wk_su
+    return order_data_pivot_wk, weer_data, order_data_wk_su, campaign_data
 
 
 # Wrapping function to do entire data preparation
 def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data=False,
                       order_data_loc=fm.RAW_DATA, weer_data_loc=fm.WEER_DATA, product_data_loc=fm.PRODUCT_STATUS,
+                      campaign_data_loc=fm.CAMPAIGN_DATA,
                       agg_weekly=True, exclude_su=True, save_to_csv=False) -> [pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
     if type(prediction_date) == str:
@@ -267,8 +272,9 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data=
     last_train_date = prediction_date - datetime.timedelta(weeks=prediction_window)
 
     if reload_data:
-        order_data_pivot_wk, weather_data, order_data_wk_su = process_data(
+        order_data_pivot_wk, weather_data, order_data_wk_su, campaign_data = process_data(
             r_order_data_loc=order_data_loc, r_weer_data_loc=weer_data_loc,
+            r_campaign_data_loc=campaign_data_loc,
             r_product_data_loc=product_data_loc, agg_weekly=agg_weekly,
             exclude_su=exclude_su, save_to_csv=False)
 
@@ -281,14 +287,14 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data=
 
         order_data_wk_su = gf.import_temp_file(file_name=fm.ORDER_DATA_WK_SU, data_loc=fm.SAVE_LOC, set_index=True)
 
+        campaign_data = gf.import_temp_file(file_name=fm.CAMPAIGN_DATA_PROC, data_loc=fm.SAVE_LOC, set_index=True)
+
     # Actieve producten selecteren: 66 actief; 45 inactief
     order_data_wk_a, order_data_wk_ia = find_active_products(
         raw_product_ts=order_data_pivot_wk,
         eval_week=last_train_date)
 
     order_data_wk_su_a = order_data_wk_su[order_data_wk_su['inkooprecept_naam'].isin(order_data_wk_a.columns)]
-
-    campaign_data = process_campaigns(campaign_data_loc=fm.CAMPAIGN_DATA)
 
     if save_to_csv:
         gf.save_to_csv(data=weather_data, file_name='weer_data_processed', folder=fm.SAVE_LOC)
@@ -301,8 +307,9 @@ def data_prep_wrapper(prediction_date: str, prediction_window: int, reload_data=
 
 if __name__ == '__main__':
 
-    order_data, weer_data, order_data_su = process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA,
+    order_data, weer_data, order_data_su, campaigns = process_data(r_order_data_loc=fm.RAW_DATA, r_weer_data_loc=fm.WEER_DATA,
                                                         r_product_data_loc=fm.PRODUCT_STATUS,
+                                                        r_campaign_data_loc=fm.CAMPAIGN_DATA,
                                                         agg_weekly=True, exclude_su=True, save_to_csv=True)
 
     order_data_su.reset_index(inplace=True, drop=False)
@@ -316,8 +323,18 @@ if __name__ == '__main__':
     su_pivot = su_pivot[su_pivot.index <= '2020-10-05']
     gf.save_to_csv(data=su_pivot, file_name='superunie_per_week', folder=fm.SAVE_LOC)
 
+    order_data_su_agg2 = order_data_su.groupby([cn.FIRST_DOW, cn.ORGANISATIE], as_index=False).agg({cn.INKOOP_RECEPT_NM: 'nunique'})
+
+    su_pivot2 = pd.DataFrame(order_data_su_agg2.pivot(index=cn.FIRST_DOW,
+                                                      columns=cn.ORGANISATIE,
+                                                      values=cn.INKOOP_RECEPT_NM))
+
+    su_pivot2.sort_index(ascending=False, inplace=True)
+    su_pivot2 = su_pivot2[su_pivot2.index <= '2020-10-05']
+    gf.save_to_csv(data=su_pivot2, file_name='superunie_per_week_prod', folder=fm.SAVE_LOC)
+
     pred_date = datetime.datetime.strptime('2020-10-05', "%Y-%m-%d")
-    order_data_wk_a, order_data_wk_ia, weer_data_f, order_data_wk_su_a = data_prep_wrapper(
+    order_data_wk_a, order_data_wk_ia, weer_data_f, order_data_wk_su_a, campaigns = data_prep_wrapper(
         prediction_date=pred_date,
         reload_data=True,
         prediction_window=2)
@@ -326,5 +343,6 @@ if __name__ == '__main__':
     gf.save_to_csv(data=order_data_wk_a, file_name='actieve_halffabricaten_wk', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=order_data_wk_ia, file_name='inactieve_halffabricaten_wk', folder=fm.SAVE_LOC)
     gf.save_to_csv(data=order_data_wk_su_a, file_name='actieve_halffabricaten_wk_su', folder=fm.SAVE_LOC)
+    gf.save_to_csv(data=campaigns, file_name='campaign_data_processed', folder=fm.SAVE_LOC)
 
 

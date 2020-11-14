@@ -65,8 +65,12 @@ BOOTSTRAP_ITER = 'bootstrap_iteration'
 PREDICTION_OS = 'prediction_os'
 
 # INPUT VARIABLES
-SEASONAL_COLS = ['month_1', 'month_2', 'month_3', 'month_4', 'month_5', 'month_6',
-                 'month_7', 'month_8', 'month_9', 'month_10', 'month_11', 'trend']
+SEASONAL_COLS = ['winter', 'lente', 'zomer']
+STRUCTURAL_BREAK_COLS = ['a_trans_period_1',
+                         'b_period_2',
+                         'c_trans_period_2',
+                         'd_trans_period_2b',
+                         'e_period_3']
 
 FIRST_AVAILABLE_DATE = datetime.datetime.strptime('2018-08-01', "%Y-%m-%d")
 PREDICTION_DATE = datetime.datetime.strptime('2020-08-31', "%Y-%m-%d")

@@ -41,9 +41,9 @@ def get_top_correlations(y, y_lags, top_correl=5):
 
 
 def optimize_ar_model(y, y_ar, X_exog, constant=True, model='OLS'):
-    level_cols = cn.SEASONAL_COLS
     #level_cols = ['trans_period_1', 'period_2', 'trans_period_2', 'period_3']
-    all_level_features = X_exog[level_cols]
+    all_level_features = X_exog[cn.STRUCTURAL_BREAK_COLS]
+    all_season_features = X_exog[cn.SEASONAL_COLS]
     sorted_lags = y_ar.columns.sort_values(ascending=True)
 
     use_level_features = all_level_features.loc[:, (all_level_features != 0).any(axis=0)]
@@ -51,6 +51,7 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model='OLS'):
     if use_level_features.sum(axis=1).sum() == len(y):
         use_level_features = use_level_features.iloc[:, 1:]
 
+    season_break_cols = use_level_features.join(all_season_features, how='left')
     optimal_lags = 1
     min_fit_val = 1e9
 
@@ -71,8 +72,9 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model='OLS'):
             optimal_lags = lag
 
     lag_values = y_ar.iloc[:, :optimal_lags]
+    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS
 
-    X_exog_rf = X_exog.drop(columns=level_cols, inplace=False, errors='ignore')
+    X_exog_rf = X_exog.drop(columns=drop_cols, inplace=False, errors='ignore')
 
     return lag_values.join(use_level_features, how='left'), X_exog_rf
 
@@ -186,7 +188,6 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
     Ym_products = list(set([x[:-7] for x in Yp_ar_m.columns]))
 
     for y_name_m in Ym_products:
-        print(y_name_m)
         lag_index = [y_name_m in x for x in Yp_ar_m.columns]
         Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
 
