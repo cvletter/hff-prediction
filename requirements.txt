@@ -1,12 +1,14 @@
-pandas==1.1.2
-jupyterlab==2.2.7
-xlrd==1.2.0
-statsmodels==0.12.0
-patsy==0.5.1
-scipy==1.5.2
-numpy==1.19.1
-cycler==0.10.0
-kiwisolver==1.2.0
-matplotlib==3.3.2
-pillow==7.2.0
-seaborn==0.11.0
+# By using ~=, patch versions are automatically installed.
+# So, for instance, pandas~=1.1.2 means pandas>=1.1.2,<1.2.0
+pandas~=1.1.2
+jupyterlab~=2.2.7
+xlrd~=1.2.0
+statsmodels~=0.12.0
+patsy~=0.5.1
+scipy~=1.5.2
+numpy~=1.19.1
+cycler~=0.10.0
+kiwisolver~=1.2.0
+matplotlib~=3.3.2
+pillow~=7.2.0
+seaborn~=0.11.0

@@ -1,11 +1,11 @@
+import hff_predictor.generic.files
 import statsmodels.api as sm
 import pandas as pd
 import numpy as np
-import scipy.stats as stats
-import prediction.general_purpose_functions as gf
-import prediction.file_management as fm
-import prediction.column_names as cn
-import time
+
+import hff_predictor.config.column_names as cn
+import hff_predictor.config.file_management as fm
+
 
 def get_top_correlations(y, y_lags, top_correl=5):
     # Rowwise mean of input arrays & subtract from input arrays themeselves
@@ -14,12 +14,14 @@ def get_top_correlations(y, y_lags, top_correl=5):
     B_mB = y_lags - y_lags.mean()
 
     # Sum of squares across rows
-    ssA = (A_mA**2).sum()
-    ssB = (B_mB**2).sum()
+    ssA = (A_mA ** 2).sum()
+    ssB = (B_mB ** 2).sum()
 
     numerator = np.dot(A_mA.T, B_mB)
     denominator = np.sqrt(np.dot(pd.DataFrame(ssA), pd.DataFrame(ssB).T))
-    correls = np.divide(numerator, denominator, out=np.zeros_like(numerator), where=denominator!=0)
+    correls = np.divide(
+        numerator, denominator, out=np.zeros_like(numerator), where=denominator != 0
+    )
     corrs = pd.DataFrame(correls, index=y.columns, columns=y_lags.columns)
 
     for i in corrs.index:
@@ -34,37 +36,41 @@ def get_top_correlations(y, y_lags, top_correl=5):
         return top_name, top_value
     else:
         for p in corrs.index:
-            top_correlations[p] = corrs.loc[p].sort_values(ascending=False)[:top_correl].index
+            top_correlations[p] = (
+                corrs.loc[p].sort_values(ascending=False)[:top_correl].index
+            )
 
         # Finally get corr coeff
         return top_correlations, corrs
 
 
-def optimize_ar_model(y, y_ar, X_exog, constant=True, model='OLS'):
-    #level_cols = ['trans_period_1', 'period_2', 'trans_period_2', 'period_3']
+def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
+    # level_cols = ['trans_period_1', 'period_2', 'trans_period_2', 'period_3']
     all_level_features = X_exog[cn.STRUCTURAL_BREAK_COLS]
     all_season_features = X_exog[cn.SEASONAL_COLS]
     sorted_lags = y_ar.columns.sort_values(ascending=True)
 
-    use_level_features = all_level_features.loc[:, (all_level_features != 0).any(axis=0)]
+    use_level_features = all_level_features.loc[
+        :, (all_level_features != 0).any(axis=0)
+    ]
 
     if use_level_features.sum(axis=1).sum() == len(y):
         use_level_features = use_level_features.iloc[:, 1:]
 
-    season_break_cols = use_level_features.join(all_season_features, how='left')
+    season_break_cols = use_level_features.join(all_season_features, how="left")
     optimal_lags = 1
     min_fit_val = 1e9
 
-    for lag in range(1, len(sorted_lags)+1):
+    for lag in range(1, len(sorted_lags) + 1):
         _y_ar = y_ar.iloc[:, :lag]
-        X_ar = _y_ar.join(use_level_features, how='left')
+        X_ar = _y_ar.join(use_level_features, how="left")
 
         if constant:
-            X_ar.insert(0, 'constant', 1)
+            X_ar.insert(0, "constant", 1)
 
         _fit = fit_model(y=y, X=X_ar, model=model)
 
-        _fit_value = round((abs(y - _fit.predict())/y).median(), 5)
+        _fit_value = round((abs(y - _fit.predict()) / y).median(), 5)
         # print("Current fit value {}, with {} lags".format(_fit_value, lag))
 
         if _fit_value < min_fit_val:
@@ -74,45 +80,45 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model='OLS'):
     lag_values = y_ar.iloc[:, :optimal_lags]
     drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS
 
-    X_exog_rf = X_exog.drop(columns=drop_cols, inplace=False, errors='ignore')
+    X_exog_rf = X_exog.drop(columns=drop_cols, inplace=False, errors="ignore")
 
-    return lag_values.join(use_level_features, how='left'), X_exog_rf
+    return lag_values.join(use_level_features, how="left"), X_exog_rf
 
 
-def fit_model(y, X, model='OLS'):
+def fit_model(y, X, model="OLS"):
 
-    if model == 'OLS':
-        temp_mdl = sm.OLS(y, X, missing='drop')
+    if model == "OLS":
+        temp_mdl = sm.OLS(y, X, missing="drop")
 
-    elif model == 'Poisson':
-        temp_mdl = sm.GLM(y, X,
-                          family=sm.families.Poisson(),
-                          missing='drop')
+    elif model == "Poisson":
+        temp_mdl = sm.GLM(y, X, family=sm.families.Poisson(), missing="drop")
 
-    elif model == 'Negative-Binomial':
+    elif model == "Negative-Binomial":
 
         aux_reg_feat = pd.DataFrame(index=y.index)
 
-        temp_mdl_poisson = sm.GLM(y, X,
-                                  family=sm.families.Poisson(),
-                                  missing='drop')
+        temp_mdl_poisson = sm.GLM(y, X, family=sm.families.Poisson(), missing="drop")
 
         temp_poisson_fit = temp_mdl_poisson.fit()
 
-        aux_reg_feat['lambda'] = temp_poisson_fit.mu
-        aux_reg_feat['dep_var'] = ((y - temp_poisson_fit.mu) ** 2 - y) / temp_poisson_fit.mu
-        aux_reg = sm.OLS(aux_reg_feat['dep_var'], aux_reg_feat['lambda']).fit()
+        aux_reg_feat["lambda"] = temp_poisson_fit.mu
+        aux_reg_feat["dep_var"] = (
+            (y - temp_poisson_fit.mu) ** 2 - y
+        ) / temp_poisson_fit.mu
+        aux_reg = sm.OLS(aux_reg_feat["dep_var"], aux_reg_feat["lambda"]).fit()
 
         alpha_fit = aux_reg.params[0]
 
-        temp_mdl = sm.GLM(y, X,
-                          family=sm.families.NegativeBinomial(alpha=alpha_fit),
-                          missing='drop')
+        temp_mdl = sm.GLM(
+            y, X, family=sm.families.NegativeBinomial(alpha=alpha_fit), missing="drop"
+        )
 
     return temp_mdl.fit()
 
 
-def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS', feature_threshold=None):
+def batch_fit_model(
+    Y, Y_ar, X_exog, add_constant=True, model="OLS", feature_threshold=None
+):
 
     if feature_threshold is None:
         feature_threshold = [0.2, 15]
@@ -132,23 +138,31 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS', feature_thr
         lag_index_other = [y_name not in x for x in Y_ar.columns]
         y_ar_other = Y_ar.iloc[:, lag_index_other]
 
-        ar_baseline, X_exog_rf = optimize_ar_model(y=y, y_ar=y_ar, X_exog=X_exog, constant=add_constant, model=model)
+        ar_baseline, X_exog_rf = optimize_ar_model(
+            y=y, y_ar=y_ar, X_exog=X_exog, constant=add_constant, model=model
+        )
         baseline_fit = fit_model(y=y, X=ar_baseline, model=model)
 
-        all_possible_features = y_ar_other.join(X_exog_rf, how='left')
+        all_possible_features = y_ar_other.join(X_exog_rf, how="left")
 
         resid = y - baseline_fit.predict()
         correlation_val = 1
         selected_features = ar_baseline.copy(deep=True)
 
         if add_constant:
-            selected_features.insert(0, 'constant', 1)
+            selected_features.insert(0, "constant", 1)
 
-        while correlation_val > feature_threshold[0] and selected_features.shape[1] < feature_threshold[1]:
+        while (
+            correlation_val > feature_threshold[0]
+            and selected_features.shape[1] < feature_threshold[1]
+        ):
 
-            corr_name, correlation_val = get_top_correlations(y=pd.DataFrame(resid), y_lags=all_possible_features,
-                                                              top_correl=1)
-            selected_features = selected_features.join(all_possible_features[corr_name], how='left')
+            corr_name, correlation_val = get_top_correlations(
+                y=pd.DataFrame(resid), y_lags=all_possible_features, top_correl=1
+            )
+            selected_features = selected_features.join(
+                all_possible_features[corr_name], how="left"
+            )
             all_possible_features.drop(corr_name, axis=1, inplace=True)
 
             mdl_fit = fit_model(y=y, X=selected_features, model=model)
@@ -169,12 +183,26 @@ def batch_fit_model(Y, Y_ar, X_exog, add_constant=True, model='OLS', feature_thr
 
         # Determine Prediction intervals
 
-    return Y_pred, fitted_models, all_params, optimized_ar_features, optimized_exog_features
+    return (
+        Y_pred,
+        fitted_models,
+        all_params,
+        optimized_ar_features,
+        optimized_exog_features,
+    )
 
 
-def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, Yf_exog_opt,
-                          add_constant=True, prep_input=True, find_comparable_model=True):
-
+def batch_make_prediction(
+    Yp_ar_m,
+    Yp_ar_nm,
+    Xp_exog,
+    fitted_models,
+    Yf_ar_opt,
+    Yf_exog_opt,
+    add_constant=True,
+    prep_input=True,
+    find_comparable_model=True,
+):
     def series_to_dataframe(pd_series):
         return pd.DataFrame(pd_series).transpose()
 
@@ -192,18 +220,18 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
         Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
 
         Xf_ar_m = Yf_ar_opt[y_name_m]
-        Xp_ar_m = Xp_ar_m.iloc[:, :Xf_ar_m.shape[0]]
+        Xp_ar_m = Xp_ar_m.iloc[:, : Xf_ar_m.shape[0]]
 
-        Xp_all_features = Yp_ar_m.join(Xp_exog, how='left')
+        Xp_all_features = Yp_ar_m.join(Xp_exog, how="left")
 
-        Xf_exog_m = Yf_exog_opt[y_name_m].drop('constant')
+        Xf_exog_m = Yf_exog_opt[y_name_m].drop("constant")
 
         Xp_arx_m = Xp_all_features[Xf_exog_m]
 
         if add_constant:
-            Xp_ar_m.insert(0, 'constant', 1)
+            Xp_ar_m.insert(0, "constant", 1)
 
-        Xp_tot = Xp_ar_m.join(Xp_arx_m, how='left')
+        Xp_tot = Xp_ar_m.join(Xp_arx_m, how="left")
 
         Y_pred[y_name_m] = fitted_models[y_name_m].predict(Xp_tot)
 
@@ -215,8 +243,8 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
 
         if find_comparable_model:
             # Find product which has similar magnitude absolute sales
-            lag_val = '_last0w'
-            _y_nm_val = Yp_ar_nm['{}{}'.format(y_name_nm, lag_val)][0]
+            lag_val = "_last0w"
+            _y_nm_val = Yp_ar_nm["{}{}".format(y_name_nm, lag_val)][0]
 
             lag1_index = [lag_val in x for x in Yp_ar_m.columns]
             _Y_m_vals = Yp_ar_m.iloc[:, lag1_index]
@@ -229,26 +257,27 @@ def batch_make_prediction(Yp_ar_m, Yp_ar_nm, Xp_exog, fitted_models, Yf_ar_opt, 
             closest_product_name = cn.MOD_PROD_SUM
 
         Xf_ar_cp = Yf_ar_opt[closest_product_name]
-        Xp_ar_nm = Xp_ar_nm.iloc[:, :Xf_ar_cp.shape[0]]
+        Xp_ar_nm = Xp_ar_nm.iloc[:, : Xf_ar_cp.shape[0]]
 
-        Xp_all_features = Yp_ar_m.join(Xp_exog, how='left')
+        Xp_all_features = Yp_ar_m.join(Xp_exog, how="left")
 
-        Xf_exog_cp = Yf_exog_opt[closest_product_name].drop('constant')
+        Xf_exog_cp = Yf_exog_opt[closest_product_name].drop("constant")
 
         Xp_arx_cp = Xp_all_features[Xf_exog_cp]
 
         if add_constant:
-            Xp_ar_nm.insert(0, 'constant', 1)
+            Xp_ar_nm.insert(0, "constant", 1)
 
-        Xp_tot = Xp_ar_nm.join(Xp_arx_cp, how='left')
+        Xp_tot = Xp_ar_nm.join(Xp_arx_cp, how="left")
 
         Y_pred[y_name_nm] = fitted_models[closest_product_name].predict(Xp_tot)
 
     return Y_pred
 
 
-def fit_and_predict(fit_dict, predict_dict, model_type='OLS', bootstrap=False, feature_threshold=None):
-
+def fit_and_predict(
+    fit_dict, predict_dict, model_type="OLS", bootstrap=False, feature_threshold=None
+):
     def reset_index(data):
         data_new = data.reset_index(drop=True, inplace=False)
         data_new["bootstrap_index"] = np.arange(data.shape[0])
@@ -278,35 +307,47 @@ def fit_and_predict(fit_dict, predict_dict, model_type='OLS', bootstrap=False, f
         X_fit = X_org
 
     Yis_fit, model_fits, all_pars, Yar_opt, X_opt = batch_fit_model(
-        Y=Y_fit, Y_ar=Yar_fit,
-        add_constant=True, X_exog=X_fit,
-        model=model_type, feature_threshold=[feature_threshold[0], feature_threshold[1]])
+        Y=Y_fit,
+        Y_ar=Yar_fit,
+        add_constant=True,
+        X_exog=X_fit,
+        model=model_type,
+        feature_threshold=[feature_threshold[0], feature_threshold[1]],
+    )
 
     Yos_pred = batch_make_prediction(
-        Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
-        Xp_exog=predict_dict[cn.X_EXOG], fitted_models=model_fits, Yf_ar_opt=Yar_opt,
-        Yf_exog_opt=X_opt, add_constant=True, find_comparable_model=True)
+        Yp_ar_m=predict_dict[cn.Y_AR_M],
+        Yp_ar_nm=predict_dict[cn.Y_AR_NM],
+        Xp_exog=predict_dict[cn.X_EXOG],
+        fitted_models=model_fits,
+        Yf_ar_opt=Yar_opt,
+        Yf_exog_opt=X_opt,
+        add_constant=True,
+        find_comparable_model=True,
+    )
 
     return Yis_fit, Yos_pred, all_pars
 
 
-if __name__ == '__main__':
-
-    fit_dict = gf.read_pkl(file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC)
-    predict_dict = gf.read_pkl(file_name=fm.PREDICT_DATA, data_loc=fm.SAVE_LOC)
+def init_train():
+    fit_dict = hff_predictor.generic.files.read_pkl(
+        file_name=fm.FIT_DATA, data_loc=fm.SAVE_LOC
+    )
+    predict_dict = hff_predictor.generic.files.read_pkl(
+        file_name=fm.PREDICT_DATA, data_loc=fm.SAVE_LOC
+    )
     num_samples = 3
 
-    model_type = 'OLS'
+    model_type = "OLS"
     Y = fit_dict[cn.Y_TRUE]
     Y_ar = fit_dict[cn.Y_AR]
     X_exog = fit_dict[cn.X_EXOG]
-    #Y_cross_ar = fit_dict['correlations']
+    # Y_cross_ar = fit_dict['correlations']
     model = model_type
 
     Yp_ar_m = predict_dict[cn.Y_AR_M]
     Yp_ar_nm = predict_dict[cn.Y_AR_NM]
     Xp_exog = predict_dict[cn.X_EXOG]
-
 
     Yf_ar_opt = ar_f
     Yf_exog_opt = exog_f
@@ -318,21 +359,24 @@ if __name__ == '__main__':
     Yar_org = fit_dict[cn.Y_AR]
     X_org = fit_dict[cn.X_EXOG]
 
-    Yis_fit, model_fits, all_pars, ar_f, exog_f = batch_fit_model(Y=fit_dict[cn.Y_TRUE], Y_ar=fit_dict[cn.Y_AR],
-                                                        X_exog=fit_dict[cn.X_EXOG], model='OLS',
-                                                        feature_threshold=[0.2, 25])
+    Yis_fit, model_fits, all_pars, ar_f, exog_f = batch_fit_model(
+        Y=fit_dict[cn.Y_TRUE],
+        Y_ar=fit_dict[cn.Y_AR],
+        X_exog=fit_dict[cn.X_EXOG],
+        model="OLS",
+        feature_threshold=[0.2, 25],
+    )
 
-    Yis_fit, Yos_pred, all_pars = batch_make_prediction(Yp_ar_m=predict_dict[cn.Y_AR_M], Yp_ar_nm=predict_dict[cn.Y_AR_NM],
-                                     Xp_exog=predict_dict[cn.X_EXOG], Yf_ar_opt=ar_f, Yf_exog_opt=exog_f,
-                                     fitted_models=model_fits,
-                                     find_comparable_model=True)
+    Yis_fit, Yos_pred, all_pars = batch_make_prediction(
+        Yp_ar_m=predict_dict[cn.Y_AR_M],
+        Yp_ar_nm=predict_dict[cn.Y_AR_NM],
+        Xp_exog=predict_dict[cn.X_EXOG],
+        Yf_ar_opt=ar_f,
+        Yf_exog_opt=exog_f,
+        fitted_models=model_fits,
+        find_comparable_model=True,
+    )
 
-    yisfit, yosfit, pars = fit_and_predict(fit_dict=fit_dict, predict_dict=predict_dict, feature_threshold=[0.2, 25])
-
-
-
-
-
-
-
-
+    yisfit, yosfit, pars = fit_and_predict(
+        fit_dict=fit_dict, predict_dict=predict_dict, feature_threshold=[0.2, 25]
+    )
