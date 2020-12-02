@@ -1,0 +1,21 @@
+[flake8]
+
+# E203 whitespace before ':', but E203 is not PEP 8 compliant
+# W503 line break before binary operator, but W503 is not PEP 8 compliant
+ignore = W503, RST304, RST303, S101, E203
+
+max-line-length = 120
+max-complexity = 10
+exclude =
+  # Exclude generated code.
+  **/proto/**
+  **/gapic/**
+  *_pb2.py
+  *migrations*
+
+  # Standard linting exemptions.
+  __pycache__,
+  .git,
+  *.pyc,
+  conf.py
+
