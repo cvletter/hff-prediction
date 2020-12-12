@@ -7,13 +7,15 @@ from hff_predictor.features.create import init_create_features
 from hff_predictor.model.fit import init_train
 from hff_predictor.predict.make import init_predict
 from hff_predictor.predict.setup import init_setup_prediction
+from hff_predictor.predict.test import init_test
 
 
 def main():
     mode_methods = {
         "prepare": [init_prepare_data, init_create_features],
         "train": [init_train],
-        "predict": [init_setup_prediction, init_predict],
+        "predict": [init_predict],
+        "test": [init_test],
         "evaluate": [init_evaluate_prediction, init_descriptive_analysis],
     }
 

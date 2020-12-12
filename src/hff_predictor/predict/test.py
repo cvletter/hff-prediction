@@ -9,7 +9,6 @@ import multiprocessing
 import time
 
 # Prediction
-
 model_settings = {
     "prediction_window": 2,
     "train_size": 70,
@@ -49,7 +48,7 @@ def batch_prediction_bs(prediction_date):
     return _predict
 
 
-if __name__ == "__main__":
+def init_test():
     start = time.time()
 
     prediction_dates = pd.DataFrame(
@@ -77,14 +76,4 @@ if __name__ == "__main__":
     elapsed = round((time.time() - start), 2)
     print("It takes {} seconds to run a prediction.".format(elapsed))
 
-    """
 
-    test_rsults = gf.read_pkl(file_name='test_result_bs_20201031_1247.p', data_loc=fm.SAVE_LOC)
-
-    test = pd.read_json(test_rsults)
-    test = str(test_rsults)
-    test1 = test_rsults[0]
-    test2 = test_rsults[1]
-    
-    test1.update(test2) #join dictstest
-    """
