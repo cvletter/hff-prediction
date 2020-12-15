@@ -26,10 +26,16 @@ def main():
         choices=mode_methods.keys(),
     )
 
+    parser.add_argument(
+        "--date",
+        "-d",
+        type=str,
+    )
+
     arguments, _ = parser.parse_known_args()
 
     for method in mode_methods[arguments.mode]:
-        method()
+        method(arguments.date)
 
 
 if __name__ == "__main__":

@@ -146,11 +146,11 @@ def run_prediction_bootstrap(
     return all_output
 
 
-def init_predict():
+def init_predict(date):
     start = time.time()
     # In sample testing of 2020-31-8
     test = run_prediction_bootstrap(
-        date_to_predict="2020-10-05",
+        date_to_predict=date,
         prediction_window=2,
         train_obs=cn.TRAIN_OBS,
         difference=False,
