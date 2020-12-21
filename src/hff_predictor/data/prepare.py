@@ -4,6 +4,9 @@ from typing import Union
 import hff_predictor.generic.files
 import pandas as pd
 import numpy as np
+import os
+import glob
+from knmy import knmy
 
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
@@ -12,6 +15,16 @@ from hff_predictor.generic.files import save_to_csv
 
 
 def process_order_data(order_data: str) -> pd.DataFrame:
+    """
+    :param order_data:
+    :return:
+    """
+
+    if not order_data:
+        os.chdir(fm.DATA_STORAGE)
+        order_data = glob.glob("*.xlsx")[0]
+
+
     raw_data = pd.read_excel(
         order_data,
         dtype={
@@ -78,24 +91,42 @@ def process_order_data(order_data: str) -> pd.DataFrame:
     ]
 
 
-def process_weather_data(weer_data_loc: str, weekly=True) -> pd.DataFrame:
-    raw_weer_data = pd.read_csv(weer_data_loc, sep=";")
+def process_weather_data(weekly=True) -> pd.DataFrame:
 
-    raw_weer_data.columns = [
-        cn.W_DATE,
-        cn.TEMP_GEM,
-        cn.TEMP_MIN,
-        cn.TEMP_MAX,
-        cn.ZONUREN,
-        cn.NEERSLAG_DUUR,
-        cn.NEERSLAG_MM,
-    ]
+    today = int(datetime.datetime.strftime(datetime.datetime.now(), "%Y%m%d"))
+    _, _, _, data_temp_sun = knmy.get_knmi_data(type='daily',
+                              stations=[260],
+                              start=20180801, end=today,
+                              variables=['TEMP', 'SUNR'],
+                              parse=True)
 
-    raw_weer_data[cn.W_DATE] = pd.to_datetime(raw_weer_data[cn.W_DATE], format="%Y%m%d")
+    raw_weer_data = data_temp_sun.loc[1:, :][['YYYYMMDD', 'TG', 'TN', 'TX', 'SQ']]
+    raw_weer_data[cn.W_DATE] = pd.to_datetime(raw_weer_data['YYYYMMDD'], format="%Y%m%d")
     raw_weer_data.set_index(cn.W_DATE, inplace=True)
+    raw_weer_data.drop('YYYYMMDD', axis=1, inplace=True)
+
+    raw_weer_data.columns = [cn.TEMP_GEM, cn.TEMP_MIN, cn.TEMP_MAX, cn.ZONUREN]
+
+    """
+    _, _, data_rain = knmy.get_knmi_data(type='daily_rain',
+                                           stations=[550],
+                                           start=20180801, end=today,
+                                           parse=True)
+    
+    _, _, data_rain_all = knmy.get_knmi_data(type='daily_rain',
+                                           start=20180801, end=today,
+                                           parse=True)
+
+    data_rain = data_rain[['YYYYMMDD', 'RD']]
+    data_rain[cn.W_DATE] = pd.to_datetime(data_rain['YYYYMMDD'],  format="%Y%m%d")
+    data_rain.set_index(cn.W_DATE, inplace=True)
+    data_rain.drop('YYYYMMDD', axis=1, inplace=True)
+    raw_weer_data = pd.concat([data_temp_sun, data_rain], axis=1)
+    """
 
     # Deel alle cijfers door 10 om tot normale waarden voor temp, uren en mm te komen
-    raw_weer_data = np.round(raw_weer_data / 10, 1)
+
+    raw_weer_data = np.round(raw_weer_data.astype(int) / 10, 1)
     gf.add_week_year(data=raw_weer_data, date_name=cn.W_DATE)
 
     # Indien data moet worden geaggregeerd naar week
@@ -107,8 +138,8 @@ def process_weather_data(weer_data_loc: str, weekly=True) -> pd.DataFrame:
                 cn.TEMP_MIN: "min",
                 cn.TEMP_MAX: "max",
                 cn.ZONUREN: "sum",
-                cn.NEERSLAG_DUUR: "sum",
-                cn.NEERSLAG_MM: "sum",
+                #cn.NEERSLAG_DUUR: "sum",
+                #cn.NEERSLAG_MM: "sum",
             }
         )
 
@@ -118,8 +149,8 @@ def process_weather_data(weer_data_loc: str, weekly=True) -> pd.DataFrame:
             cn.TEMP_MIN,
             cn.TEMP_MAX,
             cn.ZONUREN,
-            cn.NEERSLAG_DUUR,
-            cn.NEERSLAG_MM,
+            #cn.NEERSLAG_DUUR,
+            #cn.NEERSLAG_MM,
         ]
 
     return raw_weer_data
@@ -300,7 +331,7 @@ def find_active_products(
 
 def process_data(
     r_order_data_loc=fm.RAW_DATA,
-    r_weer_data_loc=fm.WEER_DATA,
+    # r_weer_data_loc=fm.WEER_DATA,
     r_product_data_loc=fm.PRODUCT_STATUS,
     r_campaign_data_loc=fm.CAMPAIGN_DATA,
     agg_weekly=True,
@@ -312,7 +343,8 @@ def process_data(
     order_data = process_order_data(order_data=r_order_data_loc)
 
     # Importeren van weer data, op wekelijks niveau
-    weer_data = process_weather_data(weer_data_loc=r_weer_data_loc, weekly=agg_weekly)
+    weer_data = process_weather_data(weekly=agg_weekly)
+
     gf.add_first_day_week(
         add_to=weer_data, week_col_name=cn.WEEK_NUMBER, set_as_index=True
     )
@@ -398,7 +430,7 @@ def data_prep_wrapper(
             campaign_data,
         ) = process_data(
             r_order_data_loc=order_data_loc,
-            r_weer_data_loc=weer_data_loc,
+            # r_weer_data_loc=weer_data_loc,
             r_campaign_data_loc=campaign_data_loc,
             r_product_data_loc=product_data_loc,
             agg_weekly=agg_weekly,
@@ -462,9 +494,9 @@ def data_prep_wrapper(
 
 
 def init_prepare_data():
+
     order_data, weer_data, order_data_su, campaigns = process_data(
-        r_order_data_loc=fm.RAW_DATA,
-        r_weer_data_loc=fm.WEER_DATA,
+        # r_weer_data_loc=fm.WEER_DATA,
         r_product_data_loc=fm.PRODUCT_STATUS,
         r_campaign_data_loc=fm.CAMPAIGN_DATA,
         agg_weekly=True,
@@ -472,66 +504,6 @@ def init_prepare_data():
         save_to_csv=True,
     )
 
-    order_data_su.reset_index(inplace=True, drop=False)
-    order_data_su_agg = order_data_su.groupby(
-        [cn.FIRST_DOW, cn.ORGANISATIE], as_index=False
-    ).agg({cn.CE_BESTELD: "sum"})
+    print(order_data.head(5))
 
-    su_pivot = pd.DataFrame(
-        order_data_su_agg.pivot(
-            index=cn.FIRST_DOW, columns=cn.ORGANISATIE, values=cn.CE_BESTELD
-        )
-    )
-
-    su_pivot.sort_index(ascending=False, inplace=True)
-    su_pivot = su_pivot[su_pivot.index <= "2020-10-05"]
-    save_to_csv(
-        data=su_pivot, file_name="superunie_per_week", folder=fm.SAVE_LOC
-    )
-
-    order_data_su_agg2 = order_data_su.groupby(
-        [cn.FIRST_DOW, cn.ORGANISATIE], as_index=False
-    ).agg({cn.INKOOP_RECEPT_NM: "nunique"})
-
-    su_pivot2 = pd.DataFrame(
-        order_data_su_agg2.pivot(
-            index=cn.FIRST_DOW, columns=cn.ORGANISATIE, values=cn.INKOOP_RECEPT_NM
-        )
-    )
-
-    su_pivot2.sort_index(ascending=False, inplace=True)
-    su_pivot2 = su_pivot2[su_pivot2.index <= "2020-10-05"]
-    save_to_csv(
-        data=su_pivot2, file_name="superunie_per_week_prod", folder=fm.SAVE_LOC
-    )
-
-    pred_date = datetime.datetime.strptime("2020-10-05", "%Y-%m-%d")
-    (
-        order_data_wk_a,
-        order_data_wk_ia,
-        weer_data_f,
-        order_data_wk_su_a,
-        campaigns,
-    ) = data_prep_wrapper(
-        prediction_date=pred_date, reload_data=True, prediction_window=2
-    )
-
-    save_to_csv(
-        data=weer_data_f, file_name="weer_data_processed", folder=fm.SAVE_LOC
-    )
-    save_to_csv(
-        data=order_data_wk_a, file_name="actieve_halffabricaten_wk", folder=fm.SAVE_LOC
-    )
-    save_to_csv(
-        data=order_data_wk_ia,
-        file_name="inactieve_halffabricaten_wk",
-        folder=fm.SAVE_LOC,
-    )
-    save_to_csv(
-        data=order_data_wk_su_a,
-        file_name="actieve_halffabricaten_wk_su",
-        folder=fm.SAVE_LOC,
-    )
-    save_to_csv(
-        data=campaigns, file_name="campaign_data_processed", folder=fm.SAVE_LOC
-    )
+    print(weer_data.head(5))

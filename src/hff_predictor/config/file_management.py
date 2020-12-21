@@ -4,6 +4,7 @@ PRODUCT_STATUS = r"U:\Data\productstatus.xlsx"
 SAVE_LOC = r"U:\Data\Prepared"
 WEER_DATA = r"U:\Data\knmi_201007_debilt.csv"
 CAMPAIGN_DATA = r"U:\Data\campagne_overzicht_totaal.csv"
+DATA_STORAGE = r"U:\Data\order_data"
 
 
 # PREPARED DATA

@@ -12,7 +12,7 @@ from hff_predictor.predict.test import init_test
 
 def main():
     mode_methods = {
-        "prepare": [init_prepare_data, init_create_features],
+        "prepare": [init_prepare_data],
         "train": [init_train],
         "predict": [init_predict],
         "test": [init_test],
@@ -35,7 +35,10 @@ def main():
     arguments, _ = parser.parse_known_args()
 
     for method in mode_methods[arguments.mode]:
-        method(arguments.date)
+        if arguments.mode in ["predict"]:
+            method(arguments.date)
+        else:
+            method()
 
 
 if __name__ == "__main__":

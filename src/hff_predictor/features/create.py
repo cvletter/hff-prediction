@@ -98,11 +98,11 @@ def prep_weather_features(input_weer_data, index_col=cn.FIRST_DOW):
 
     input_weer_data.sort_index(ascending=False, inplace=True)
 
-    cols = [cn.TEMP_GEM, cn.NEERSLAG_MM, cn.ZONUREN]
+    cols = [cn.TEMP_GEM, cn.ZONUREN]
 
     weer_data_a = input_weer_data[cols]
     weer_data_d = weer_data_a.diff(periods=-1)
-    weer_data_d.columns = ["d_temperatuur_gem", "d_neerslag_mm", "d_zonuren"]
+    weer_data_d.columns = ["d_temperatuur_gem", "d_zonuren"]
 
     return weer_data_a.join(weer_data_d, how="left").dropna(how="any")
 
