@@ -14,16 +14,15 @@ import hff_predictor.generic.dates as gf
 from hff_predictor.generic.files import save_to_csv
 
 
-def process_order_data(order_data: str) -> pd.DataFrame:
+def process_order_data() -> pd.DataFrame:
     """
     :param order_data:
     :return:
     """
 
-    if not order_data:
-        os.chdir(fm.DATA_STORAGE)
-        order_data = glob.glob("*.xlsx")[0]
-
+    file_extension = "\*.xlsx"
+    search_in_folder = fm.ORDER_DATA_FOLDER + file_extension
+    order_data = min(glob.iglob(pathname=search_in_folder), key=os.path.getctime)
 
     raw_data = pd.read_excel(
         order_data,
@@ -95,10 +94,10 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
 
     today = int(datetime.datetime.strftime(datetime.datetime.now(), "%Y%m%d"))
     _, _, _, data_temp_sun = knmy.get_knmi_data(type='daily',
-                              stations=[260],
-                              start=20180801, end=today,
-                              variables=['TEMP', 'SUNR'],
-                              parse=True)
+                                                stations=[260],
+                                                start=20180801, end=today,
+                                                variables=['TEMP', 'SUNR'],
+                                                parse=True)
 
     raw_weer_data = data_temp_sun.loc[1:, :][['YYYYMMDD', 'TG', 'TN', 'TX', 'SQ']]
     raw_weer_data[cn.W_DATE] = pd.to_datetime(raw_weer_data['YYYYMMDD'], format="%Y%m%d")
@@ -106,24 +105,6 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
     raw_weer_data.drop('YYYYMMDD', axis=1, inplace=True)
 
     raw_weer_data.columns = [cn.TEMP_GEM, cn.TEMP_MIN, cn.TEMP_MAX, cn.ZONUREN]
-
-    """
-    _, _, data_rain = knmy.get_knmi_data(type='daily_rain',
-                                           stations=[550],
-                                           start=20180801, end=today,
-                                           parse=True)
-    
-    _, _, data_rain_all = knmy.get_knmi_data(type='daily_rain',
-                                           start=20180801, end=today,
-                                           parse=True)
-
-    data_rain = data_rain[['YYYYMMDD', 'RD']]
-    data_rain[cn.W_DATE] = pd.to_datetime(data_rain['YYYYMMDD'],  format="%Y%m%d")
-    data_rain.set_index(cn.W_DATE, inplace=True)
-    data_rain.drop('YYYYMMDD', axis=1, inplace=True)
-    raw_weer_data = pd.concat([data_temp_sun, data_rain], axis=1)
-    """
-
     # Deel alle cijfers door 10 om tot normale waarden voor temp, uren en mm te komen
 
     raw_weer_data = np.round(raw_weer_data.astype(int) / 10, 1)
@@ -340,7 +321,7 @@ def process_data(
 ) -> [pd.DataFrame, pd.DataFrame]:
 
     # Importeren van order data
-    order_data = process_order_data(order_data=r_order_data_loc)
+    order_data = process_order_data()
 
     # Importeren van weer data, op wekelijks niveau
     weer_data = process_weather_data(weekly=agg_weekly)
@@ -496,7 +477,6 @@ def data_prep_wrapper(
 def init_prepare_data():
 
     order_data, weer_data, order_data_su, campaigns = process_data(
-        # r_weer_data_loc=fm.WEER_DATA,
         r_product_data_loc=fm.PRODUCT_STATUS,
         r_campaign_data_loc=fm.CAMPAIGN_DATA,
         agg_weekly=True,

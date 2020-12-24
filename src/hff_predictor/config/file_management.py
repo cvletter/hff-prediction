@@ -4,10 +4,19 @@ PRODUCT_STATUS = r"U:\Data\productstatus.xlsx"
 SAVE_LOC = r"U:\Data\Prepared"
 WEER_DATA = r"U:\Data\knmi_201007_debilt.csv"
 CAMPAIGN_DATA = r"U:\Data\campagne_overzicht_totaal.csv"
-DATA_STORAGE = r"U:\Data\order_data"
 
+# Key folders
 
-# PREPARED DATA
+# Input
+ORDER_DATA_FOLDER = r"U:\Productie Voorspelmodel\Input\Bestellingen"
+PRODUCT_STATUS_FOLDER = r"U:\Productie Voorspelmodel\Input\Productstatus"
+CAMPAIGN_DATA_FOLDER = r"U:\Productie Voorspelmodel\Input\Campagnes"
+
+# Output
+PREDICTIONS_FOLDER = r"U:\Productie Voorspelmodel\Output\Voorspellingen"
+INTERMEDIARY_RESULTS_FOLDER = r"U:\Productie Voorspelmodel\Output\Tussenresultaten"
+
+# Intermediary results
 ORDER_DATA_PIVOT_WK = "order_data_pivot_wk_proc_20201031_856.csv"
 CAMPAIGN_DATA_PROC = "campaign_data_processed_20201114_1222.csv"
 WEER_DATA_PRE_PROC = "weather_data_pre_processed_20201031_856.csv"
