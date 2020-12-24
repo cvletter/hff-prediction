@@ -4,14 +4,12 @@ from typing import Union
 import hff_predictor.generic.files
 import pandas as pd
 import numpy as np
-import os
-import glob
 from knmy import knmy
 
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 import hff_predictor.generic.dates as gf
-from hff_predictor.generic.files import save_to_csv
+from hff_predictor.generic.files import read_latest_file
 
 
 def process_order_data() -> pd.DataFrame:
@@ -20,10 +18,7 @@ def process_order_data() -> pd.DataFrame:
     :return:
     """
 
-    file_extension = "\*.xlsx"
-    search_in_folder = fm.ORDER_DATA_FOLDER + file_extension
-    order_data = min(glob.iglob(pathname=search_in_folder), key=os.path.getctime)
-
+    order_data = read_latest_file(folder=fm.ORDER_DATA_FOLDER, file_extension="\*.xlsx")
     raw_data = pd.read_excel(
         order_data,
         dtype={
@@ -137,8 +132,10 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
     return raw_weer_data
 
 
-def process_campaigns(campaign_data_loc: str) -> pd.DataFrame:
-    raw_campaign_data = pd.read_csv(campaign_data_loc, sep=";")
+def process_campaigns() -> pd.DataFrame:
+
+    campaign_data = read_latest_file(folder=fm.CAMPAIGN_DATA_FOLDER, file_extension="\*.csv")
+    raw_campaign_data = pd.read_csv(campaign_data, sep=";")
     raw_campaign_data["Datum"] = pd.to_datetime(
         raw_campaign_data["Datum"], format="%d-%m-%Y"
     )
@@ -168,9 +165,11 @@ def process_campaigns(campaign_data_loc: str) -> pd.DataFrame:
 
 
 # TODO Afmaken column_names
-def process_product_status(product_data_loc: str) -> pd.DataFrame:
+def process_product_status() -> pd.DataFrame:
+
+    product_status_data = read_latest_file(folder=fm.PRODUCT_STATUS_FOLDER, file_extension="\*.xlsx")
     raw_product_status = pd.read_excel(
-        product_data_loc,
+        product_status_data,
         sheet_name="Blad2",
         dtype={"Nummer": str, "Omschrijving": str, "Geblokkeerd": str},
     ).dropna(how="all")
@@ -311,10 +310,6 @@ def find_active_products(
 
 
 def process_data(
-    r_order_data_loc=fm.RAW_DATA,
-    # r_weer_data_loc=fm.WEER_DATA,
-    r_product_data_loc=fm.PRODUCT_STATUS,
-    r_campaign_data_loc=fm.CAMPAIGN_DATA,
     agg_weekly=True,
     exclude_su=True,
     save_to_csv=False,
@@ -332,7 +327,7 @@ def process_data(
     weer_data.sort_index(ascending=False, inplace=True)
 
     # Importeren van product status data
-    product_status = process_product_status(product_data_loc=r_product_data_loc)
+    product_status = process_product_status()
 
     # Toevoegen van product status
     add_product_status(
@@ -363,22 +358,26 @@ def process_data(
     #  Shape: 110 producten, 112 datapunten
     order_data_pivot_wk = make_pivot(aggregated_data=order_data_wk, weekly=True)
 
-    campaign_data = process_campaigns(campaign_data_loc=r_campaign_data_loc)
+    campaign_data = process_campaigns()
+
+    # Bestanden worden hier tussentijds opgeslagen omdat hier nog geen restricties op zijn gelegd m.b.t. een datum
+    # Dit maakt het mogelijk om de data later in te laden en de laatste bewerkingen te doen, over een veelvoud aan ver-
+    # schillende datums. Elke keer de data opnieuw inladen kost veel tijd (zeker tijdens testen).
 
     if save_to_csv:
         hff_predictor.generic.files.save_to_csv(
-            data=weer_data, file_name="weather_data_pre_processed", folder=fm.SAVE_LOC
+            data=weer_data, file_name=fm.WEATHER_DATA_PREPROCESSED, folder=fm.WEATHER_DATA_PPR_FOLDER
         )
         hff_predictor.generic.files.save_to_csv(
             data=order_data_pivot_wk,
-            file_name="order_data_pivot_wk_proc",
-            folder=fm.SAVE_LOC,
+            file_name=fm.ORDER_DATA_PROCESSED,
+            folder=fm.ORDER_DATA_PR_FOLDER,
         )
         hff_predictor.generic.files.save_to_csv(
-            data=order_data_wk_su, file_name="order_data_wk_su_proc", folder=fm.SAVE_LOC
+            data=order_data_wk_su, file_name=fm.ORDER_DATA_SU_PREPROCESSED, folder=fm.ORDER_DATA_SU_PPR_FOLDER
         )
         hff_predictor.generic.files.save_to_csv(
-            data=campaign_data, file_name="campaign_data_proc", folder=fm.SAVE_LOC
+            data=campaign_data, file_name=fm.CAMPAIGN_DATA_PROCESSED, folder=fm.CAMPAIGN_DATA_PR_FOLDER
         )
 
     return order_data_pivot_wk, weer_data, order_data_wk_su, campaign_data
@@ -389,10 +388,6 @@ def data_prep_wrapper(
     prediction_date: datetime.datetime,
     prediction_window: int,
     reload_data=False,
-    order_data_loc=fm.RAW_DATA,
-    weer_data_loc=fm.WEER_DATA,
-    product_data_loc=fm.PRODUCT_STATUS,
-    campaign_data_loc=fm.CAMPAIGN_DATA,
     agg_weekly=True,
     exclude_su=True,
     save_to_csv=False,
@@ -410,30 +405,26 @@ def data_prep_wrapper(
             order_data_wk_su,
             campaign_data,
         ) = process_data(
-            r_order_data_loc=order_data_loc,
-            # r_weer_data_loc=weer_data_loc,
-            r_campaign_data_loc=campaign_data_loc,
-            r_product_data_loc=product_data_loc,
             agg_weekly=agg_weekly,
             exclude_su=exclude_su,
-            save_to_csv=False,
+            save_to_csv=False
         )
 
     else:
         order_data_pivot_wk = hff_predictor.generic.files.import_temp_file(
-            file_name=fm.ORDER_DATA_PIVOT_WK, data_loc=fm.SAVE_LOC, set_index=True
+            data_loc=fm.ORDER_DATA_SU_PPR_FOLDER, set_index=True
         )
 
         weather_data = hff_predictor.generic.files.import_temp_file(
-            file_name=fm.WEER_DATA_PRE_PROC, data_loc=fm.SAVE_LOC, set_index=True
+            data_loc=fm.WEATHER_DATA_PPR_FOLDER, set_index=True
         )
 
         order_data_wk_su = hff_predictor.generic.files.import_temp_file(
-            file_name=fm.ORDER_DATA_WK_SU, data_loc=fm.SAVE_LOC, set_index=True
+            data_loc=fm.ORDER_DATA_PR_FOLDER, set_index=True
         )
 
         campaign_data = hff_predictor.generic.files.import_temp_file(
-            file_name=fm.CAMPAIGN_DATA_PROC, data_loc=fm.SAVE_LOC, set_index=True
+            data_loc=fm.CAMPAIGN_DATA_PR_FOLDER, set_index=True
         )
 
     # Actieve producten selecteren: 66 actief; 45 inactief
@@ -447,22 +438,22 @@ def data_prep_wrapper(
 
     if save_to_csv:
         hff_predictor.generic.files.save_to_csv(
-            data=weather_data, file_name="weer_data_processed", folder=fm.SAVE_LOC
+            data=weather_data, file_name=fm.WEATHER_DATA_PROCESSED, folder=fm.WEATHER_DATA_PR_FOLDER
         )
         hff_predictor.generic.files.save_to_csv(
             data=order_data_wk_a,
-            file_name="actieve_halffabricaten_wk",
-            folder=fm.SAVE_LOC,
+            file_name=fm.ORDER_DATA_ACT_PROCESSED,
+            folder=fm.ORDER_DATA_ACT_PR_FOLDER,
         )
         hff_predictor.generic.files.save_to_csv(
             data=order_data_wk_ia,
-            file_name="inactieve_halffabricaten_wk",
-            folder=fm.SAVE_LOC,
+            file_name=fm.ORDER_DATA_INACT_PROCESSED,
+            folder=fm.ORDER_DATA_INACT_PR_FOLDER,
         )
         hff_predictor.generic.files.save_to_csv(
             data=order_data_wk_su_a,
-            file_name="actieve_halffabricaten_wk_su",
-            folder=fm.SAVE_LOC,
+            file_name=fm.ORDER_DATA_SU_PROCESSED,
+            folder=fm.ORDER_DATA_SU_PR_FOLDER,
         )
 
     return (
@@ -475,15 +466,20 @@ def data_prep_wrapper(
 
 
 def init_prepare_data():
-
+    """
     order_data, weer_data, order_data_su, campaigns = process_data(
-        r_product_data_loc=fm.PRODUCT_STATUS,
-        r_campaign_data_loc=fm.CAMPAIGN_DATA,
         agg_weekly=True,
         exclude_su=True,
         save_to_csv=True,
     )
+    """
 
-    print(order_data.head(5))
+    order_data_wk_a,  order_data_wk_ia, weather_data, order_data_wk_su_a, campaign_data = data_prep_wrapper(
+        prediction_date="2020-10-05",
+        prediction_window=2,
+        reload_data=True,
+        agg_weekly=True,
+        exclude_su=True,
+        save_to_csv=True
+      )
 
-    print(weer_data.head(5))

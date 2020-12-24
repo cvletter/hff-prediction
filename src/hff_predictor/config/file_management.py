@@ -7,10 +7,32 @@ CAMPAIGN_DATA = r"U:\Data\campagne_overzicht_totaal.csv"
 
 # Key folders
 
-# Input
+# Input folders
 ORDER_DATA_FOLDER = r"U:\Productie Voorspelmodel\Input\Bestellingen"
 PRODUCT_STATUS_FOLDER = r"U:\Productie Voorspelmodel\Input\Productstatus"
 CAMPAIGN_DATA_FOLDER = r"U:\Productie Voorspelmodel\Input\Campagnes"
+
+# Processed folders
+WEATHER_DATA_PPR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Weer\Preprocessed"
+WEATHER_DATA_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Weer\Processed"
+ORDER_DATA_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Bestellingen\Standaard"
+ORDER_DATA_SU_PPR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Bestellingen\Superunie eigenschappen\Preprocessed"
+CAMPAIGN_DATA_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Campagnes"
+
+ORDER_DATA_ACT_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Bestellingen\Actief"
+ORDER_DATA_INACT_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Bestellingen\Inactief"
+ORDER_DATA_SU_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Bestellingen\Superunie eigenschappen\Processed"
+
+
+# Processed files
+WEATHER_DATA_PREPROCESSED = "weather_data_preprocessed"
+WEATHER_DATA_PROCESSED = "weather_data_processed"
+ORDER_DATA_PROCESSED = "order_data_pivot_week_processed"
+ORDER_DATA_ACT_PROCESSED = "actieve_halffabricaten_week"
+ORDER_DATA_INACT_PROCESSED = "inactieve_halffabricaten_week"
+ORDER_DATA_SU_PREPROCESSED = "order_data_week_superunie_preprocessed"
+ORDER_DATA_SU_PROCESSED = "order_data_week_superunie_processed"
+CAMPAIGN_DATA_PROCESSED = "campaign_data_processed"
 
 # Output
 PREDICTIONS_FOLDER = r"U:\Productie Voorspelmodel\Output\Voorspellingen"
