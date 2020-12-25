@@ -32,11 +32,17 @@ def main():
         type=str,
     )
 
+    parser.add_argument(
+        "--window",
+        "-w",
+        type=int,
+    )
+
     arguments, _ = parser.parse_known_args()
 
     for method in mode_methods[arguments.mode]:
         if arguments.mode in ["predict"]:
-            method(arguments.date)
+            method(arguments.date, arguments.window)
         else:
             method()
 

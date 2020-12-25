@@ -412,7 +412,7 @@ def data_prep_wrapper(
 
     else:
         order_data_pivot_wk = hff_predictor.generic.files.import_temp_file(
-            data_loc=fm.ORDER_DATA_SU_PPR_FOLDER, set_index=True
+            data_loc=fm.ORDER_DATA_PR_FOLDER, set_index=True
         )
 
         weather_data = hff_predictor.generic.files.import_temp_file(
@@ -420,7 +420,8 @@ def data_prep_wrapper(
         )
 
         order_data_wk_su = hff_predictor.generic.files.import_temp_file(
-            data_loc=fm.ORDER_DATA_PR_FOLDER, set_index=True
+            data_loc=fm.ORDER_DATA_SU_PPR_FOLDER,
+            set_index=True
         )
 
         campaign_data = hff_predictor.generic.files.import_temp_file(

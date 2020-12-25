@@ -7,7 +7,7 @@ import pandas as pd
 
 def read_latest_file(folder, file_extension):
     search_in_folder = folder + file_extension
-    return min(glob.iglob(pathname=search_in_folder), key=os.path.getctime)
+    return max(glob.iglob(pathname=search_in_folder), key=os.path.getctime)
 
 
 def save_to_pkl(data, file_name, folder):
@@ -53,6 +53,7 @@ def import_temp_file(data_loc, file_name=None, set_index=True):
 
     if file_name is None:
         import_name = read_latest_file(folder=data_loc, file_extension="\*.csv")
+        print(import_name)
     else:
         import_name = "{}\{}".format(data_loc, file_name)
 

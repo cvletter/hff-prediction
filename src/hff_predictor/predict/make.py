@@ -19,13 +19,10 @@ def run_prediction_bootstrap(
     train_obs=cn.TRAIN_OBS,
     difference=False,
     lags=cn.N_LAGS,
-    # order_data=fm.RAW_DATA,
-    weather_data=fm.WEER_DATA,
-    campaign_data=fm.CAMPAIGN_DATA,
-    product_data=fm.PRODUCT_STATUS,
     model_type="OLS",
     feature_threshold=None,
     bootstrap_iter=None,
+    save_predictions=False
 ):
     if feature_threshold is None:
         feature_threshold = [0.2, 15]
@@ -73,10 +70,6 @@ def run_prediction_bootstrap(
         prediction_date=date_to_predict,
         prediction_window=prediction_window,
         reload_data=False,
-        campaign_data_loc=campaign_data,
-        # order_data_loc=order_data,
-        weer_data_loc=weather_data,
-        product_data_loc=product_data,
         agg_weekly=True,
         exclude_su=True,
         save_to_csv=False,
@@ -143,28 +136,34 @@ def run_prediction_bootstrap(
 
     all_output[date_to_predict][cn.PREDICTION_OS] = all_predictions
 
+    if save_predictions:
+        original_prediction = all_predictions[all_predictions[cn.BOOTSTRAP_ITER] == 0]
+        save_name = "predictions_p{}_d{}".format(prediction_window, date_to_predict)
+        hff_predictor.generic.files.save_to_csv(data=original_prediction,
+                                                file_name=save_name,
+                                                folder=fm.PREDICTIONS_FOLDER)
+
     return all_output
 
 
-def init_predict(date):
+def init_predict(date, window):
     start = time.time()
+
     # In sample testing of 2020-31-8
     test = run_prediction_bootstrap(
         date_to_predict=date,
-        prediction_window=2,
+        prediction_window=window,
         train_obs=cn.TRAIN_OBS,
         difference=False,
         lags=cn.N_LAGS,
-        # order_data=fm.RAW_DATA,
-        campaign_data=fm.CAMPAIGN_DATA,
-        weather_data=fm.WEER_DATA,
-        product_data=fm.PRODUCT_STATUS,
         model_type="OLS",
         feature_threshold=None,
         bootstrap_iter=2,
+        save_predictions=True
     )
-
 
     elapsed = round((time.time() - start), 2)
     print("It takes {} seconds to run a prediction.".format(elapsed))
+
+
 
