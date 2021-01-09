@@ -1,11 +1,8 @@
 import datetime
-from typing import Union
-
 import hff_predictor.generic.files
 import pandas as pd
 import numpy as np
 from knmy import knmy
-
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 import hff_predictor.generic.dates as gf
@@ -13,9 +10,10 @@ from hff_predictor.generic.files import read_latest_file
 
 
 def process_order_data() -> pd.DataFrame:
-    """
-    :param order_data:
-    :return:
+    """Importeert automatisch laatst beschikbaar gemaakte Excel bestand met orderdata, maakt gebruik van data export uit
+    Qlikview.
+    :return: Verwerking van ruwe data, voegt datum toe, hernoemt variabelen en maakt ze geschikt voor verder gebruik.
+    Hier wordt nog geen data verwijderd.
     """
 
     order_data = read_latest_file(folder=fm.ORDER_DATA_FOLDER, file_extension="\*.xlsx")
@@ -86,23 +84,35 @@ def process_order_data() -> pd.DataFrame:
 
 
 def process_weather_data(weekly=True) -> pd.DataFrame:
+    """
+    Automatische data import van weerdata van het KNMI. Maakt gebruik van module 'knmy' om weerinformatie op te halen.
+    De data wordt opgehaald over een periode van 1 aug. 2018 tot de dag waarop dit script wordt uigevoerd.
+    Merk op dat neerslagcijfers achterwege zijn gelaten, deze worden met een te grote vertraging beschikbaar gemaakt.
+    :param weekly: Optie om dagelijkse cijfers te aggregeren naar wekelijkse cijfers.
+    :return: Verwerkte data m.b.t. het weer zoals temperatuur en zonuren.
+    """
 
+    # Bepalen van datum 'vandaag'
     today = int(datetime.datetime.strftime(datetime.datetime.now(), "%Y%m%d"))
+
+    # Ophalen van KNMI weer data, betreft nu temperatuur en zonuren
     _, _, _, data_temp_sun = knmy.get_knmi_data(type='daily',
                                                 stations=[260],
                                                 start=20180801, end=today,
                                                 variables=['TEMP', 'SUNR'],
                                                 parse=True)
 
+    # Vewerken ruwe weerdata, hernoemen van kolommen
     raw_weer_data = data_temp_sun.loc[1:, :][['YYYYMMDD', 'TG', 'TN', 'TX', 'SQ']]
     raw_weer_data[cn.W_DATE] = pd.to_datetime(raw_weer_data['YYYYMMDD'], format="%Y%m%d")
     raw_weer_data.set_index(cn.W_DATE, inplace=True)
     raw_weer_data.drop('YYYYMMDD', axis=1, inplace=True)
-
     raw_weer_data.columns = [cn.TEMP_GEM, cn.TEMP_MIN, cn.TEMP_MAX, cn.ZONUREN]
-    # Deel alle cijfers door 10 om tot normale waarden voor temp, uren en mm te komen
 
+    # Deel alle cijfers door 10 om tot normale waarden voor temp, uren en mm te komen
     raw_weer_data = np.round(raw_weer_data.astype(int) / 10, 1)
+
+    # Voeg weeknumemr toe
     gf.add_week_year(data=raw_weer_data, date_name=cn.W_DATE)
 
     # Indien data moet worden geaggregeerd naar week
@@ -114,8 +124,6 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
                 cn.TEMP_MIN: "min",
                 cn.TEMP_MAX: "max",
                 cn.ZONUREN: "sum",
-                #cn.NEERSLAG_DUUR: "sum",
-                #cn.NEERSLAG_MM: "sum",
             }
         )
 
@@ -124,16 +132,21 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
             cn.TEMP_GEM,
             cn.TEMP_MIN,
             cn.TEMP_MAX,
-            cn.ZONUREN,
-            #cn.NEERSLAG_DUUR,
-            #cn.NEERSLAG_MM,
+            cn.ZONUREN
         ]
 
     return raw_weer_data
 
 
 def process_campaigns() -> pd.DataFrame:
+    """
+    Importeert en verwerkt automatisch de (verwerkte) data m.b.t. de weken wanneer tapas in de actie zijn bij een
+    lid van de superunie. Deze data vereist voorverwerking en kan niet ruw worden ingeladen. Zie desbestreffende map
+    voor een voorbeeld. Selecteert wel automatisch het laatst beschikbare bestand.
+    :return: Verwerkte campagne datums, per supermarkt.
+    """
 
+    # Importeren van ruwe data, datum leesbaar maken
     campaign_data = read_latest_file(folder=fm.CAMPAIGN_DATA_FOLDER, file_extension="\*.csv")
     raw_campaign_data = pd.read_csv(campaign_data, sep=";")
     raw_campaign_data["Datum"] = pd.to_datetime(
@@ -164,9 +177,16 @@ def process_campaigns() -> pd.DataFrame:
     return raw_campaign_data
 
 
-# TODO Afmaken column_names
 def process_product_status() -> pd.DataFrame:
+    """
+    Importeert en verwerkt automatisch de (verwerkte) data m.b.t. welke producten actief zijn. Deze data vereist
+    voorverwerking en kan niet ruw worden ingeladen. Zie desbestreffende map voor een voorbeeld. Selecteert wel
+    automatisch het laatst beschikbare bestand.
 
+    :return: Verwerkte productstatus data, klaar om gekoppeld te worden aan order data.
+    """
+
+    # Import van ruwe data
     product_status_data = read_latest_file(folder=fm.PRODUCT_STATUS_FOLDER, file_extension="\*.xlsx")
     raw_product_status = pd.read_excel(
         product_status_data,
@@ -193,13 +213,20 @@ def process_product_status() -> pd.DataFrame:
     return raw_product_status
 
 
-# Toevoegen van de status van een product, 'geblokkeerd' of nog 'actief'
 def add_product_status(
-    order_data_processed: pd.DataFrame,
-    product_status_processed: pd.DataFrame,
-    join_col="inkooprecept_nr",
+        order_data_processed: pd.DataFrame,
+        product_status_processed: pd.DataFrame,
+        join_col="inkooprecept_nr",
 ):
+    """
+    Functie om product status toe te voegen aan order data, m.a.w. is het product nog actief of niet.
+    :param order_data_processed: Verwerkte order data
+    :param product_status_processed: Verwerkte order status data
+    :param join_col: Kolom waarop beide bronnen met elkaar kunnen worden gevoegd
+    :return: Geeft niets terug, voegt kolom toe aan 'order_data_processed'
+    """
 
+    # Tijdelijk de 'join_col' instellen als index om makkelijk bronnen bij elkaar te voegen
     order_data_processed.reset_index(inplace=True)
     order_data_processed.set_index(join_col, inplace=True)
 
@@ -211,6 +238,7 @@ def add_product_status(
         product_status_processed.reset_index(inplace=True)
         product_status_processed.set_index(join_col, inplace=True)
 
+    # Hier wordt de productstatus toegevoegd
     order_data_processed["inkooprecept_geblokkeerd"] = product_status_processed[
         "geblokkeerd"
     ]
@@ -222,10 +250,16 @@ def add_product_status(
 
 
 def data_filtering(unfiltered_data: pd.DataFrame, su_filter=True) -> pd.DataFrame:
+    """
+    Filteren en verwijderen van data om tot gewenste data selectie te komen
+    :param unfiltered_data: Verwerkte, maar ongefilterde data
+    :param su_filter: Als deze filter op 'true' staat worden orderregels die niet van een SU lid komen weggelaten
+    :return: Gefilterde data
+    """
 
     print("Unfiltered data: {} lines".format(len(unfiltered_data)))
 
-    # Enkel bulk, rol en aankoopproducten
+    # Selecteert enkel de bulk, rol en aankoopproducten, corresponderen met nummers 14-16
     filter_1 = unfiltered_data[
         (unfiltered_data["consumentgroep_nr"].between(14, 16, inclusive=True))
     ]
@@ -241,7 +275,7 @@ def data_filtering(unfiltered_data: pd.DataFrame, su_filter=True) -> pd.DataFram
     # Bestellingen na 1 augustus 2018, vanaf dat moment bestellingen betrouwbaar
     filter_3 = filter_2[
         filter_2["besteldatum"] >= pd.Timestamp(year=2018, month=8, day=1)
-    ]
+        ]
     print("Bestellingen na 01/08/2018: {} lines".format(len(filter_3)))
 
     # Enkel actieve producten
@@ -252,19 +286,33 @@ def data_filtering(unfiltered_data: pd.DataFrame, su_filter=True) -> pd.DataFram
 
 
 def data_aggregation(
-    filtered_data: pd.DataFrame, weekly=True, exclude_su=True
+        filtered_data: pd.DataFrame, weekly=True, exclude_su=True
 ) -> pd.DataFrame:
-    time_agg = "week_jaar" if weekly else "besteldatum"
-    product_agg = "ce_besteld"
+    """
+    Order data wordt in principe per bestelling aangeleverd, deze functie wordt gebruikt om deze orders tea aggregeren
+    tot weekniveau
+    :param filtered_data: Gefilterde, niet geaggregeerde data
+    :param weekly: Data aggregeren naar wekelijks niveau
+    :param exclude_su: Als deze op true staat betekent dat data alle orders per week worden geaggregeerd,
+    hoeveel een lid van de SU heeft besteld is niet meer herleidbaar
+    :return: Geaggregeerde data
+    """
 
-    group_cols = [time_agg, "inkooprecept_naam", "inkooprecept_nr"]
+    # Te gebruiken kolom om data op gewenste niveau te aggregeren
+    time_agg = cn.WEEK_NUMBER if weekly else cn.ORDER_DATE
+    product_agg = cn.CE_BESTELD
+
+    group_cols = [time_agg, cn.INKOOP_RECEPT_NM, cn.INKOOP_RECEPT_NR]
 
     if not exclude_su:
-        group_cols += ["organisatie"]
+        group_cols += [cn.ORGANISATIE]
 
+    # Aggregeren gebeurt om een zo klein mogelijke selectie van de data
     selected_cols = [product_agg] + group_cols
 
     ungrouped_data = filtered_data[selected_cols]
+
+    # Aggregatie van de data, dit leidt tot totale verkopen per halffabrikaat per week
     aggregated_data = ungrouped_data.groupby(group_cols, as_index=False).agg(
         {product_agg: "sum"}
     )
@@ -276,29 +324,51 @@ def data_aggregation(
 
 
 def make_pivot(aggregated_data: pd.DataFrame, weekly=True) -> pd.DataFrame:
-
+    """
+    De geaggregeerde data is nu nog gestapeld, de gewenste structuur is dat elk product een eigen kolom heeft en
+    de rijen de bestellingen per week laten zien (dit is pivoteren)
+    :param aggregated_data: Geaggregeerde data
+    :param weekly: Helpt bepalen welke kolom moet worden gebruikt om te pivoteren
+    :return:
+    """
     date_granularity = cn.FIRST_DOW if weekly else cn.ORDER_DATE
 
     if aggregated_data.index.name == date_granularity:
         aggregated_data.reset_index(inplace=True, drop=False)
 
+    # Hier wordt de pivot uitgevoerd
     pivoted_data = pd.DataFrame(
         aggregated_data.pivot(
             index=date_granularity, columns=cn.INKOOP_RECEPT_NM, values=cn.CE_BESTELD
         )
     )
 
+    # Data wordt gesorteerd teruggestuurd
     return pivoted_data.sort_index(ascending=False, inplace=False)
 
 
 # Selecteert hierdoor alleen producten die zijn verkocht in de week dat de voorspelling wordt gemaakt
 def find_active_products(
-    raw_product_ts: pd.DataFrame, eval_week=cn.LAST_TRAIN_DATE
+        raw_product_ts: pd.DataFrame, eval_week=cn.LAST_TRAIN_DATE
 ) -> [pd.DataFrame, pd.DataFrame]:
+    """
+    Deze functie bepaalt welke producten afgelopen week nog zijn verkocht en waar dus een voorspelling
+    van kan worden gemaakt
+    :param raw_product_ts: Vewerkte en gepivoteerde data
+    :param eval_week: De laatste week die kan worden gebruikt om een voorspelling te maken
+    :return: Twee bestanden, een met 'actieve' producten en een met 'inactieve' producten
+
+    """
+
+    # Isoleert de rij met data van producten in de week waar een order moet zijn gemaakt
     eval_data = raw_product_ts.loc[eval_week].T
     eval_data.drop("week_jaar", inplace=True, errors="ignore")
+
+    # Evalueert hier welke producten een waarde beschikbaar hebben, m.a.w. bestellingen
     all_active_products = eval_data.index
     active_sold_products = eval_data.dropna(how="all").index
+
+    # Inactieve producten worden bepaald door het verschil te nemen van totaal en actieve producten
     active_not_sold_products = list(
         set(all_active_products) - set(active_sold_products)
     )
@@ -310,11 +380,19 @@ def find_active_products(
 
 
 def process_data(
-    agg_weekly=True,
-    exclude_su=True,
-    save_to_csv=False,
+        agg_weekly=True,
+        exclude_su=True,
+        save_to_csv=False,
 ) -> [pd.DataFrame, pd.DataFrame]:
-
+    """
+    Dit is de functie waar alles bij elkaar wordt gebracht tot en met de pivot. Dit betekent in feite dat alle functies
+    worden uitgevoerd om de data te verwerken, waar nog geen restricties worden gelegd op periode waairn data
+    beschikbaar moet zijn
+    :param agg_weekly: Wekelijks aggregeren
+    :param exclude_su: Aggrgeren over SU of niet
+    :param save_to_csv: Opslaan van de resultaten
+    :return:
+    """
     # Importeren van order data
     order_data = process_order_data()
 
@@ -353,9 +431,7 @@ def process_data(
         add_to=order_data_wk_su, week_col_name=cn.WEEK_NUMBER, set_as_index=True
     )
 
-    # Pivoteren van data
-
-    #  Shape: 110 producten, 112 datapunten
+    # Pivoteren van data; bevat ongeveer (jan '21): 110 producten, 112 datapunten
     order_data_pivot_wk = make_pivot(aggregated_data=order_data_wk, weekly=True)
 
     campaign_data = process_campaigns()
@@ -385,14 +461,23 @@ def process_data(
 
 # Wrapping function to do entire data preparation
 def data_prep_wrapper(
-    prediction_date: datetime.datetime,
-    prediction_window: int,
-    reload_data=False,
-    agg_weekly=True,
-    exclude_su=True,
-    save_to_csv=False,
+        prediction_date: datetime.datetime,
+        prediction_window: int,
+        reload_data=False,
+        agg_weekly=True,
+        exclude_su=True,
+        save_to_csv=False,
 ) -> [pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
 
+    :param prediction_date:
+    :param prediction_window:
+    :param reload_data:
+    :param agg_weekly:
+    :param exclude_su:
+    :param save_to_csv:
+    :return:
+    """
     if type(prediction_date) == str:
         prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
 
@@ -475,12 +560,11 @@ def init_prepare_data():
     )
     """
 
-    order_data_wk_a,  order_data_wk_ia, weather_data, order_data_wk_su_a, campaign_data = data_prep_wrapper(
+    order_data_wk_a, order_data_wk_ia, weather_data, order_data_wk_su_a, campaign_data = data_prep_wrapper(
         prediction_date="2020-10-05",
         prediction_window=2,
         reload_data=True,
         agg_weekly=True,
         exclude_su=True,
         save_to_csv=True
-      )
-
+    )
