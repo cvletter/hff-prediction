@@ -69,7 +69,7 @@ def run_prediction_bootstrap(
     ) = data_prep_wrapper(
         prediction_date=date_to_predict,
         prediction_window=prediction_window,
-        reload_data=False,
+        reload_data=True,
         agg_weekly=True,
         exclude_su=True,
         save_to_csv=False,

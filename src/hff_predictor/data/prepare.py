@@ -17,6 +17,47 @@ def process_order_data() -> pd.DataFrame:
     """
 
     order_data = read_latest_file(folder=fm.ORDER_DATA_FOLDER, file_extension="\*.xlsx")
+
+    raw_data = pd.read_excel(
+        order_data,
+        dtype={
+            "Artikelgroep": int,
+            "ConsGrp Naam": str,
+            "Organisatie": str,
+            "Superunie": str,
+            "InkoopRecept": int,
+            "InkoopRecept Omschrijving": str,
+            "Weekjaar": str,
+            "Periode": str,
+            "Week": int,
+            "Leverdatum": str,
+            "Order": str,
+            "Artikelen": str,
+            "Artikelomschrijving": str,
+            "Besteld #CE": int,
+        },
+    )
+
+    raw_data.rename(
+        columns={
+            "Artikelgroep": cn.CONSUMENT_GROEP_NR,
+            "ConsGrp Naam": cn.CONSUMENT_GROEP,
+            "InkoopRecept": cn.INKOOP_RECEPT_NR,
+            "InkoopRecept Omschrijving": cn.INKOOP_RECEPT_NM,
+            "Artikelen": cn.VERKOOP_ART_NR,
+            "Artikelomschrijving": cn.VERKOOP_ART_NM,
+            "Superunie": cn.SELECT_ORG,
+            "Organisatie": cn.ORGANISATIE,
+            "Weekjaar": cn.WEEK_NUMBER,
+            "Week": cn.WEEK,
+            "Leverdatum": cn.ORDER_DATE,
+            "Besteld #CE": cn.CE_BESTELD,
+        },
+        errors="raise",
+        inplace=True,
+    )
+
+    """
     raw_data = pd.read_excel(
         order_data,
         dtype={
@@ -60,6 +101,10 @@ def process_order_data() -> pd.DataFrame:
     raw_data[[cn.INKOOP_RECEPT_NR, cn.INKOOP_RECEPT_NM]] = raw_data[
         cn.INKOOP_RECEPT
     ].str.split(" - ", expand=True, n=1)
+    
+    """
+
+    raw_data[cn.ORDER_DATE] = pd.to_datetime(raw_data[cn.ORDER_DATE], format="%Y-%m-%d")
 
     raw_data[cn.VERKOOP_ART_NR] = raw_data[cn.VERKOOP_ART_NR].astype(int)
     raw_data[cn.INKOOP_RECEPT_NR] = raw_data[cn.INKOOP_RECEPT_NR].astype(int)
@@ -397,12 +442,18 @@ def process_data(
     order_data = process_order_data()
 
     # Importeren van weer data, op wekelijks niveau
+    """ Dit is een tijdelijke oplossing, KNMI inactief 25 april 2021
     weer_data = process_weather_data(weekly=agg_weekly)
+    
 
     gf.add_first_day_week(
         add_to=weer_data, week_col_name=cn.WEEK_NUMBER, set_as_index=True
     )
     weer_data.sort_index(ascending=False, inplace=True)
+    """""
+    weer_data = hff_predictor.generic.files.import_temp_file(
+        data_loc=fm.WEATHER_DATA_PPR_FOLDER, set_index=True
+    )
 
     # Importeren van product status data
     product_status = process_product_status()
