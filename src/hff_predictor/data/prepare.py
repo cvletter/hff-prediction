@@ -2,6 +2,8 @@ import datetime
 import hff_predictor.generic.files
 import pandas as pd
 import numpy as np
+import requests as re
+import zipfile as zf
 from knmy import knmy
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
@@ -141,17 +143,34 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
     today = int(datetime.datetime.strftime(datetime.datetime.now(), "%Y%m%d"))
 
     # Ophalen van KNMI weer data, betreft nu temperatuur en zonuren
+    """
     _, _, _, data_temp_sun = knmy.get_knmi_data(type='daily',
                                                 stations=[260],
                                                 start=20180801, end=today,
                                                 variables=['TEMP', 'SUNR'],
                                                 parse=True)
+    """
+
+    # Tijdelijke oplossing van ophalen weerdata
+    url = "https://cdn.knmi.nl/knmi/map/page/klimatologie/gegevens/daggegevens/etmgeg_260.zip"
+    r = re.get(url, allow_redirects=True)
+    zfile = open('test.zip', 'wb')
+    zfile.write(r.content)
+    zfile.close()
+
+    weer_data_zip = zf.ZipFile('test.zip')  # having First.csv zipped file.
+    data_download = pd.read_csv(weer_data_zip.open('etmgeg_260.txt'), skiprows=47, delimiter=",", low_memory=False)
+    data_download[cn.W_DATE] = pd.to_datetime(data_download['YYYYMMDD'], format='%Y%m%d')
+    data_download = data_download[data_download[cn.W_DATE] >= "2018-08-01"]
+    data_download.rename(columns=lambda x: x.strip(), inplace=True)
+    raw_weer_data = data_download.loc[1:, :][[cn.W_DATE, 'TG', 'TN', 'TX', 'SQ']]
 
     # Vewerken ruwe weerdata, hernoemen van kolommen
-    raw_weer_data = data_temp_sun.loc[1:, :][['YYYYMMDD', 'TG', 'TN', 'TX', 'SQ']]
-    raw_weer_data[cn.W_DATE] = pd.to_datetime(raw_weer_data['YYYYMMDD'], format="%Y%m%d")
+    # raw_weer_data = data_temp_sun.loc[1:, :][['YYYYMMDD', 'TG', 'TN', 'TX', 'SQ']]
+    # raw_weer_data[cn.W_DATE] = pd.to_datetime(raw_weer_data['YYYYMMDD'], format="%Y%m%d")
+    # raw_weer_data.drop('YYYYMMDD', axis=1, inplace=True)
+
     raw_weer_data.set_index(cn.W_DATE, inplace=True)
-    raw_weer_data.drop('YYYYMMDD', axis=1, inplace=True)
     raw_weer_data.columns = [cn.TEMP_GEM, cn.TEMP_MIN, cn.TEMP_MAX, cn.ZONUREN]
 
     # Deel alle cijfers door 10 om tot normale waarden voor temp, uren en mm te komen
@@ -235,25 +254,42 @@ def process_product_status() -> pd.DataFrame:
     product_status_data = read_latest_file(folder=fm.PRODUCT_STATUS_FOLDER, file_extension="\*.xlsx")
     raw_product_status = pd.read_excel(
         product_status_data,
+        sheet_name="Inkoopartikelen",
+        dtype={"Artikel": str, "Block ID": str, "Blocktekst": str},
+    ).dropna(how="all")
+
+    """ Oude import
+    raw_product_status = pd.read_excel(
+        product_status_data,
         sheet_name="Blad2",
         dtype={"Nummer": str, "Omschrijving": str, "Geblokkeerd": str},
     ).dropna(how="all")
+    """
 
     raw_product_status.rename(
         columns={
-            "Nummer": "inkooprecept_nr",
-            "Omschrijving": "inkooprecept_naam",
-            "Geblokkeerd": "geblokkeerd",
+            "Artikel": "inkooprecept_nr",
+            "Block ID": "geblokkeerd",
+            "Blocktekst": "blocktekst",
         },
         errors="raise",
         inplace=True,
     )
 
+    raw_product_status.drop("blocktekst", axis=1, inplace=True)
+
+    raw_product_status.sort_values(by=["inkooprecept_nr", "geblokkeerd"], ascending=True, inplace=True)
+    raw_product_status.drop_duplicates(subset="inkooprecept_nr", keep="first", inplace=True)
     raw_product_status["inkooprecept_nr"] = raw_product_status[
         "inkooprecept_nr"
     ].astype(int)
 
+    raw_product_status["geblokkeerd"] = raw_product_status[
+        "geblokkeerd"
+    ].astype(int)
+
     raw_product_status.set_index("inkooprecept_nr", inplace=True)
+    raw_product_status["geblokkeerd"].replace({-1: "Ja", 0: "Nee"}, inplace=True)
 
     return raw_product_status
 
@@ -324,10 +360,10 @@ def data_filtering(unfiltered_data: pd.DataFrame, su_filter=True) -> pd.DataFram
     print("Bestellingen na 01/08/2018: {} lines".format(len(filter_3)))
 
     # Enkel actieve producten
-    filter_4 = filter_3[filter_3["inkooprecept_geblokkeerd"] == "Nee"]
-    print("Actieve producten: {} lines".format(len(filter_4)))
+    #filter_4 = filter_3[filter_3["inkooprecept_geblokkeerd"] == "Nee"]
+    #print("Actieve producten: {} lines".format(len(filter_4)))
 
-    return filter_4
+    return filter_3
 
 
 def data_aggregation(
@@ -442,18 +478,15 @@ def process_data(
     order_data = process_order_data()
 
     # Importeren van weer data, op wekelijks niveau
-    """ Dit is een tijdelijke oplossing, KNMI inactief 25 april 2021
     weer_data = process_weather_data(weekly=agg_weekly)
-    
-
     gf.add_first_day_week(
         add_to=weer_data, week_col_name=cn.WEEK_NUMBER, set_as_index=True
     )
     weer_data.sort_index(ascending=False, inplace=True)
-    """""
-    weer_data = hff_predictor.generic.files.import_temp_file(
+
+    """weer_data = hff_predictor.generic.files.import_temp_file(
         data_loc=fm.WEATHER_DATA_PPR_FOLDER, set_index=True
-    )
+    )"""
 
     # Importeren van product status data
     product_status = process_product_status()
@@ -603,16 +636,16 @@ def data_prep_wrapper(
 
 
 def init_prepare_data():
-    """
-    order_data, weer_data, order_data_su, campaigns = process_data(
+
+    """order_data, weer_data, order_data_su, campaigns = process_data(
         agg_weekly=True,
         exclude_su=True,
-        save_to_csv=True,
-    )
-    """
+        save_to_csv=False,
+    )"""
+
 
     order_data_wk_a, order_data_wk_ia, weather_data, order_data_wk_su_a, campaign_data = data_prep_wrapper(
-        prediction_date="2020-10-05",
+        prediction_date="2021-04-12",
         prediction_window=2,
         reload_data=True,
         agg_weekly=True,

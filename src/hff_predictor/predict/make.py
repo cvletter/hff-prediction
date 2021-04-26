@@ -166,4 +166,3 @@ def init_predict(date, window):
     print("It takes {} seconds to run a prediction.".format(elapsed))
 
 
-

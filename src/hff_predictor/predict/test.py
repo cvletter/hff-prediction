@@ -37,9 +37,6 @@ def batch_prediction_bs(prediction_date):
         train_obs=train_size,
         difference=differencing,
         lags=ar_lags,
-        order_data=fm.RAW_DATA,
-        weather_data=fm.WEER_DATA,
-        product_data=fm.PRODUCT_STATUS,
         model_type=fit_model,
         feature_threshold=[feature_threshold[0], feature_threshold[1]],
         bootstrap_iter=bootstrap_iterations,
@@ -52,7 +49,7 @@ def init_test():
     start = time.time()
 
     prediction_dates = pd.DataFrame(
-        pd.date_range(end="2020-10-05", periods=40, freq="W-MON").astype(str),
+        pd.date_range(end="2021-04-12", periods=4, freq="W-MON").astype(str),
         columns=[cn.FIRST_DOW],
     )
 
