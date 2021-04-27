@@ -16,7 +16,7 @@ model_settings = {
     "ar_lags": 2,
     "fit_model": "OLS",
     "feature_threshold": [0.2, 20],
-    "bootstraps": 2,
+    "bootstraps": 1,
 }
 
 
@@ -45,11 +45,11 @@ def batch_prediction_bs(prediction_date):
     return _predict
 
 
-def init_test():
+def init_test(date, periods):
     start = time.time()
 
     prediction_dates = pd.DataFrame(
-        pd.date_range(end="2021-04-12", periods=4, freq="W-MON").astype(str),
+        pd.date_range(end=date, periods=periods, freq="W-MON").astype(str),
         columns=[cn.FIRST_DOW],
     )
 
@@ -65,6 +65,7 @@ def init_test():
     # all_preds = pd.concat(results)
     # print(results)
     # print(all_preds)
+
 
     hff_predictor.generic.files.save_to_pkl(
         data=results, file_name="test_result_bs_2p_2l_70obs", folder=fm.SAVE_LOC

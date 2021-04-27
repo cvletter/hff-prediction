@@ -10,7 +10,7 @@ from hff_predictor.generic.files import read_pkl, import_temp_file
 
 if __name__ == "__main__":
     results = read_pkl(
-        file_name="test_result_bs_2p_2l_70obs_20201114_1248.p", data_loc=fm.SAVE_LOC
+        file_name="test_result_bs_2p_2l_70obs_2021427_1127.p", data_loc=fm.SAVE_LOC
     )
 
     active_products_act = import_temp_file(
@@ -159,27 +159,27 @@ if __name__ == "__main__":
             _truev_tot = _truev_mod_sum + _truev_nmod_sum
 
             _pred_int_mod_low = round(
-                all_predictions.loc[_d, _mod].quantile(0.025, axis=0).sum(), 0
+                all_predictions.loc[_d, _mod].quantile(0.025).sum(), 0
             )
             _pred_int_mod_high = round(
-                all_predictions.loc[_d, _mod].quantile(0.975, axis=0).sum(), 0
+                all_predictions.loc[_d, _mod].quantile(0.975).sum(), 0
             )
 
             _pred_int_nmod_low = round(
-                all_predictions.loc[_d, _nmod].quantile(0.025, axis=0).sum(), 0
+                all_predictions.loc[_d, _nmod].quantile(0.025).sum(), 0
             )
             _pred_int_nmod_high = round(
-                all_predictions.loc[_d, _nmod].quantile(0.975, axis=0).sum(), 0
+                all_predictions.loc[_d, _nmod].quantile(0.975).sum(), 0
             )
 
             _pred_int_tot_low = _pred_int_mod_low + _pred_int_nmod_low
             _pred_int_tot_high = _pred_int_mod_high + _pred_int_nmod_high
 
             _pred_mod_med = round(
-                all_predictions.loc[_d, _mod].quantile(0.5, axis=0).sum(), 0
+                all_predictions.loc[_d, _mod].quantile(0.5).sum(), 0
             )
             _pred_nmod_med = round(
-                all_predictions.loc[_d, _nmod].quantile(0.5, axis=0).sum(), 0
+                all_predictions.loc[_d, _nmod].quantile(0.5).sum(), 0
             )
             _pred_tot_med = _pred_mod_med + _pred_nmod_med
 

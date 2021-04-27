@@ -22,16 +22,24 @@ def run_prediction_bootstrap(
     model_type="OLS",
     feature_threshold=None,
     bootstrap_iter=None,
+    reload_data="N",
     save_predictions=False
 ):
     if feature_threshold is None:
-        feature_threshold = [0.2, 15]
+        feature_threshold = [0.2, 20]
 
     if bootstrap_iter is None:
         do_bootstrap = False
 
     else:
         do_bootstrap = True
+
+    if reload_data == "Y":
+        reload_data = True
+    elif reload_data == "N":
+        reload_data = False
+    else:
+        raise ValueError("Input for reloading data should be 'Y' or 'N'")
 
     def convert_series_to_dataframe(input_series, date_val, index_name=cn.FIRST_DOW):
         input_df = pd.DataFrame(input_series).T
@@ -69,10 +77,10 @@ def run_prediction_bootstrap(
     ) = data_prep_wrapper(
         prediction_date=date_to_predict,
         prediction_window=prediction_window,
-        reload_data=True,
+        reload_data=reload_data,
         agg_weekly=True,
         exclude_su=True,
-        save_to_csv=False,
+        save_to_csv=True,
     )
 
     exogenous_features = prep_all_features(
@@ -146,7 +154,7 @@ def run_prediction_bootstrap(
     return all_output
 
 
-def init_predict(date, window):
+def init_predict(date, window, reload):
     start = time.time()
 
     # In sample testing of 2020-31-8
@@ -159,8 +167,10 @@ def init_predict(date, window):
         model_type="OLS",
         feature_threshold=None,
         bootstrap_iter=2,
+        reload_data=reload,
         save_predictions=True
     )
+
 
     elapsed = round((time.time() - start), 2)
     print("It takes {} seconds to run a prediction.".format(elapsed))

@@ -474,6 +474,7 @@ def process_data(
     :param save_to_csv: Opslaan van de resultaten
     :return:
     """
+
     # Importeren van order data
     order_data = process_order_data()
 
@@ -567,6 +568,8 @@ def data_prep_wrapper(
 
     last_train_date = prediction_date - datetime.timedelta(weeks=prediction_window)
 
+    print("The value for reload_data in data prep wrapper is: {}.".format(reload_data))
+
     if reload_data:
         (
             order_data_pivot_wk,
@@ -576,7 +579,7 @@ def data_prep_wrapper(
         ) = process_data(
             agg_weekly=agg_weekly,
             exclude_su=exclude_su,
-            save_to_csv=False
+            save_to_csv=True
         )
 
     else:
@@ -647,7 +650,7 @@ def init_prepare_data():
     order_data_wk_a, order_data_wk_ia, weather_data, order_data_wk_su_a, campaign_data = data_prep_wrapper(
         prediction_date="2021-04-12",
         prediction_window=2,
-        reload_data=True,
+        reload_data=False,
         agg_weekly=True,
         exclude_su=True,
         save_to_csv=True

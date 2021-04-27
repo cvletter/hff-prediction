@@ -38,11 +38,25 @@ def main():
         type=int,
     )
 
+    parser.add_argument(
+        "--reload",
+        "-r",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--periods",
+        "-p",
+        type=int,
+    )
+
     arguments, _ = parser.parse_known_args()
 
     for method in mode_methods[arguments.mode]:
         if arguments.mode in ["predict"]:
-            method(arguments.date, arguments.window)
+            method(arguments.date, arguments.window, arguments.reload)
+        elif arguments.mode in ["test"]:
+            method(arguments.date, arguments.periods)
         else:
             method()
 
