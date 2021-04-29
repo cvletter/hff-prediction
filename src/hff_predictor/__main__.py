@@ -9,8 +9,13 @@ from hff_predictor.predict.make import init_predict
 from hff_predictor.predict.setup import init_setup_prediction
 from hff_predictor.predict.test import init_test
 
+import logging
+
 
 def main():
+    logging.basicConfig(filename='test.log', level=logging.INFO)
+    logging.info('Started')
+
     mode_methods = {
         "prepare": [init_prepare_data],
         "train": [init_train],
@@ -60,6 +65,6 @@ def main():
         else:
             method()
 
-
+    logging.info("Ended")
 if __name__ == "__main__":
     main()

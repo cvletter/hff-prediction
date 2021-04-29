@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import requests as re
 import zipfile as zf
+import os
 from knmy import knmy
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
@@ -152,18 +153,23 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
     """
 
     # Tijdelijke oplossing van ophalen weerdata
+    temp_weather_name = 'current_weather_data.zip'
     url = "https://cdn.knmi.nl/knmi/map/page/klimatologie/gegevens/daggegevens/etmgeg_260.zip"
     r = re.get(url, allow_redirects=True)
-    zfile = open('test.zip', 'wb')
+    zfile = open(temp_weather_name, 'wb')
     zfile.write(r.content)
     zfile.close()
 
-    weer_data_zip = zf.ZipFile('test.zip')  # having First.csv zipped file.
+    weer_data_zip = zf.ZipFile(temp_weather_name)  # having First.csv zipped file.
     data_download = pd.read_csv(weer_data_zip.open('etmgeg_260.txt'), skiprows=47, delimiter=",", low_memory=False)
+    weer_data_zip.close()
+
     data_download[cn.W_DATE] = pd.to_datetime(data_download['YYYYMMDD'], format='%Y%m%d')
     data_download = data_download[data_download[cn.W_DATE] >= "2018-08-01"]
     data_download.rename(columns=lambda x: x.strip(), inplace=True)
     raw_weer_data = data_download.loc[1:, :][[cn.W_DATE, 'TG', 'TN', 'TX', 'SQ']]
+
+    os.remove(temp_weather_name)
 
     # Vewerken ruwe weerdata, hernoemen van kolommen
     # raw_weer_data = data_temp_sun.loc[1:, :][['YYYYMMDD', 'TG', 'TN', 'TX', 'SQ']]

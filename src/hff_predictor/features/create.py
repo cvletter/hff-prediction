@@ -152,6 +152,8 @@ def prep_holiday_features():
             "2019-12-16",
             "2020-12-14",
             "2020-12-21",
+            "2021-12-13",
+            "2021-12-20"
         ]
     )
 
@@ -160,7 +162,7 @@ def prep_holiday_features():
     ]
 
     post_christmas_dt = pd.to_datetime(
-        ["2018-12-24", "2018-12-31", "2019-12-30", "2020-12-28", "2021-01-04"]
+        ["2018-12-24", "2018-12-31", "2019-12-30", "2020-12-28", "2021-01-04", "2021-12-27", "2022-01-03"]
     )
     holiday_dates["post_christmas"] = [
         1 if x in post_christmas_dt else 0 for x in holiday_dates["day"]
@@ -241,6 +243,18 @@ def prep_covid_features():
     persco_13_aanscherping2_horeca = pd.to_datetime(["2020-09-28"])
     persco_14 = pd.to_datetime(["2020-10-02"])
     persco_15_horeca_dicht = pd.to_datetime(["2020-10-13"])
+    persco_16 = pd.to_datetime(["2020-11-03"])
+    persco_17 = pd.to_datetime(["2020-11-17"])
+    persco_18 = pd.to_datetime(["2020-12-14"])
+    persco_19 = pd.to_datetime(["2021-01-12"])
+    persco_20 = pd.to_datetime(["2021-01-20"])
+    persco_21 = pd.to_datetime(["2021-02-02"])
+    persco_22 = pd.to_datetime(["2021-02-23"])
+    persco_23 = pd.to_datetime(["2021-03-09"])
+    persco_24 = pd.to_datetime(["2021-03-23"])
+    persco_25 = pd.to_datetime(["2021-04-13"])
+    persco_26 = pd.to_datetime(["2021-04-20"])
+
 
     persconferentie = [
         persco_1,
@@ -258,6 +272,17 @@ def prep_covid_features():
         persco_13_aanscherping2_horeca,
         persco_14,
         persco_15_horeca_dicht,
+        persco_16,
+        persco_17,
+        persco_18,
+        persco_19,
+        persco_20,
+        persco_21,
+        persco_22,
+        persco_23,
+        persco_24,
+        persco_25,
+        persco_26,
     ]
 
     negatieve_persconferenties = [
@@ -270,6 +295,15 @@ def prep_covid_features():
         persco_13_aanscherping2_horeca,
         persco_14,
         persco_15_horeca_dicht,
+        persco_16,
+        persco_17,
+        persco_18,
+        persco_19,
+        persco_20,
+        persco_21,
+        persco_22,
+        persco_23,
+        persco_24,
     ]
 
     positieve_persconferenties = [
@@ -279,6 +313,8 @@ def prep_covid_features():
         persco_7_horeca_open,
         persco_8,
         persco_9,
+        persco_25,
+        persco_26,
     ]
 
     covid_dates["negatieve_persconf"] = [
@@ -294,7 +330,7 @@ def prep_covid_features():
         1
         if (
             (persco_2_horeca_dicht <= x <= persco_7_horeca_open)
-            or (x >= persco_15_horeca_dicht)
+            or (persco_15_horeca_dicht <= x <= persco_26)
         )
         else 0
         for x in covid_dates["day"]

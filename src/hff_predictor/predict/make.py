@@ -11,6 +11,9 @@ from hff_predictor.data.prepare import data_prep_wrapper
 from hff_predictor.model.fit import fit_and_predict
 from hff_predictor.evaluation.prediction import in_sample_plot
 from hff_predictor.predict.setup import prediction_setup_wrapper
+from hff_predictor.model.benchmark import moving_average
+
+import logging
 
 
 def run_prediction_bootstrap(
@@ -110,6 +113,9 @@ def run_prediction_bootstrap(
         feature_threshold=[feature_threshold[0], feature_threshold[1]],
     )
 
+    #TODO implement moving average
+    ma_predictions = moving_average(fit_dict=fit_data, window=prediction_window)
+
     all_output[date_to_predict] = {}
     all_output[date_to_predict][cn.MOD_PROD] = fit_data[cn.MOD_PROD]
     all_output[date_to_predict][cn.NON_MOD_PROD] = fit_data[cn.NON_MOD_PROD]
@@ -171,8 +177,8 @@ def init_predict(date, window, reload):
         save_predictions=True
     )
 
-
     elapsed = round((time.time() - start), 2)
-    print("It takes {} seconds to run a prediction.".format(elapsed))
+    logging.info("It takes {} seconds to run a prediction.".format(elapsed))
+
 
 
