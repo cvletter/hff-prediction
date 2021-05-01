@@ -8,10 +8,19 @@ import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 
 
-def moving_average(fit_dict, periods=5, window=2):
-    Y_org = fit_dict[cn.Y_TRUE]
-    Y_ma = Y_org.shift(-2)[:periods]
-    Y_ma_index = Y_org.index[:periods] + datetime.timedelta(days=7*window)
-    Y_ma.set_index(Y_ma_index, inplace=True)
+def moving_average(active_products, prediction_date, periods=cn.MA_PERIOD, window=cn.PREDICTION_WINDOW):
 
-    return Y_ma.mean(axis=0, skip_na=True)
+    if type(prediction_date) == str:
+        prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
+
+    ma_start = prediction_date - datetime.timedelta(days=7*window)
+    ma_end = prediction_date - datetime.timedelta(days=7*(window+periods))
+
+    Y_org = active_products
+    Y_ma_p = Y_org[(Y_org.index > ma_end) & (Y_org.index <= ma_start)]
+    Y_ma_p.reset_index(inplace=True, drop=True)
+
+    Y_ma_r = pd.DataFrame(index=[prediction_date], columns=Y_org.columns)
+    Y_ma_r.loc[prediction_date, :] = Y_ma_p.mean(axis=0, skipna=True)
+
+    return Y_ma_r

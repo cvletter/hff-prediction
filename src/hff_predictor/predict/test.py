@@ -46,6 +46,7 @@ def batch_prediction_bs(prediction_date):
 
 
 def init_test(date, periods):
+
     start = time.time()
 
     prediction_dates = pd.DataFrame(
@@ -57,15 +58,10 @@ def init_test(date, periods):
 
     num_cores = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(num_cores)
-
     results = pool.map(batch_prediction_bs, pred_dates)
+
     pool.close()
     pool.join()
-
-    # all_preds = pd.concat(results)
-    # print(results)
-    # print(all_preds)
-
 
     hff_predictor.generic.files.save_to_pkl(
         data=results, file_name="test_result_bs_2p_2l_70obs", folder=fm.SAVE_LOC

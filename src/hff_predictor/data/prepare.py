@@ -180,6 +180,13 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
     raw_weer_data.columns = [cn.TEMP_GEM, cn.TEMP_MIN, cn.TEMP_MAX, cn.ZONUREN]
 
     # Deel alle cijfers door 10 om tot normale waarden voor temp, uren en mm te komen
+
+    for c in raw_weer_data.columns:
+        if raw_weer_data[c].dtype == 'O':
+            raw_weer_data[c] = raw_weer_data[c].str.strip().replace('', np.NaN)
+            raw_weer_data[c] = raw_weer_data[c].fillna(method='backfill')
+            raw_weer_data[c] = raw_weer_data[c].astype(int)
+
     raw_weer_data = np.round(raw_weer_data.astype(int) / 10, 1)
 
     # Voeg weeknumemr toe
@@ -503,6 +510,14 @@ def process_data(
         order_data_processed=order_data, product_status_processed=product_status
     )
 
+    # Sla op tot welke categorie elk product behoort: Bulk, rol of aankoop
+
+    product_consumentgroep = order_data[['inkooprecept_naam', 'consumentgroep_nr']].drop_duplicates(keep='first')
+
+    hff_predictor.generic.files.save_to_csv(
+        data=product_consumentgroep, file_name=fm.PRODUCT_CONSUMENTGROEP_NR, folder=fm.ORDER_DATA_CG_PR_FOLDER
+    )
+
     # Filteren van besteldata
     order_data_filtered = data_filtering(order_data)
 
@@ -656,7 +671,7 @@ def init_prepare_data():
     order_data_wk_a, order_data_wk_ia, weather_data, order_data_wk_su_a, campaign_data = data_prep_wrapper(
         prediction_date="2021-04-12",
         prediction_window=2,
-        reload_data=False,
+        reload_data=True,
         agg_weekly=True,
         exclude_su=True,
         save_to_csv=True

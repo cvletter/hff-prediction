@@ -62,6 +62,7 @@ FIT_ERROR_ABS = "in_sample_fit_error"
 FIT_ERROR_PCT = "in_sample_fit_perror"
 BOOTSTRAP_ITER = "bootstrap_iteration"
 PREDICTION_OS = "prediction_os"
+MA_BENCHMARK = "moving_average_5w"
 
 # INPUT VARIABLES
 SEASONAL_COLS = ["winter", "lente", "zomer"]
@@ -82,3 +83,4 @@ TRAIN_OBS = 70
 
 HOLIDAY_FORWARD = 2
 N_LAGS = 2
+MA_PERIOD = 5

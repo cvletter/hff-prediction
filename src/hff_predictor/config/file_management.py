@@ -23,6 +23,8 @@ ORDER_DATA_ACT_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Bestellingen\A
 ORDER_DATA_INACT_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Bestellingen\Inactief"
 ORDER_DATA_SU_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Bestellingen\Superunie eigenschappen\Processed"
 
+ORDER_DATA_CG_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Bestellingen\Consumentgroepnummer"
+
 
 # Processed files
 WEATHER_DATA_PREPROCESSED = "weather_data_preprocessed"
@@ -33,6 +35,7 @@ ORDER_DATA_INACT_PROCESSED = "inactieve_halffabricaten_week"
 ORDER_DATA_SU_PREPROCESSED = "order_data_week_superunie_preprocessed"
 ORDER_DATA_SU_PROCESSED = "order_data_week_superunie_processed"
 CAMPAIGN_DATA_PROCESSED = "campaign_data_processed"
+PRODUCT_CONSUMENTGROEP_NR = "product_consumentgroep_nr"
 
 # Output
 PREDICTIONS_FOLDER = r"U:\Productie Voorspelmodel\Output\Voorspellingen"

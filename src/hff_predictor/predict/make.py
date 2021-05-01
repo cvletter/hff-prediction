@@ -13,7 +13,7 @@ from hff_predictor.evaluation.prediction import in_sample_plot
 from hff_predictor.predict.setup import prediction_setup_wrapper
 from hff_predictor.model.benchmark import moving_average
 
-import logging
+#import logging
 
 
 def run_prediction_bootstrap(
@@ -113,8 +113,8 @@ def run_prediction_bootstrap(
         feature_threshold=[feature_threshold[0], feature_threshold[1]],
     )
 
-    #TODO implement moving average
-    ma_predictions = moving_average(fit_dict=fit_data, window=prediction_window)
+    ma_predictions = moving_average(active_products=active_products, window=prediction_window,
+                                    prediction_date=date_to_predict)
 
     all_output[date_to_predict] = {}
     all_output[date_to_predict][cn.MOD_PROD] = fit_data[cn.MOD_PROD]
@@ -128,6 +128,8 @@ def run_prediction_bootstrap(
 
     all_output[date_to_predict][cn.FIT_ERROR_ABS] = avg_fit_err
     all_output[date_to_predict][cn.FIT_ERROR_PCT] = avg_pct_err
+
+    all_output[date_to_predict][cn.MA_BENCHMARK] = ma_predictions
 
     if do_bootstrap:
         all_predictions[cn.BOOTSTRAP_ITER] = 0
@@ -152,6 +154,7 @@ def run_prediction_bootstrap(
 
     if save_predictions:
         original_prediction = all_predictions[all_predictions[cn.BOOTSTRAP_ITER] == 0]
+        #TODO: Add benchmark here
         save_name = "predictions_p{}_d{}".format(prediction_window, date_to_predict)
         hff_predictor.generic.files.save_to_csv(data=original_prediction,
                                                 file_name=save_name,
@@ -178,7 +181,4 @@ def init_predict(date, window, reload):
     )
 
     elapsed = round((time.time() - start), 2)
-    logging.info("It takes {} seconds to run a prediction.".format(elapsed))
-
-
-
+    print("It takes {} seconds to run a prediction.".format(elapsed))

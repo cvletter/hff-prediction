@@ -10,7 +10,7 @@ from hff_predictor.generic.files import read_pkl, import_temp_file
 
 if __name__ == "__main__":
     results = read_pkl(
-        file_name="test_result_bs_2p_2l_70obs_2021427_1127.p", data_loc=fm.SAVE_LOC
+        file_name="test_result_bs_2p_2l_70obs_202151_1233.p", data_loc=fm.SAVE_LOC
     )
 
     active_products_act = import_temp_file(
@@ -61,16 +61,18 @@ if __name__ == "__main__":
 
         return all_mod_products, all_nmod_products
 
-    def get_predictions(result_dict):
-        all_predictions = pd.DataFrame([])
+    def get_benchmark(result_dict):
+        all_benchmarks = pd.DataFrame([])
         for k in result_dict.keys():
-            _preds = result_dict[k][cn.PREDICTION_OS]
-            all_predictions = pd.concat([all_predictions, _preds])
+            _preds = result_dict[k][cn.MA_BENCHMARK]
+            all_benchmarks = pd.concat([all_benchmarks, _preds])
 
-        return all_predictions
+        return all_benchmarks
 
     all_mod_prod, all_non_mod_prod = get_mod_products(result_dict=all_dicts)
     all_predictions = get_predictions(result_dict=all_dicts)
+    all_benchmarks = get_benchmark(result_dict=all_dicts)
+
     all_true_values = all_products_act
     zero_pred = True
 
