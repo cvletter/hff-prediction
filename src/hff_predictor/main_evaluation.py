@@ -10,7 +10,7 @@ from hff_predictor.generic.files import read_pkl, import_temp_file
 
 if __name__ == "__main__":
     results = read_pkl(
-        file_name="test_result_bs_2p_2l_70obs_202151_1233.p", data_loc=fm.SAVE_LOC
+        file_name="test_result_bs_2p_2l_70obs_202153_1630.p", data_loc=fm.SAVE_LOC
     )
 
     active_products_act = import_temp_file(
@@ -146,7 +146,6 @@ if __name__ == "__main__":
 
             _truev_mod = all_true_values.loc[d, _raw_mod]
             _truev_mod_sum = _truev_mod.sum()
-
             _truev_nmod = all_true_values.loc[d, _raw_nmod]
             _truev_nmod_sum = _truev_nmod.sum()
 
