@@ -8,6 +8,7 @@ from hff_predictor.model.fit import init_train
 from hff_predictor.predict.make import init_predict
 from hff_predictor.predict.setup import init_setup_prediction
 from hff_predictor.predict.test import init_test
+from hff_predictor.evaluation.evaluate import init_evaluate
 
 import logging
 
@@ -21,7 +22,7 @@ def main():
         "train": [init_train],
         "predict": [init_predict],
         "test": [init_test],
-        "evaluate": [init_evaluate_prediction, init_descriptive_analysis],
+        "evaluate": [init_evaluate]
     }
 
     parser = argparse.ArgumentParser(description="HFF predictor")
@@ -55,6 +56,12 @@ def main():
         type=int,
     )
 
+    parser.add_argument(
+        "--summary",
+        "-s",
+        type=str,
+    )
+
     arguments, _ = parser.parse_known_args()
 
     for method in mode_methods[arguments.mode]:
@@ -62,6 +69,8 @@ def main():
             method(arguments.date, arguments.window, arguments.reload)
         elif arguments.mode in ["test"]:
             method(arguments.date, arguments.periods)
+        elif arguments.mode in ["evaluate"]:
+            method(arguments.summary)
         else:
             method()
 

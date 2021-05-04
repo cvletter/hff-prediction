@@ -8,11 +8,9 @@ import pandas as pd
 from hff_predictor.generic.files import read_pkl, import_temp_file
 
 
-
-
-def output_to_dict(result_file):
-    result_file = read_pkl(file_name=result_file, data_loc=fm.SAVE_LOC
-                           )
+def output_to_dict(data_loc):
+    result_file = read_pkl(data_loc=data_loc
+                               )
     for i in range(0, len(result_file)):
         if i == 0:
             all_dicts = result_file[i]
@@ -86,9 +84,11 @@ def performance_quality(predictions, benchmark, true_values,
         index=all_prediction_dates,
         columns=[
             "prediction",
+            "prediction_tot",
             "true_value",
             "pred_error_avg",
             "pred_error_sum",
+            "pred_error_tot",
             "benchmark",
             "bmrk_error_avg",
             "bmrk_error_sum",
@@ -121,10 +121,7 @@ def performance_quality(predictions, benchmark, true_values,
         ],
     )
 
-
     # Filling in the predictions
-
-    # d = all_prediction_dates[1]
     for d in all_prediction_dates:
         _d = d.strftime("%Y-%m-%d")
         _raw_mod = modelable_prod[_d].drop(cn.MOD_PROD_SUM)
@@ -150,6 +147,8 @@ def performance_quality(predictions, benchmark, true_values,
         _pred_mod = round(predictions.loc[_d, _mod].astype(float), 0)
         _pred_mod_sum = _pred_mod.sum()
 
+        _pred_mod_tot = predictions.loc[_d, cn.MOD_PROD_SUM]
+
         _bmrk_mod = round(benchmark.loc[_d, _mod].astype(float), 0)
         _bmrk_mod_sum = _bmrk_mod.sum()
 
@@ -171,6 +170,7 @@ def performance_quality(predictions, benchmark, true_values,
 
         # Totals prediction (sum)
         _pred_err_mod_sum = abs(_pred_mod_sum - _truev_mod_sum) / _truev_mod_sum
+        _pred_err_mod_tot = abs(_pred_mod_tot - _truev_mod_sum) / _truev_mod_sum
 
         _pred_err_nmod_sum = abs(_pred_nmod_sum - _truev_nmod_sum) / _truev_nmod_sum
         _pred_err_tot_sum = abs(_pred_tot_sum - _truev_tot) / _truev_tot
@@ -185,9 +185,9 @@ def performance_quality(predictions, benchmark, true_values,
 
         _pred_err_tot_avg = np.mean(list(abs(_pred_perr_mod)) + list(abs(_pred_perr_nmod)))
 
-        _bmrk_err_mod_avg = np.mean(list(abs(_bmrk_perr_mod)))
-        _bmrk_err_nmod_avg = np.mean(list(abs(_bmrk_perr_nmod)))
-        _bmrk_err_tot_avg = np.mean(list(abs(_bmrk_perr_mod)) + list(abs(_bmrk_perr_nmod)))
+        _bmrk_err_mod_avg = np.mean(list(abs(_bmrk_perr_mod.astype(float))))
+        _bmrk_err_nmod_avg = np.mean(list(abs(_bmrk_perr_nmod.astype(float))))
+        _bmrk_err_tot_avg = np.mean(list(abs(_bmrk_perr_mod.astype(float))) + list(abs(_bmrk_perr_nmod.astype(float))))
 
         # Collect
         predictions_mod.loc[d, _mod] = _pred_mod
@@ -200,9 +200,11 @@ def performance_quality(predictions, benchmark, true_values,
         true_values_nmod.loc[d, _nmod] = _truev_nmod
 
         predictions_mod_total.loc[d, "prediction"] = _pred_mod_sum
+        predictions_mod_total.loc[d, "prediction_tot"] = _pred_mod_tot
         predictions_mod_total.loc[d, "true_value"] = _truev_mod_sum
         predictions_mod_total.loc[d, "pred_error_avg"] = _pred_err_mod_avg
         predictions_mod_total.loc[d, "pred_error_sum"] = _pred_err_mod_sum
+        predictions_mod_total.loc[d, "pred_error_tot"] = _pred_err_mod_tot
         predictions_mod_total.loc[d, "benchmark"] = _bmrk_mod_sum
         predictions_mod_total.loc[d, "bmrk_error_avg"] = _bmrk_err_mod_avg
         predictions_mod_total.loc[d, "bmrk_error_sum"] = _bmrk_err_mod_sum
@@ -223,24 +225,47 @@ def performance_quality(predictions, benchmark, true_values,
         predictions_tot.loc[d, "bmrk_error_avg"] = _bmrk_err_tot_avg
         predictions_tot.loc[d, "bmrk_error_sum"] = _bmrk_err_tot_sum
 
-        return (
-            predictions_tot,
-            predictions_mod_total,
-            predictions_nmod_total,
-            predictions_mod,
-            true_values_mod,
-        )
+    return (
+        predictions_tot,
+        predictions_mod_total,
+        predictions_nmod_total,
+        predictions_mod,
+        true_values_mod,
+    )
 
 
-def evaluate_total(predictions, benchmark, true_values):
-    pass
+def performance_summary(prediction_table, subset="All", type="Test"):
+    min_date = prediction_table.index.min().strftime("%Y-%m-%d")
+    max_date = prediction_table.index.max().strftime("%Y-%m-%d")
+
+    average_values = prediction_table.mean(axis=0)
+
+    print("{} predictions, between {} and {}, {} total.".format(subset, min_date, max_date, prediction_table.shape[0]))
+
+    if type == "Extensive":
+        print("The sum prediction error: {}; the average error per product: {} ".format(
+            round(average_values["pred_error_sum"], 2),
+            round(average_values["pred_error_avg"], 2)))
+
+        if subset == "Modelable":
+            print("The total prediction error: {}".format(
+                round(average_values["pred_error_tot"], 2)))
+
+        print("The sum benchmark error: {}; the average benchmark error per product: {} ".format(
+            round(average_values["bmrk_error_sum"], 2),
+            round(average_values["bmrk_error_avg"], 2)))
+
+    elif type == "Test":
+        print("Sum prediction error: {}, benchmark error: {}".format(round(average_values["pred_error_sum"], 2),
+                                                                     round(average_values["bmrk_error_sum"], 2)))
+        if subset == "Modelable":
+            print("Total prediction error: {}".format(round(average_values["pred_error_tot"], 2)))
 
 
+def init_evaluate(summary):
 
-def init_evaluate():
-    output_pkl = "test_result_bs_2p_2l_70obs_202153_1630.p"
+    all_results = output_to_dict(data_loc=fm.TEST_RESULTS_FOLDER)
 
-    all_results = output_to_dict(result_file=output_pkl)
     predictions = get_predictions(result_dict=all_results)
     benchmark = get_benchmark(result_dict=all_results)
     modelable_prod, non_modelable_prod = get_mod_products(result_dict=all_results)
@@ -251,9 +276,13 @@ def init_evaluate():
     product_cat = hff_predictor.generic.files.import_temp_file(
         data_loc=fm.ORDER_DATA_CG_PR_FOLDER, set_index=False)
 
+    pred_tot, pred_mod_tot, pred_nmod_tot, pred_mod, true_valuesmod = performance_quality(predictions=predictions,
+                                                                                          true_values=true_values,
+                                                                                          benchmark=benchmark,
+                                                                                          modelable_prod=modelable_prod,
+                                                                                          non_modelable_prod=non_modelable_prod)
 
-    pred_tot, pred_mod_tot, pred_nmod_tot, pred_mod, true_valuesmod = performance_quality(predictions,
-                                                                                          true_values,
-                                                                                          benchmark,
-                                                                                          modelable_prod,
-                                                                                          non_modelable_prod)
+    performance_summary(prediction_table=pred_tot, subset="All", type=summary)
+    performance_summary(prediction_table=pred_mod_tot, subset="Modelable", type=summary)
+    performance_summary(prediction_table=pred_nmod_tot, subset="Non-modelable", type=summary)
+

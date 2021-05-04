@@ -3,10 +3,10 @@ import hff_predictor.config.file_management as fm
 import hff_predictor.generic.dates as gf
 import hff_predictor.generic.files
 from hff_predictor.predict.make import run_prediction_bootstrap
-
 import pandas as pd
 import multiprocessing
 import time
+from hff_predictor.generic.files import read_pkl
 
 # Prediction
 model_settings = {
@@ -64,7 +64,7 @@ def init_test(date, periods):
     pool.join()
 
     hff_predictor.generic.files.save_to_pkl(
-        data=results, file_name="test_result_bs_2p_2l_70obs", folder=fm.SAVE_LOC
+        data=results, file_name="test_result_bs_2p_2l_70obs", folder=fm.TEST_RESULTS_FOLDER
     )
 
     elapsed = round((time.time() - start), 2)

@@ -40,6 +40,7 @@ PRODUCT_CONSUMENTGROEP_NR = "product_consumentgroep_nr"
 # Output
 PREDICTIONS_FOLDER = r"U:\Productie Voorspelmodel\Output\Voorspellingen"
 INTERMEDIARY_RESULTS_FOLDER = r"U:\Productie Voorspelmodel\Output\Tussenresultaten"
+TEST_RESULTS_FOLDER = r"U:\Productie Voorspelmodel\Output\Testvoorspellingen"
 
 # Intermediary results
 ORDER_DATA_PIVOT_WK = "order_data_pivot_wk_proc_20201031_856.csv"

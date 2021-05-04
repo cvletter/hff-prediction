@@ -28,8 +28,14 @@ def save_to_pkl(data, file_name, folder):
     f.close()
 
 
-def read_pkl(file_name, data_loc):
-    import_name = "{}/{}".format(data_loc, file_name)
+def read_pkl(data_loc, file_name=None):
+
+    if file_name is None:
+        import_name = read_latest_file(folder=data_loc, file_extension="\*.p")
+        print(import_name)
+    else:
+        import_name = "{}\{}".format(data_loc, file_name)
+
     return pkl.load(open(import_name, "rb"))
 
 
