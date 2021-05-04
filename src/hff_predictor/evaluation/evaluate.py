@@ -5,7 +5,7 @@ import hff_predictor.generic.files
 
 import numpy as np
 import pandas as pd
-from hff_predictor.generic.files import read_pkl, import_temp_file
+from hff_predictor.generic.files import read_pkl, import_temp_file, save_to_csv
 
 
 def output_to_dict(data_loc):
@@ -281,6 +281,9 @@ def init_evaluate(summary):
                                                                                           benchmark=benchmark,
                                                                                           modelable_prod=modelable_prod,
                                                                                           non_modelable_prod=non_modelable_prod)
+
+    save_to_csv(pred_mod_tot, file_name="test_voorspellingen_mod", folder=fm.TEST_PREDICTIONS_FOLDER)
+    save_to_csv(pred_tot, file_name="test_voorspellingen_tot", folder=fm.TEST_PREDICTIONS_FOLDER)
 
     performance_summary(prediction_table=pred_tot, subset="All", type=summary)
     performance_summary(prediction_table=pred_mod_tot, subset="Modelable", type=summary)

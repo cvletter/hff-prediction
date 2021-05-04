@@ -28,6 +28,7 @@ def split_products(
     series_not_to_model = obs_count[obs_count["count"] < min_obs].index
     print("Number of products not able to model: {}".format(len(series_not_to_model)))
 
+    #TODO: HIER NOG MEER AGGREGATIES TOEVOEGEN
     products_model = active_products[series_to_model].copy(deep=True)
     products_model[cn.MOD_PROD_SUM] = products_model.sum(axis=1)
     products_no_model = active_products[series_not_to_model]
