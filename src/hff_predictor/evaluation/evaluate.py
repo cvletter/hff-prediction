@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from hff_predictor.generic.files import read_pkl, import_temp_file
 
-output_pkl = "test_result_bs_2p_2l_70obs_202153_1630.p"
+
 
 
 def output_to_dict(result_file):
@@ -124,7 +124,7 @@ def performance_quality(predictions, benchmark, true_values,
 
     # Filling in the predictions
 
-    #d = all_prediction_dates[0]
+    # d = all_prediction_dates[1]
     for d in all_prediction_dates:
         _d = d.strftime("%Y-%m-%d")
         _raw_mod = modelable_prod[_d].drop(cn.MOD_PROD_SUM)
@@ -137,6 +137,9 @@ def performance_quality(predictions, benchmark, true_values,
         # Drop prediction if taken out of productions
         _mod = _truev_mod.index[_truev_mod.notna()]
         _nmod = _truev_nmod.index[_truev_nmod.notna()]
+
+        _truev_mod = _truev_mod[_mod]
+        _truev_nmod = _truev_nmod.loc[_nmod]
 
         # Create
         _truev_mod_sum = _truev_mod.sum()
@@ -160,31 +163,31 @@ def performance_quality(predictions, benchmark, true_values,
         _bmrk_tot_sum = _bmrk_mod_sum + _bmrk_nmod_sum
 
         # Prediction error per product
-        _pred_perr_mod = (_pred_mod - _truev_mod) / _truev_mod
-        _pred_perr_nmod = (_pred_nmod - _truev_nmod) / _truev_nmod
+        _pred_perr_mod = abs(_pred_mod - _truev_mod) / _truev_mod
+        _pred_perr_nmod = abs(_pred_nmod - _truev_nmod) / _truev_nmod
 
-        _bmrk_perr_mod = (_bmrk_mod - _truev_mod) / _truev_mod
-        _bmrk_perr_nmod = (_bmrk_nmod - _truev_nmod) / _truev_nmod
+        _bmrk_perr_mod = abs(_bmrk_mod - _truev_mod) / _truev_mod
+        _bmrk_perr_nmod = abs(_bmrk_nmod - _truev_nmod) / _truev_nmod
 
         # Totals prediction (sum)
-        _pred_err_mod_sum = (_pred_mod_sum - _truev_mod_sum) / _truev_mod_sum
+        _pred_err_mod_sum = abs(_pred_mod_sum - _truev_mod_sum) / _truev_mod_sum
 
-        _pred_err_nmod_sum = (_pred_nmod_sum - _truev_nmod_sum) / _truev_nmod_sum
-        _pred_err_tot_sum = (_pred_tot_sum - _truev_tot) / _truev_tot
+        _pred_err_nmod_sum = abs(_pred_nmod_sum - _truev_nmod_sum) / _truev_nmod_sum
+        _pred_err_tot_sum = abs(_pred_tot_sum - _truev_tot) / _truev_tot
 
-        _bmrk_err_mod_sum = (_bmrk_mod_sum - _truev_mod_sum) / _truev_mod_sum
-        _bmrk_err_nmod_sum = (_bmrk_nmod_sum - _truev_nmod_sum) / _truev_nmod_sum
-        _bmrk_err_tot_sum = (_bmrk_tot_sum - _truev_tot) / _truev_tot
+        _bmrk_err_mod_sum = abs(_bmrk_mod_sum - _truev_mod_sum) / _truev_mod_sum
+        _bmrk_err_nmod_sum = abs(_bmrk_nmod_sum - _truev_nmod_sum) / _truev_nmod_sum
+        _bmrk_err_tot_sum = abs(_bmrk_tot_sum - _truev_tot) / _truev_tot
 
         # Average prediction (avg)
-        _pred_err_mod_avg = np.mean(list(_pred_perr_mod))
-        _pred_err_nmod_avg = np.mean(list(_pred_perr_nmod))
+        _pred_err_mod_avg = np.mean(list(abs(_pred_perr_mod)))
+        _pred_err_nmod_avg = np.mean(list(abs(_pred_perr_nmod)))
 
-        _pred_err_tot_avg = np.mean(list(_pred_perr_mod) + list(_pred_perr_nmod))
+        _pred_err_tot_avg = np.mean(list(abs(_pred_perr_mod)) + list(abs(_pred_perr_nmod)))
 
-        _bmrk_err_mod_avg = np.mean(list(_bmrk_perr_mod))
-        _bmrk_err_nmod_avg = np.mean(list(_bmrk_perr_nmod))
-        _bmrk_err_tot_avg = np.mean(list(_bmrk_perr_mod) + list(_bmrk_perr_nmod))
+        _bmrk_err_mod_avg = np.mean(list(abs(_bmrk_perr_mod)))
+        _bmrk_err_nmod_avg = np.mean(list(abs(_bmrk_perr_nmod)))
+        _bmrk_err_tot_avg = np.mean(list(abs(_bmrk_perr_mod)) + list(abs(_bmrk_perr_nmod)))
 
         # Collect
         predictions_mod.loc[d, _mod] = _pred_mod
@@ -235,6 +238,7 @@ def evaluate_total(predictions, benchmark, true_values):
 
 
 def init_evaluate():
+    output_pkl = "test_result_bs_2p_2l_70obs_202153_1630.p"
 
     all_results = output_to_dict(result_file=output_pkl)
     predictions = get_predictions(result_dict=all_results)
