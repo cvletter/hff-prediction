@@ -41,7 +41,7 @@ def prep_holiday_features():
         1 if x in post_christmas_dt else 0 for x in holiday_dates["day"]
     ]
 
-    # Pasen, Pinksteren, Goede Vrijdag
+    # Pasen, Pinksteren, Goede Vrijdag test
 
     # Koningsdag
 
