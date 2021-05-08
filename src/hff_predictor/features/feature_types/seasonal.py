@@ -57,7 +57,7 @@ def prep_holiday_features():
 
 def prep_seasonal_features():
     seasonal_dates = pd.DataFrame(
-        pd.date_range("2018-01-01", periods=1200, freq="D"), columns=["day"]
+        pd.date_range("2018-01-01", periods=2500, freq="D"), columns=["day"]
     )
 
     seasonal_dates["winter"] = [

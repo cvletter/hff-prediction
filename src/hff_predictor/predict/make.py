@@ -6,7 +6,7 @@ import pandas as pd
 
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
-from hff_predictor.features.create import prep_all_features
+from hff_predictor.features.create_v2 import prep_all_features
 from hff_predictor.data.prepare import data_prep_wrapper
 from hff_predictor.model.fit import fit_and_predict
 from hff_predictor.evaluation.prediction import in_sample_plot
@@ -92,7 +92,7 @@ def run_prediction_bootstrap(
         campaign_data_su=campaign_data_pr,
         prediction_date=date_to_predict,
         train_obs=train_obs,
-        save_to_csv=False,
+        save_file=False,
     )
 
     fit_data, predict_data = prediction_setup_wrapper(
