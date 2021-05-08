@@ -6,13 +6,13 @@ xlrd~=1.2.0
 statsmodels~=0.12.0
 patsy~=0.5.1
 scipy~=1.5.2
-numpy~=1.19.1
+numpy~=1.19.2
 cycler~=0.10.0
 kiwisolver~=1.2.0
 matplotlib~=3.3.2
 pillow~=7.2.0
 seaborn~=0.11.0
 knmy~=1.0.0
-
 requests~=2.25.1
 setuptools~=49.6.0
+xgboost~=1.4.1

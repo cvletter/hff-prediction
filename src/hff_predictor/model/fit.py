@@ -1,10 +1,11 @@
 import hff_predictor.generic.files
-import statsmodels.api as sm
 import pandas as pd
 import numpy as np
 
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
+from hff_predictor.model.model_types.regression_types import regression_model_fit
+from hff_predictor.model.model_types.tree_based_types import tree_based_fit
 
 
 def get_top_correlations(y, y_lags, top_correl=5):
@@ -87,33 +88,13 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
 
 def fit_model(y, X, model="OLS"):
 
-    if model == "OLS":
-        temp_mdl = sm.OLS(y, X, missing="drop")
+    regression_method = ["OLS", "Poisson", "Negative-Binomial"]
+    tree_method = ["XGBoost"]
 
-    elif model == "Poisson":
-        temp_mdl = sm.GLM(y, X, family=sm.families.Poisson(), missing="drop")
-
-    elif model == "Negative-Binomial":
-
-        aux_reg_feat = pd.DataFrame(index=y.index)
-
-        temp_mdl_poisson = sm.GLM(y, X, family=sm.families.Poisson(), missing="drop")
-
-        temp_poisson_fit = temp_mdl_poisson.fit()
-
-        aux_reg_feat["lambda"] = temp_poisson_fit.mu
-        aux_reg_feat["dep_var"] = (
-            (y - temp_poisson_fit.mu) ** 2 - y
-        ) / temp_poisson_fit.mu
-        aux_reg = sm.OLS(aux_reg_feat["dep_var"], aux_reg_feat["lambda"]).fit()
-
-        alpha_fit = aux_reg.params[0]
-
-        temp_mdl = sm.GLM(
-            y, X, family=sm.families.NegativeBinomial(alpha=alpha_fit), missing="drop"
-        )
-
-    return temp_mdl.fit()
+    if model in regression_method:
+        return regression_model_fit(y=y, X=X)
+    elif model in tree_method:
+        return tree_based_fit(y=y, X=X)
 
 
 def batch_fit_model(
