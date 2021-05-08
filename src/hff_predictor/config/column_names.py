@@ -84,3 +84,13 @@ TRAIN_OBS = 70
 HOLIDAY_FORWARD = 2
 N_LAGS = 2
 MA_PERIOD = 5
+
+# Feature groups
+WEATHER = "weather"
+SEASONAL = "seasonal"
+HOLIDAYS = "holidays"
+COVID = "covid"
+STRUC_BREAKS = "breaks"
+CAMPAIGNS = "campaigns"
+SUPERUNIE_PCT = "superunie_pct"
+SUPERUNIE_N = "superunie_n"

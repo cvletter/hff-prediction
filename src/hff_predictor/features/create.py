@@ -7,51 +7,8 @@ import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 import hff_predictor.generic.dates as gf
 
-from hff_predictor.features.feature_types import weather_features, campaign_features, covid_features, \
-    seasonal_features, superunie_features
-
-
-def prep_level_shifts():
-    def str2date(date_str):
-        return datetime.datetime.strptime(date_str, "%Y-%m-%d")
-
-    level_shifts = pd.DataFrame(
-        pd.date_range("2018-01-01", periods=1200, freq="D"), columns=["day"]
-    )
-
-    # this becomes the new constant
-    # level_shifts['period_1'] = [1 if x <= str2date('2019-03-11') else 0 for x in level_shifts['day']]
-    level_shifts["a_trans_period_1"] = [
-        1 if (str2date("2019-03-18") <= x <= str2date("2019-04-08")) else 0
-        for x in level_shifts["day"]
-    ]
-
-    level_shifts["b_period_2"] = [
-        1 if str2date("2019-04-15") <= x <= str2date("2020-04-27") else 0
-        for x in level_shifts["day"]
-    ]
-
-    level_shifts["c_trans_period_2"] = [
-        1 if (str2date("2020-05-04") <= x <= str2date("2020-05-25")) else 0
-        for x in level_shifts["day"]
-    ]
-
-    level_shifts["d_trans_period_2b"] = [
-        1 if (str2date("2020-06-01") <= x <= str2date("2020-06-29")) else 0
-        for x in level_shifts["day"]
-    ]
-
-    level_shifts["e_period_3"] = [
-        1 if x >= str2date("2020-06-01") else 0 for x in level_shifts["day"]
-    ]
-
-    gf.add_week_year(data=level_shifts, date_name="day")
-    gf.add_first_day_week(
-        add_to=level_shifts, week_col_name=cn.WEEK_NUMBER, set_as_index=True
-    )
-    level_shifts.drop("day", axis=1, inplace=True)
-
-    return level_shifts.groupby(cn.FIRST_DOW, as_index=True).max()
+from hff_predictor.features.feature_types import weather, campaigns, covid, \
+    seasonal, superunie, structural_breaks
 
 
 def prep_all_features(
@@ -69,15 +26,15 @@ def prep_all_features(
             file_name=weather_data_processed, data_loc=fm.SAVE_LOC, set_index=False
         )
 
-    weather_f = weather_features.prep_weather_features(input_weer_data=weather_data_processed)
-    holiday_f = seasonal_features.prep_holiday_features()
-    season_f = seasonal_features.prep_seasonal_features()
-    campaign_f = campaign_features.prep_campaign_features(campaign_data=campaign_data_su)
-    covid_f = covid_features.prep_covid_features()
+    weather_f = weather.prep_weather_features(input_weer_data=weather_data_processed)
+    holiday_f = seasonal.prep_holiday_features()
+    season_f = seasonal.prep_seasonal_features()
+    campaign_f = campaigns.prep_campaign_features(campaign_data=campaign_data_su)
+    covid_f = covid.prep_covid_features()
 
-    level_f = prep_level_shifts()
+    level_f = structural_breaks.prep_level_shifts()
 
-    su_pct, su_n = superunie_features.prep_su_features(
+    su_pct, su_n = superunie.prep_su_features(
         input_order_data=order_data_su,
         prediction_date=prediction_date,
         train_obs=train_obs,

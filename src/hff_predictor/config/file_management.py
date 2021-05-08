@@ -24,6 +24,7 @@ ORDER_DATA_INACT_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Bestellingen
 ORDER_DATA_SU_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Bestellingen\Superunie eigenschappen\Processed"
 
 ORDER_DATA_CG_PR_FOLDER = r"U:\Productie Voorspelmodel\Processed\Bestellingen\Consumentgroepnummer"
+FEATURES_PROCESSED_FOLDER = "U:\Productie Voorspelmodel\Processed\Features"
 
 
 # Processed files
@@ -36,7 +37,7 @@ ORDER_DATA_SU_PREPROCESSED = "order_data_week_superunie_preprocessed"
 ORDER_DATA_SU_PROCESSED = "order_data_week_superunie_processed"
 CAMPAIGN_DATA_PROCESSED = "campaign_data_processed"
 PRODUCT_CONSUMENTGROEP_NR = "product_consumentgroep_nr"
-
+FEATURES_PROCESSED = "exogenous_features_processed"
 # Output
 PREDICTIONS_FOLDER = r"U:\Productie Voorspelmodel\Output\Voorspellingen"
 INTERMEDIARY_RESULTS_FOLDER = r"U:\Productie Voorspelmodel\Output\Tussenresultaten"
@@ -55,3 +56,14 @@ ORDER_DATA_ACT_SU = "actieve_halffabricaten_wk_su_20201031_93.csv"
 EXOG_FEATURES = "exogenous_features_20201112_1645.csv"
 FIT_DATA = "fit_data_20201112_172.p"
 PREDICT_DATA = "predict_data_20201112_172.p"
+
+
+# Feature groups
+WEATHER = "weather"
+SEASONAL = "seasonal"
+HOLIDAYS = "holidays"
+COVID = "covid"
+STRUC_BREAKS = "breaks"
+CAMPAIGNS = "campaigns"
+SUPERUNIE_PCT = "superunie_pct"
+SUPERUNIE_N = "superunie_n"

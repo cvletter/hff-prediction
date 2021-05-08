@@ -13,9 +13,8 @@ def prep_holiday_features():
     def add_holiday(holiday, output_df, dates):
         output_df[holiday] = [1 if x in dates else 0 for x in output_df["day"]]
 
-    #TODO: Periods groter maken
     holiday_dates = pd.DataFrame(
-        pd.date_range("2018-01-01", periods=1200, freq="D"), columns=["day"]
+        pd.date_range("2018-01-01", periods=2500, freq="D"), columns=["day"]
     )
 
     # Christmas
