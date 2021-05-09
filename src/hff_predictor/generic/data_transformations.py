@@ -28,7 +28,7 @@ def create_lags(data, lag_range):
 
     for i in data_columns:
         for l in lag_range:
-            if l < 0:
+            if l <= 0:
                 _temp_name = "{}_last{}w".format(i, abs(l))
             else:
                 _temp_name = "{}_next{}w".format(i, abs(l))

@@ -71,10 +71,10 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
 
         _fit = fit_model(y=y, X=X_ar, model=model)
 
-        y_obs = _y_ar.dropna(how='any')
-        y_test = y.loc[y_obs.index]
+        #y_obs = _y_ar.dropna(how='any')
+        #y_test = y.loc[y_obs.index]
 
-        _fit_value = round((abs(y_test - _fit.predict()) / y_test).median(), 5)
+        _fit_value = round((abs(y - _fit.predict()) / y).median(), 5)
         # print("Current fit value {}, with {} lags".format(_fit_value, lag))
 
         if _fit_value < min_fit_val:
@@ -129,12 +129,7 @@ def batch_fit_model(
 
         all_possible_features = y_ar_other.join(X_exog_rf, how="left")
 
-        #TODO INDICES GELIJK TREKKEN
-        y_obs = ar_baseline.dropna(how='any')
-        y_test = y.loc[y_obs.index]
-        all_possible_features_adj = all_possible_features.loc[y_obs.index, :]
-
-        resid = y_test - baseline_fit.predict()
+        resid = y - baseline_fit.predict()
         correlation_val = 1
         selected_features = ar_baseline.copy(deep=True)
 
@@ -147,17 +142,15 @@ def batch_fit_model(
         ):
 
             corr_name, correlation_val = get_top_correlations(
-                y=pd.DataFrame(resid), y_lags=all_possible_features_adj, top_correl=1
+                y=pd.DataFrame(resid), y_lags=all_possible_features, top_correl=1
             )
             selected_features = selected_features.join(
-                all_possible_features_adj[corr_name], how="left"
+                all_possible_features[corr_name], how="left"
             )
-            all_possible_features_adj.drop(corr_name, axis=1, inplace=True)
+            all_possible_features.drop(corr_name, axis=1, inplace=True)
 
             mdl_fit = fit_model(y=y, X=selected_features, model=model)
-            y_obs = selected_features.dropna(how='any')
-            y_test = y.loc[y_obs.index]
-            resid = y_test - mdl_fit.predict()
+            resid = y - mdl_fit.predict()
 
         ar_name = "{}_last".format(y_name)
         ar_cols = [ar_name in x for x in selected_features.columns]
@@ -204,14 +197,14 @@ def batch_make_prediction(
 
     Y_pred = pd.DataFrame(index=Yp_ar_m.index)
 
-    Ym_products = list(set([x[:-7] for x in Yp_ar_m.columns]))
+    Ym_products = list(set([x[:-7] for x in Yp_ar_m.columns]))  # Remove 'lag' tag
 
     for y_name_m in Ym_products:
         lag_index = [y_name_m in x for x in Yp_ar_m.columns]
         Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
 
         Xf_ar_m = Yf_ar_opt[y_name_m]
-        Xp_ar_m = Xp_ar_m.iloc[:, : Xf_ar_m.shape[0]]
+        Xp_ar_m = Xp_ar_m.iloc[:, :Xf_ar_m.shape[0]]
 
         Xp_all_features = Yp_ar_m.join(Xp_exog, how="left")
 

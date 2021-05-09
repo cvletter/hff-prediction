@@ -48,8 +48,6 @@ def create_lagged_sets(y_modelable, y_nonmodelable, exogenous_features, predicti
     y_m_lags = dtr.create_lags(y_modelable, lag_range=lags)
     y_nm_lags = dtr.create_lags(y_nonmodelable, lag_range=lags)
 
-    #TODO Seasons en breaks lostrekken en niet shiften/aanpassen
-
     # Features that can look forward
     exog_features_lookahead = (exogenous_features['holidays'].join(
         exogenous_features['campaigns'], how='left').join(
@@ -136,7 +134,9 @@ def create_model_setup(
                                                                     features_no_adj=X_na,
                                                                     prediction_window=prediction_window)
 
-    y_ar_m_fit = y_ar_m.loc[last_train_date:]
+    max_date = last_train_date
+    min_date = y_ar_m.index.min() + datetime.timedelta(days=7*lags) # Adjust for lags
+    y_ar_m_fit = y_ar_m.loc[max_date: min_date]
     X_exog_fit = X_exog_l.loc[y_ar_m_fit.index]
     y_true_fit = y_modelable.loc[y_ar_m_fit.index]
 
