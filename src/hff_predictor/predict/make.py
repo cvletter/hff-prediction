@@ -178,3 +178,14 @@ def init_predict(date, window, reload):
 
     elapsed = round((time.time() - start), 2)
     print("It takes {} seconds to run a prediction.".format(elapsed))
+
+    date_to_predict = "2021-04-12"
+    prediction_window = 2
+    train_obs = cn.TRAIN_OBS
+    difference = False
+    lags = cn.N_LAGS
+    model_type = "OLS"
+    feature_threshold = None
+    bootstrap_iter = 2
+    reload_data = "N"
+    save_predictions = "False"

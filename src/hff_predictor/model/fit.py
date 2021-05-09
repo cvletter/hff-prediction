@@ -130,8 +130,11 @@ def batch_fit_model(
         all_possible_features = y_ar_other.join(X_exog_rf, how="left")
 
         #TODO INDICES GELIJK TREKKEN
+        y_obs = ar_baseline.dropna(how='any')
+        y_test = y.loc[y_obs.index]
+        all_possible_features_adj = all_possible_features.loc[y_obs.index, :]
 
-        resid = y - baseline_fit.predict()
+        resid = y_test - baseline_fit.predict()
         correlation_val = 1
         selected_features = ar_baseline.copy(deep=True)
 
@@ -144,15 +147,17 @@ def batch_fit_model(
         ):
 
             corr_name, correlation_val = get_top_correlations(
-                y=pd.DataFrame(resid), y_lags=all_possible_features, top_correl=1
+                y=pd.DataFrame(resid), y_lags=all_possible_features_adj, top_correl=1
             )
             selected_features = selected_features.join(
-                all_possible_features[corr_name], how="left"
+                all_possible_features_adj[corr_name], how="left"
             )
-            all_possible_features.drop(corr_name, axis=1, inplace=True)
+            all_possible_features_adj.drop(corr_name, axis=1, inplace=True)
 
             mdl_fit = fit_model(y=y, X=selected_features, model=model)
-            resid = y - mdl_fit.predict()
+            y_obs = selected_features.dropna(how='any')
+            y_test = y.loc[y_obs.index]
+            resid = y_test - mdl_fit.predict()
 
         ar_name = "{}_last".format(y_name)
         ar_cols = [ar_name in x for x in selected_features.columns]
