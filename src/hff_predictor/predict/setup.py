@@ -1,8 +1,6 @@
 import datetime
-
 import hff_predictor.generic.files
 import pandas as pd
-
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 import hff_predictor.generic.data_transformations as dtr
@@ -55,26 +53,34 @@ def create_lagged_sets(y_modelable, y_nonmodelable, exogenous_features, predicti
     # Features that can look forward
     exog_features_lookahead = (exogenous_features['holidays'].join(
         exogenous_features['campaigns'], how='left').join(
-        exogenous_features['covid'], how='left').join(
-        exogenous_features['seasons'], how='left').join(
-        exogenous_features['breaks'], how='left')
+        exogenous_features['covid'], how='left')
     )
+
+    exog_features_no_adj = exogenous_features['seasons'].join(exogenous_features['breaks'], how='left')
 
     lookahead = prediction_window + 3  # Number of weeks the features can look ahead
     lookahead_range = list(reversed(range(-lags, lookahead)))
 
     exog_features_lookahead_lags = dtr.create_lags(exog_features_lookahead, lag_range=lookahead_range)
 
-    return y_m_lags, y_nm_lags, exog_features_lookback_lags, exog_features_lookahead_lags
+    return (y_m_lags, y_nm_lags,
+            exog_features_lookback_lags,
+            exog_features_lookahead_lags,
+            exog_features_no_adj)
 
 
 def create_predictive_context(y_modelable_lag,
                               y_nonmodelable_lag,
                               features_lag_lookback,
                               features_lag_lookahead,
+                              features_no_adj,
                               prediction_window):
 
-    features_total = features_lag_lookback.join(features_lag_lookahead, how='left')
+    features_na_corr = features_no_adj.sort_index(ascending=False).shift(prediction_window)
+    features_total = features_lag_lookback.join(
+        features_lag_lookahead, how='left').join(
+        features_na_corr, how='left'
+    )
 
     features_total_shift = features_total.shift(-prediction_window)[:-prediction_window]
 
@@ -116,17 +122,18 @@ def create_model_setup(
         y_nonmodelable = dtr.first_difference_data(undifferenced_data=y_nonmodelable, delta=1, scale=False)
 
     # Create lags
-    y_m_lags, y_nm_lags, X_lbl, X_lal = create_lagged_sets(y_modelable=y_modelable,
-                                                           y_nonmodelable=y_nonmodelable,
-                                                           exogenous_features=exogenous_features,
-                                                           prediction_window=prediction_window,
-                                                           lags=lags)
+    y_m_lags, y_nm_lags, X_lbl, X_lal, X_na = create_lagged_sets(y_modelable=y_modelable,
+                                                                 y_nonmodelable=y_nonmodelable,
+                                                                 exogenous_features=exogenous_features,
+                                                                 prediction_window=prediction_window,
+                                                                 lags=lags)
 
     # Create predictive context, X_exog_t for non shifted exogenous features
     y_ar_m, y_ar_nm, X_exog_t, X_exog_l = create_predictive_context(y_modelable_lag=y_m_lags,
                                                                     y_nonmodelable_lag=y_nm_lags,
                                                                     features_lag_lookback=X_lbl,
                                                                     features_lag_lookahead=X_lal,
+                                                                    features_no_adj=X_na,
                                                                     prediction_window=prediction_window)
 
     y_ar_m_fit = y_ar_m.loc[last_train_date:]

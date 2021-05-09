@@ -71,7 +71,10 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
 
         _fit = fit_model(y=y, X=X_ar, model=model)
 
-        _fit_value = round((abs(y - _fit.predict()) / y).median(), 5)
+        y_obs = _y_ar.dropna(how='any')
+        y_test = y.loc[y_obs.index]
+
+        _fit_value = round((abs(y_test - _fit.predict()) / y_test).median(), 5)
         # print("Current fit value {}, with {} lags".format(_fit_value, lag))
 
         if _fit_value < min_fit_val:
@@ -125,6 +128,8 @@ def batch_fit_model(
         baseline_fit = fit_model(y=y, X=ar_baseline, model=model)
 
         all_possible_features = y_ar_other.join(X_exog_rf, how="left")
+
+        #TODO INDICES GELIJK TREKKEN
 
         resid = y - baseline_fit.predict()
         correlation_val = 1

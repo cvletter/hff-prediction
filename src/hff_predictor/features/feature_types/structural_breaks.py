@@ -9,7 +9,7 @@ def prep_level_shifts():
         return datetime.datetime.strptime(date_str, "%Y-%m-%d")
 
     level_shifts = pd.DataFrame(
-        pd.date_range("2018-01-01", periods=2500, freq="D"), columns=["day"]
+        pd.date_range("2018-01-01", periods=cn.FEATURE_PERIOD_LENGTH, freq="D"), columns=["day"]
     )
 
     # this becomes the new constant

@@ -10,7 +10,7 @@ import hff_predictor.generic.dates as gf
 
 def prep_covid_features():
     covid_dates = pd.DataFrame(
-        pd.date_range("2018-01-01", periods=1200, freq="D"), columns=["day"]
+        pd.date_range("2018-01-01", periods=cn.FEATURE_PERIOD_LENGTH, freq="D"), columns=["day"]
     )
 
     persco_1 = pd.to_datetime(["2020-03-09"])

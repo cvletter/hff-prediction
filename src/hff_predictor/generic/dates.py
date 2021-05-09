@@ -1,7 +1,5 @@
 import datetime
-
 import pandas as pd
-
 import hff_predictor.config.column_names as cn
 
 
@@ -27,7 +25,7 @@ def add_week_year(data, date_name=cn.ORDER_DATE):
 def add_first_day_week(add_to, week_col_name=cn.WEEK_NUMBER, set_as_index=False):
     def gen_day_to_week_table():
         date_table = pd.DataFrame(
-            pd.date_range("2018-01-01", periods=200, freq="W-MON"),
+            pd.date_range("2018-01-01", periods=cn.FEATURE_PERIOD_LENGTH, freq="W-MON"),
             columns=[cn.FIRST_DOW],
         )
 

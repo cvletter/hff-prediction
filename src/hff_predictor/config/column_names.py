@@ -84,6 +84,7 @@ TRAIN_OBS = 70
 HOLIDAY_FORWARD = 2
 N_LAGS = 2
 MA_PERIOD = 5
+FEATURE_PERIOD_LENGTH = 2500 # Number of days to generate for features
 
 # Feature groups
 WEATHER = "weather"

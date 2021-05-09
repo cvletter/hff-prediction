@@ -1,12 +1,9 @@
 import datetime
-
 import hff_predictor.generic.files
 import pandas as pd
-
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 import hff_predictor.generic.dates as gf
-
 from hff_predictor.features.feature_types import weather, campaigns, covid, \
     seasonal, superunie, structural_breaks
 
@@ -27,7 +24,6 @@ def prep_all_features(
         )
 
     all_features = {}
-
     all_features['weather'] = weather.prep_weather_features(input_weer_data=weather_data_processed)
     all_features['holidays'] = seasonal.prep_holiday_features()
     all_features['seasons'] = seasonal.prep_seasonal_features()
@@ -74,7 +70,7 @@ def init_create_features():
         weather_data_processed=weather_data,
         order_data_su=order_data_su,
         campaign_data_su=campaign_data,
-        prediction_date="2021-12-04",
+        prediction_date="2021-04-12",
         train_obs=cn.TRAIN_OBS,
         save_file=True,
         index_col=cn.FIRST_DOW,
