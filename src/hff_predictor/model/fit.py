@@ -45,6 +45,8 @@ def get_top_correlations(y, y_lags, top_correl=5):
 
 
 def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
+
+    #TODO Pas hier baseline features aan
     # level_cols = ['trans_period_1', 'period_2', 'trans_period_2', 'period_3']
     all_level_features = X_exog[cn.STRUCTURAL_BREAK_COLS]
     all_season_features = X_exog[cn.SEASONAL_COLS]
