@@ -5,7 +5,6 @@ import numpy as np
 import requests as re
 import zipfile as zf
 import os
-from knmy import knmy
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 import hff_predictor.generic.dates as gf

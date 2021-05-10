@@ -1,7 +1,6 @@
 import hff_predictor.generic.files
 import pandas as pd
 import numpy as np
-
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 from hff_predictor.model.model_types.regression_types import regression_model_fit

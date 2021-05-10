@@ -1,4 +1,3 @@
-import hff_predictor.config.column_names as cn
 import pandas as pd
 
 

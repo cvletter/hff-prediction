@@ -1,11 +1,6 @@
-import hff_predictor.generic.files
-import statsmodels.api as sm
 import pandas as pd
-import numpy as np
 import datetime
-
 import hff_predictor.config.column_names as cn
-import hff_predictor.config.file_management as fm
 
 
 def moving_average(active_products, prediction_date, periods=cn.MA_PERIOD, window=cn.PREDICTION_WINDOW):

@@ -1,15 +1,9 @@
 import argparse
-
 from hff_predictor.data.prepare import init_prepare_data
-from hff_predictor.evaluation.descriptive_analysis import init_descriptive_analysis
-from hff_predictor.evaluation.prediction import init_evaluate_prediction
-from hff_predictor.features.create import init_create_features
 from hff_predictor.model.fit import init_train
 from hff_predictor.predict.make import init_predict
-from hff_predictor.predict.setup import init_setup_prediction
 from hff_predictor.predict.test import init_test
 from hff_predictor.evaluation.evaluate import init_evaluate
-
 import logging
 
 

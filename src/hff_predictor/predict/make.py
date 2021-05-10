@@ -3,7 +3,7 @@ import hff_predictor.generic.files
 import pandas as pd
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
-from hff_predictor.features.create_v2 import prep_all_features
+from hff_predictor.features.create import prep_all_features
 from hff_predictor.data.prepare import data_prep_wrapper
 from hff_predictor.model.fit import fit_and_predict
 from hff_predictor.predict.setup import prediction_setup_wrapper

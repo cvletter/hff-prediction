@@ -20,6 +20,15 @@ def output_to_dict(data_loc):
     return all_dicts
 
 
+def get_insample_error(result_dict):
+    all_predictions = pd.DataFrame([])
+    for k in result_dict.keys():
+        _preds = result_dict[k][cn.FIT_ERROR_PCT]
+        all_predictions = pd.concat([all_predictions, _preds])
+
+    return all_predictions
+
+
 def get_predictions(result_dict):
     all_predictions = pd.DataFrame([])
     for k in result_dict.keys():
@@ -265,20 +274,6 @@ def performance_summary(prediction_table, subset="All", type="Test"):
 def init_evaluate(summary):
 
     all_results = output_to_dict(data_loc=fm.TEST_RESULTS_FOLDER)
-
-
-
-
-    def get_insample_error(result_dict):
-        all_predictions = pd.DataFrame([])
-        for k in result_dict.keys():
-            _preds = result_dict[k][cn.FIT_ERROR_PCT]
-            all_predictions = pd.concat([all_predictions, _preds])
-
-        return all_predictions
-
-    insample_errors = get_insample_error(result_dict=all_results)
-
     predictions = get_predictions(result_dict=all_results)
     benchmark = get_benchmark(result_dict=all_results)
     modelable_prod, non_modelable_prod = get_mod_products(result_dict=all_results)

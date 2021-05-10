@@ -3,7 +3,7 @@ import hff_predictor.generic.files
 import pandas as pd
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
-import hff_predictor.generic.data_transformations as dtr
+import hff_predictor.data.transformations as dtr
 import logging
 
 

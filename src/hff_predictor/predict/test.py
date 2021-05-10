@@ -6,7 +6,6 @@ from hff_predictor.predict.make import run_prediction_bootstrap
 import pandas as pd
 import multiprocessing
 import time
-from hff_predictor.generic.files import read_pkl
 
 # Prediction
 model_settings = {
