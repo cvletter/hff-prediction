@@ -14,7 +14,7 @@ model_settings = {
     "differencing": False,
     "ar_lags": 2,
     "fit_model": "OLS",
-    "feature_threshold": [0.2, 20],
+    "feature_threshold": [0.2, 30],
     "bootstraps": 1,
 }
 

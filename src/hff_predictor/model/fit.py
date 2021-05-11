@@ -46,34 +46,39 @@ def get_top_correlations(y, y_lags, top_correl=5):
 
 def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
 
-    #TODO Pas hier baseline features aan
+    # Baseline features
     # level_cols = ['trans_period_1', 'period_2', 'trans_period_2', 'period_3']
     all_level_features = X_exog[cn.STRUCTURAL_BREAK_COLS]
     all_season_features = X_exog[cn.SEASONAL_COLS]
+    all_month_features = X_exog[cn.MONTH_COLS]
+    all_holiday_features = X_exog[cn.HOLIDAY_COLS]
     sorted_lags = y_ar.columns.sort_values(ascending=True)
 
-    use_level_features = all_level_features.loc[
-        :, (all_level_features != 0).any(axis=0)
+    all_baseline_features = all_level_features.join(
+        all_season_features, how='left').join(
+        all_month_features, how='left').join(
+        all_holiday_features, how='left'
+    )
+
+    use_baseline_features = all_baseline_features.loc[
+        :, (all_baseline_features != 0).any(axis=0)
     ]
 
-    if use_level_features.sum(axis=1).sum() == len(y):
-        use_level_features = use_level_features.iloc[:, 1:]
+    if use_baseline_features.sum(axis=1).sum() == len(y):
+        use_baseline_features = use_baseline_features.iloc[:, 1:]
 
-    season_break_cols = use_level_features.join(all_season_features, how="left")
+    # season_break_cols = use_baseline_features.join(all_season_features, how="left")
     optimal_lags = 1
     min_fit_val = 1e9
 
     for lag in range(1, len(sorted_lags) + 1):
         _y_ar = y_ar.iloc[:, :lag]
-        X_ar = _y_ar.join(use_level_features, how="left")
+        X_ar = _y_ar.join(use_baseline_features, how="left")
 
         if constant:
             X_ar.insert(0, "constant", 1)
 
         _fit = fit_model(y=y, X=X_ar, model=model)
-
-        #y_obs = _y_ar.dropna(how='any')
-        #y_test = y.loc[y_obs.index]
 
         _fit_value = round((abs(y - _fit.predict()) / y).median(), 5)
         # print("Current fit value {}, with {} lags".format(_fit_value, lag))
@@ -87,7 +92,7 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
 
     X_exog_rf = X_exog.drop(columns=drop_cols, inplace=False, errors="ignore")
 
-    return lag_values.join(use_level_features, how="left"), X_exog_rf
+    return lag_values.join(use_baseline_features, how="left"), X_exog_rf
 
 
 def fit_model(y, X, model="OLS"):

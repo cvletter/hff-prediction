@@ -18,7 +18,10 @@ def fill_missing_values(data):
 
 
 def create_lags(data, lag_range):
-    data_lags = pd.DataFrame(index=data.index)
+
+    # Verzekeren dat data in juiste volgorde staat gesorteerd
+    data_temp = data.sort_index(ascending=False, inplace=False)
+    data_lags = pd.DataFrame(index=data_temp.index)
 
     if type(lag_range) is int:
         lag_range = list(reversed(range(-lag_range, 1)))
@@ -32,6 +35,6 @@ def create_lags(data, lag_range):
             else:
                 _temp_name = "{}_next{}w".format(i, abs(l))
 
-            data_lags[_temp_name] = data[i].shift(l)
+            data_lags[_temp_name] = data_temp[i].shift(l)
 
     return data_lags

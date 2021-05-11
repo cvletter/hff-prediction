@@ -66,6 +66,16 @@ MA_BENCHMARK = "moving_average_5w"
 
 # INPUT VARIABLES
 SEASONAL_COLS = ["winter", "lente", "zomer"]
+
+MONTH_COLS = [
+    "februari", "maart", "april",
+    "mei", "juni", "juli",
+    "augustus", "september", "oktober",
+    "november", "december"
+]
+
+HOLIDAY_COLS = "all_holidays_next2w"
+
 STRUCTURAL_BREAK_COLS = [
     "a_trans_period_1",
     "b_period_2",
