@@ -4,6 +4,7 @@ import pandas as pd
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 import hff_predictor.data.transformations as dtr
+from hff_predictor.generic.files import import_temp_file
 import logging
 
 
@@ -28,9 +29,20 @@ def split_products(
     series_not_to_model = obs_count[obs_count["count"] < min_obs].index
     logging.info("Number of products not able to model: {}".format(len(series_not_to_model)))
 
-    #TODO: HIER NOG MEER AGGREGATIES TOEVOEGEN: total (mod en non-mod), rol-mod, rol-non-mod, rol total
+    # Consumentgroep nummer inladen
+    consumentgroep_nr = import_temp_file(data_loc=fm.ORDER_DATA_CG_PR_FOLDER, set_index=False)
+    consumentgroep_nr = consumentgroep_nr[[cn.INKOOP_RECEPT_NM, cn.CONSUMENT_GROEP_NR]]
+    consumentgroep_nr.set_index(cn.INKOOP_RECEPT_NM, inplace=True)
+
+    active_rol_products = dtr.find_rol_products(data=active_products,
+                                                consumentgroep_nrs=consumentgroep_nr)
+
     products_model = active_products[series_to_model].copy(deep=True)
-    products_model[cn.MOD_PROD_SUM] = products_model.sum(axis=1)
+
+    # Product groupings
+    products_model[cn.MOD_PROD_SUM] = products_model.sum(axis=1) # Modelable products
+    products_model[cn.ALL_PROD_SUM] = active_products.sum(axis=1) # All products
+    products_model[cn.ALL_ROL_SUM] = active_products[active_rol_products].sum(axis=1) # All rol-products
     products_no_model = active_products[series_not_to_model]
 
     return products_model, products_no_model

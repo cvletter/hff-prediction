@@ -2,6 +2,7 @@ import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 import hff_predictor.generic.dates as gf
 import hff_predictor.generic.files
+import hff_predictor.data.transformations as dtr
 
 import numpy as np
 import pandas as pd
@@ -59,7 +60,18 @@ def get_benchmark(result_dict):
 
 
 def performance_quality(predictions, benchmark, true_values,
-                        modelable_prod, non_modelable_prod, grouping=None):
+                        modelable_prod, non_modelable_prod):
+
+    grouped_cols = [
+        cn.MOD_PROD_SUM,
+        cn.ALL_PROD_SUM,
+        cn.ALL_ROL_SUM
+    ]
+
+    # Importeer consument groep nummers om groeperingen te kunnen maken
+    consumentgroep_nr = import_temp_file(data_loc=fm.ORDER_DATA_CG_PR_FOLDER, set_index=False)
+    consumentgroep_nr = consumentgroep_nr[[cn.INKOOP_RECEPT_NM, cn.CONSUMENT_GROEP_NR]]
+    consumentgroep_nr.set_index(cn.INKOOP_RECEPT_NM, inplace=True)
 
     # Remove negative predictions
     predictions[predictions <= 0] = 0.0
@@ -76,18 +88,15 @@ def performance_quality(predictions, benchmark, true_values,
     # Prepare all data subsets
     predictions_mod = pd.DataFrame(index=all_prediction_dates)
     predictions_nmod = pd.DataFrame(index=all_prediction_dates)
-    predictions_mod_rol = pd.DataFrame(index=all_prediction_dates)
-    predictions_nmod_rol = pd.DataFrame(index=all_prediction_dates)
+    predictions_rol = pd.DataFrame(index=all_prediction_dates)
 
     benchmark_mod = pd.DataFrame(index=all_prediction_dates)
     benchmark_nmod = pd.DataFrame(index=all_prediction_dates)
-    benchmark_mod_rol = pd.DataFrame(index=all_prediction_dates)
-    benchmark_nmod_rol = pd.DataFrame(index=all_prediction_dates)
+    benchmark_rol = pd.DataFrame(index=all_prediction_dates)
 
     true_values_mod = pd.DataFrame(index=all_prediction_dates)
     true_values_nmod = pd.DataFrame(index=all_prediction_dates)
-    true_values_mod_rol = pd.DataFrame(index=all_prediction_dates)
-    true_values_nmod_rol = pd.DataFrame(index=all_prediction_dates)
+    true_values_rol = pd.DataFrame(index=all_prediction_dates)
 
     predictions_mod_total = pd.DataFrame(
         index=all_prediction_dates,
@@ -133,42 +142,54 @@ def performance_quality(predictions, benchmark, true_values,
     # Filling in the predictions
     for d in all_prediction_dates:
         _d = d.strftime("%Y-%m-%d")
-        _raw_mod = modelable_prod[_d].drop(cn.MOD_PROD_SUM)
+        _raw_mod = modelable_prod[_d].drop(grouped_cols)
         _raw_nmod = non_modelable_prod[_d]
 
         _truev_mod = true_values.loc[d, _raw_mod]
-
         _truev_nmod = true_values.loc[d, _raw_nmod]
 
         # Drop prediction if taken out of productions
         _mod = _truev_mod.index[_truev_mod.notna()]
         _nmod = _truev_nmod.index[_truev_nmod.notna()]
 
+        _rol_mod = dtr.find_rol_products(data=_mod, consumentgroep_nrs=consumentgroep_nr)
+        _rol_nmod = dtr.find_rol_products(data=_nmod, consumentgroep_nrs=consumentgroep_nr)
+
         _truev_mod = _truev_mod[_mod]
         _truev_nmod = _truev_nmod.loc[_nmod]
+
+        _truev_rol_mod = _truev_mod[_rol_mod]
+        _truev_rol_nmod = _truev_nmod.loc[_rol_nmod]
 
         # Create
         _truev_mod_sum = _truev_mod.sum()
         _truev_nmod_sum = _truev_nmod.sum()
 
         _truev_tot = _truev_mod_sum + _truev_nmod_sum
+        _truev_rol_tot = _truev_rol_mod.sum() + _truev_rol_nmod.sum()
 
         _pred_mod = round(predictions.loc[_d, _mod].astype(float), 0)
         _pred_mod_sum = _pred_mod.sum()
 
-        _pred_mod_tot = predictions.loc[_d, cn.MOD_PROD_SUM]
+        # Totaal voorspellingen
+        _pred_mod_tot = predictions.loc[_d, cn.MOD_PROD_SUM] # All modelable products
+        _pred_tot = predictions.loc[_d, cn.ALL_PROD_SUM] # All products
+        _pred_tot_rol = predictions.loc[_d, cn.ALL_ROL_SUM] # All rol products
 
         _bmrk_mod = round(benchmark.loc[_d, _mod].astype(float), 0)
+        _bmrk_mod_rol = round(benchmark.loc[_d, _rol_mod].astype(float), 0)
         _bmrk_mod_sum = _bmrk_mod.sum()
 
         _pred_nmod = round(predictions.loc[_d, _nmod].astype(float), 0)
         _pred_nmod_sum = _pred_nmod.sum()
 
         _bmrk_nmod = round(benchmark.loc[_d, _nmod].astype(float), 0)
+        _bmrk_nmod_rol = round(benchmark.loc[_d, _rol_nmod].astype(float), 0)
         _bmrk_nmod_sum = _bmrk_nmod.sum()
 
         _pred_tot_sum = _pred_mod_sum + _pred_nmod_sum
         _bmrk_tot_sum = _bmrk_mod_sum + _bmrk_nmod_sum
+        _bmrk_tot_rol = _bmrk_mod_rol.sum() + _bmrk_nmod_rol.sum()
 
         # Prediction error per product
         _pred_perr_mod = abs(_pred_mod - _truev_mod) / _truev_mod
@@ -180,13 +201,16 @@ def performance_quality(predictions, benchmark, true_values,
         # Totals prediction (sum)
         _pred_err_mod_sum = abs(_pred_mod_sum - _truev_mod_sum) / _truev_mod_sum
         _pred_err_mod_tot = abs(_pred_mod_tot - _truev_mod_sum) / _truev_mod_sum
+        _pred_err_rol_tot = abs(_pred_tot_rol - _truev_rol_tot) / _truev_rol_tot
 
         _pred_err_nmod_sum = abs(_pred_nmod_sum - _truev_nmod_sum) / _truev_nmod_sum
         _pred_err_tot_sum = abs(_pred_tot_sum - _truev_tot) / _truev_tot
+        _pred_err_tot = abs(_pred_tot - _truev_tot) / _truev_tot
 
         _bmrk_err_mod_sum = abs(_bmrk_mod_sum - _truev_mod_sum) / _truev_mod_sum
         _bmrk_err_nmod_sum = abs(_bmrk_nmod_sum - _truev_nmod_sum) / _truev_nmod_sum
         _bmrk_err_tot_sum = abs(_bmrk_tot_sum - _truev_tot) / _truev_tot
+        _bmrk_err_tot_rol = abs(_bmrk_tot_rol - _truev_rol_tot) / _truev_rol_tot
 
         # Average prediction (avg)
         _pred_err_mod_avg = np.mean(list(abs(_pred_perr_mod)))
@@ -228,11 +252,18 @@ def performance_quality(predictions, benchmark, true_values,
 
         predictions_tot.loc[d, "prediction"] = _pred_tot_sum
         predictions_tot.loc[d, "true_value"] = _truev_tot
+        predictions_tot.loc[d, "true_value_rol"] = _truev_rol_tot
+        predictions_tot.loc[d, "prediction_tot"] = _pred_tot
+        predictions_tot.loc[d, "predictions_rol_tot"] = _pred_tot_rol
         predictions_tot.loc[d, "pred_error_avg"] = _pred_err_tot_avg
         predictions_tot.loc[d, "pred_error_sum"] = _pred_err_tot_sum
+        predictions_tot.loc[d, "pred_error_tot"] = _pred_err_tot
+        predictions_tot.loc[d, "pred_error_rol_tot"] = _pred_err_rol_tot
         predictions_tot.loc[d, "benchmark"] = _bmrk_tot_sum
+        predictions_tot.loc[d, "benchmark_rol"] = _bmrk_tot_rol
         predictions_tot.loc[d, "bmrk_error_avg"] = _bmrk_err_tot_avg
         predictions_tot.loc[d, "bmrk_error_sum"] = _bmrk_err_tot_sum
+        predictions_tot.loc[d, "bmrk_error_rol"] = _bmrk_err_tot_rol
 
     return (
         predictions_tot,

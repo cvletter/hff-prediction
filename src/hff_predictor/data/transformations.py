@@ -1,4 +1,5 @@
 import pandas as pd
+import hff_predictor.config.column_names as cn
 
 
 def first_difference_data(undifferenced_data, delta=1, scale=True):
@@ -38,3 +39,15 @@ def create_lags(data, lag_range):
             data_lags[_temp_name] = data_temp[i].shift(l)
 
     return data_lags
+
+
+def find_rol_products(data, consumentgroep_nrs):
+
+    if type(data) == pd.DataFrame:
+        data_cols = data.columns
+    else:
+        data_cols = data
+
+    # Bepalen welke van de actieve producten rol producten zijn
+    rol_products = consumentgroep_nrs[consumentgroep_nrs[cn.CONSUMENT_GROEP_NR] == 16].index
+    return list(set.intersection(set(rol_products), set(data_cols)))

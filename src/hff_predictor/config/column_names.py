@@ -34,6 +34,8 @@ NEERSLAG_MM_P1W = "neerslag_duur_p1w"
 # GENERATED
 WEEK_NUMBER = "week_jaar"
 MOD_PROD_SUM = "model_products_sum"
+ALL_PROD_SUM = "all_products_sum"
+ALL_ROL_SUM = "all_rol_products_sum"
 CONSUMENT_GROEP_NR = "consumentgroep_nr"
 VERKOOP_ART_NR = "verkoopartikel_nr"
 VERKOOP_ART_NM = "verkoopartikel_naam"
