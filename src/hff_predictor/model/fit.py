@@ -5,6 +5,7 @@ import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 from hff_predictor.model.model_types.regression_types import regression_model_fit
 from hff_predictor.model.model_types.tree_based_types import tree_based_fit
+from hff_predictor.model.preprocessing import fit_model, predictor
 
 
 def get_top_correlations(y, y_lags, top_correl=5):
@@ -95,17 +96,6 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
     return lag_values.join(use_baseline_features, how="left"), X_exog_rf
 
 
-def fit_model(y, X, model="OLS"):
-
-    regression_method = ["OLS", "Poisson", "Negative-Binomial"]
-    tree_method = ["XGBoost"]
-
-    if model in regression_method:
-        return regression_model_fit(y=y, X=X)
-    elif model in tree_method:
-        return tree_based_fit(y=y, X=X)
-
-
 def batch_fit_model(
     Y, Y_ar, X_exog, add_constant=True, model="OLS", feature_threshold=None
 ):
@@ -191,6 +181,7 @@ def batch_make_prediction(
     Yf_exog_opt,
     add_constant=True,
     prep_input=True,
+    model_type="OLS",
     find_comparable_model=True,
 ):
     def series_to_dataframe(pd_series):
@@ -223,7 +214,8 @@ def batch_make_prediction(
 
         Xp_tot = Xp_ar_m.join(Xp_arx_m, how="left")
 
-        Y_pred[y_name_m] = fitted_models[y_name_m].predict(Xp_tot)
+        Y_pred[y_name_m] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[y_name_m], model=model_type)
+        # Y_pred[y_name_m] = fitted_models[y_name_m].predict(Xp_tot)
 
     Ynm_products = list(set([x[:-7] for x in Yp_ar_nm.columns]))
     for y_name_nm in Ynm_products:
@@ -260,7 +252,8 @@ def batch_make_prediction(
 
         Xp_tot = Xp_ar_nm.join(Xp_arx_cp, how="left")
 
-        Y_pred[y_name_nm] = fitted_models[closest_product_name].predict(Xp_tot)
+        Y_pred[y_name_nm] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[closest_product_name], model=model_type)
+        # Y_pred[y_name_nm] = fitted_models[closest_product_name].predict(Xp_tot)
 
     return Y_pred
 
@@ -313,6 +306,7 @@ def fit_and_predict(
         Yf_ar_opt=Yar_opt,
         Yf_exog_opt=X_opt,
         add_constant=True,
+        model_type=model_type,
         find_comparable_model=True,
     )
 
