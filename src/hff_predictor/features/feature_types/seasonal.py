@@ -83,6 +83,26 @@ def prep_holiday_features():
         ]
     )
 
+    kingsday_dt = pd.to_datetime(
+        [
+            "2018-04-23",
+            "2019-04-22",
+            "2020-04-20",
+            "2021-04-19",
+            "2022-04-25"
+        ]
+    )
+
+    ascensionday_dt = pd.to_datetime(
+        [
+            "2018-05-07",
+            "2019-05-27",
+            "2020-05-18",
+            "2021-05-10",
+            "2022-05-23"
+        ]
+    )
+
     add_holiday(holiday="christmas", output_df=holiday_dates, dates=christmas_dt)
     add_holiday(holiday="newyears", output_df=holiday_dates, dates=newyears_dt)
     add_holiday(holiday="easter", output_df=holiday_dates, dates=easter_dt)
@@ -91,6 +111,8 @@ def prep_holiday_features():
     add_holiday(holiday="mothers_day", output_df=holiday_dates, dates=mothers_dt)
     add_holiday(holiday="fathers_day", output_df=holiday_dates, dates=fathers_dt)
     add_holiday(holiday="sinterklaas", output_df=holiday_dates, dates=sinterklaas_dt)
+    add_holiday(holiday="kingsday", output_df=holiday_dates, dates=kingsday_dt)
+    add_holiday(holiday="ascension_day", output_df=holiday_dates, dates=ascensionday_dt)
 
     gf.add_week_year(data=holiday_dates, date_name="day")
     gf.add_first_day_week(

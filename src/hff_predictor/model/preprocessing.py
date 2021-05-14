@@ -1,5 +1,8 @@
 from hff_predictor.model.model_types import regression_types, tree_based_types
-import xgboost
+import numpy as np
+import warnings
+
+warnings.filterwarnings(action='ignore', category=UserWarning)
 
 
 def fit_model(y, X, model="OLS"):
@@ -19,10 +22,13 @@ def predictor(Xpred, fitted_model, model="OLS"):
     if model in regression_method:
         prediction = fitted_model.predict(Xpred)
     elif model in tree_method:
-        Xpred_xg = xgboost.DMatrix(Xpred)
-        prediction = fitted_model.predict(Xpred_xg)
+        Xpred = np.ascontiguousarray(Xpred)
+        prediction = fitted_model.predict(Xpred)
     else:
         ValueError("No correct model specified.")
+
+    prediction = np.round(prediction, 0)
+    prediction[prediction < 0] = 0
 
     return prediction
 

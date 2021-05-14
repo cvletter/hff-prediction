@@ -73,6 +73,7 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
     min_fit_val = 1e9
 
     for lag in range(1, len(sorted_lags) + 1):
+
         _y_ar = y_ar.iloc[:, :lag]
         X_ar = _y_ar.join(use_baseline_features, how="left")
 
@@ -81,7 +82,7 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
 
         _fit = fit_model(y=y, X=X_ar, model=model)
 
-        _fit_value = round((abs(y - _fit.predict()) / y).median(), 5)
+        _fit_value = round((abs(y - _fit.predict(X_ar)) / y).median(), 5)
         # print("Current fit value {}, with {} lags".format(_fit_value, lag))
 
         if _fit_value < min_fit_val:
@@ -89,7 +90,7 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
             optimal_lags = lag
 
     lag_values = y_ar.iloc[:, :optimal_lags]
-    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS
+    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS + cn.MONTH_COLS
 
     X_exog_rf = X_exog.drop(columns=drop_cols, inplace=False, errors="ignore")
 
@@ -125,7 +126,7 @@ def batch_fit_model(
 
         all_possible_features = y_ar_other.join(X_exog_rf, how="left")
 
-        resid = y - baseline_fit.predict()
+        resid = y - baseline_fit.predict(ar_baseline)
         correlation_val = 1
         selected_features = ar_baseline.copy(deep=True)
 
@@ -140,13 +141,22 @@ def batch_fit_model(
             corr_name, correlation_val = get_top_correlations(
                 y=pd.DataFrame(resid), y_lags=all_possible_features, top_correl=1
             )
+            # print("Selected features: {}".format(selected_features.shape))
+            # print("Selected feature: {}".format(corr_name))
+            # print("Remaining features before dropping: {}".format(all_possible_features.shape))
+
             selected_features = selected_features.join(
                 all_possible_features[corr_name], how="left"
             )
+
+            # print("Selected features after adding: {}".format(selected_features.shape))
+
             all_possible_features.drop(corr_name, axis=1, inplace=True)
 
+            # print("Remaining features after dropping: {}".format(all_possible_features.shape))
+
             mdl_fit = fit_model(y=y, X=selected_features, model=model)
-            resid = y - mdl_fit.predict()
+            resid = y - mdl_fit.predict(selected_features)
 
         ar_name = "{}_last".format(y_name)
         ar_cols = [ar_name in x for x in selected_features.columns]
@@ -155,9 +165,9 @@ def batch_fit_model(
         ar_features = selected_features.iloc[:, ar_cols]
         exog_features = selected_features.iloc[:, exog_cols]
 
-        Y_pred[y_name] = mdl_fit.predict()
+        Y_pred[y_name] = mdl_fit.predict(selected_features)
         fitted_models[y_name] = mdl_fit
-        all_params[y_name] = mdl_fit.params.index
+        all_params[y_name] = selected_features.columns
         optimized_ar_features[y_name] = ar_features.columns
         optimized_exog_features[y_name] = exog_features.columns
 

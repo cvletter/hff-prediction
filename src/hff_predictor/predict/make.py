@@ -178,3 +178,4 @@ def init_predict(date, window, reload):
 
     elapsed = round((time.time() - start), 2)
     print("It takes {} seconds to run a prediction.".format(elapsed))
+
