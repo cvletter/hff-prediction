@@ -4,6 +4,8 @@ import hff_predictor.config.file_management as fm
 from hff_predictor.features.feature_types import weather, campaigns, covid, \
     seasonal, superunie, structural_breaks
 
+import logging
+LOGGER = logging.getLogger(__name__)
 
 def prep_all_features(
     weather_data_processed,

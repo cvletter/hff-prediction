@@ -4,6 +4,9 @@ import os
 import glob
 import pandas as pd
 
+import logging
+LOGGER = logging.getLogger(__name__)
+
 
 def read_latest_file(folder, file_extension):
     search_in_folder = folder + file_extension

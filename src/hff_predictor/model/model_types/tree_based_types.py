@@ -1,7 +1,9 @@
 import xgboost
 import numpy as np
 import warnings
+import logging
 
+LOGGER = logging.getLogger(__name__)
 warnings.filterwarnings(action='ignore', category=UserWarning)
 
 

@@ -1,8 +1,10 @@
 from hff_predictor.model.model_types import regression_types, tree_based_types
 import numpy as np
+import logging
 import warnings
 
 warnings.filterwarnings(action='ignore', category=UserWarning)
+LOGGER = logging.getLogger(__name__)
 
 
 def fit_model(y, X, model="OLS"):

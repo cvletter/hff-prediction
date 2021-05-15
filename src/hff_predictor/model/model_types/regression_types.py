@@ -1,6 +1,9 @@
 import statsmodels.api as sm
 import pandas as pd
 
+import logging
+LOGGER = logging.getLogger(__name__)
+
 
 def ols_regression(y, X):
     return sm.OLS(y, X, missing="drop")

@@ -9,8 +9,8 @@ from hff_predictor.model.fit import fit_and_predict
 from hff_predictor.predict.setup import prediction_setup_wrapper
 from hff_predictor.model.benchmark import moving_average
 
-#import logging
-
+import logging
+LOGGER = logging.getLogger(__name__)
 
 def run_prediction_bootstrap(
     date_to_predict=cn.PREDICTION_DATE,

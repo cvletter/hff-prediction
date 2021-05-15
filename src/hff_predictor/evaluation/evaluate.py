@@ -8,6 +8,9 @@ import numpy as np
 import pandas as pd
 from hff_predictor.generic.files import read_pkl, import_temp_file, save_to_csv
 
+import logging
+LOGGER = logging.getLogger(__name__)
+
 
 def output_to_dict(data_loc):
     result_file = read_pkl(data_loc=data_loc

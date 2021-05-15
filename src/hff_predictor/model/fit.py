@@ -7,6 +7,9 @@ from hff_predictor.model.model_types.regression_types import regression_model_fi
 from hff_predictor.model.model_types.tree_based_types import tree_based_fit
 from hff_predictor.model.preprocessing import fit_model, predictor
 
+import logging
+LOGGER = logging.getLogger(__name__)
+
 
 def get_top_correlations(y, y_lags, top_correl=5):
     # Rowwise mean of input arrays & subtract from input arrays themeselves

@@ -2,6 +2,9 @@ import datetime
 import pandas as pd
 import hff_predictor.config.column_names as cn
 
+import logging
+LOGGER = logging.getLogger(__name__)
+
 
 def str2date(date_str):
     return datetime.datetime.strptime(date_str, "%Y-%m-%d")

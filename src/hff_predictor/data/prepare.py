@@ -14,6 +14,7 @@ import logging
 
 LOGGER = logging.getLogger(__name__)
 
+
 def process_order_data() -> pd.DataFrame:
     """Importeert automatisch laatst beschikbaar gemaakte Excel bestand met orderdata, maakt gebruik van data export uit
     Qlikview.

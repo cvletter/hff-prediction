@@ -7,6 +7,10 @@ import pandas as pd
 import multiprocessing
 import time
 
+import logging
+LOGGER = logging.getLogger(__name__)
+
+
 # Prediction
 model_settings = {
     "prediction_window": 2,

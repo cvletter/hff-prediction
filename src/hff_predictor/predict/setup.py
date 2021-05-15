@@ -5,7 +5,9 @@ import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 import hff_predictor.data.transformations as dtr
 from hff_predictor.generic.files import import_temp_file
+
 import logging
+LOGGER = logging.getLogger(__name__)
 
 
 def split_products(
