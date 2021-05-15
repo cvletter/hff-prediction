@@ -10,6 +10,9 @@ import hff_predictor.config.file_management as fm
 import hff_predictor.generic.dates as gf
 from hff_predictor.generic.files import read_latest_file
 
+import logging
+
+LOGGER = logging.getLogger(__name__)
 
 def process_order_data() -> pd.DataFrame:
     """Importeert automatisch laatst beschikbaar gemaakte Excel bestand met orderdata, maakt gebruik van data export uit
@@ -350,7 +353,7 @@ def data_filtering(unfiltered_data: pd.DataFrame, su_filter=True) -> pd.DataFram
     :return: Gefilterde data
     """
 
-    print("Unfiltered data: {} lines".format(len(unfiltered_data)))
+    LOGGER.info("Unfiltered data: {} lines".format(len(unfiltered_data)))
 
     # Selecteert enkel de bulk, rol en aankoopproducten, corresponderen met nummers 14-16
     filter_1 = unfiltered_data[

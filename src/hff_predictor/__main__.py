@@ -4,12 +4,19 @@ from hff_predictor.model.fit import init_train
 from hff_predictor.predict.make import init_predict
 from hff_predictor.predict.test import init_test
 from hff_predictor.evaluation.evaluate import init_evaluate
-import logging
+
+import pkg_resources
+import logging.config
+
+logging.config.fileConfig(
+    pkg_resources.resource_filename(f"{__package__}.resources", "logger.ini"), disable_existing_loggers=False
+)
+
+LOGGER = logging.getLogger(__name__)
 
 
 def main():
-    logging.basicConfig(filename='test.log', level=logging.INFO)
-    logging.info('Started')
+    LOGGER.info('Started')
 
     mode_methods = {
         "prepare": [init_prepare_data],
@@ -68,6 +75,8 @@ def main():
         else:
             method()
 
-    logging.info("Ended")
+    LOGGER.info("Ended")
+
+
 if __name__ == "__main__":
     main()
