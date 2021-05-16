@@ -43,6 +43,6 @@ def regression_model_fit(y, X, model_type="OLS"):
         temp_mdl = negative_binomial_regression(y=y, X=X)
 
     else:
-        ValueError("No correct model specified.")
+        logging.error("No correct model specified.")
 
     return temp_mdl.fit()

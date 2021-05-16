@@ -17,3 +17,4 @@ requests~=2.25.1
 setuptools~=49.6.0
 xgboost~=1.4.1
 sklearn~=0.24.2
+lightgbm~=3.2.1

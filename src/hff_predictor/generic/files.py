@@ -35,9 +35,10 @@ def read_pkl(data_loc, file_name=None):
 
     if file_name is None:
         import_name = read_latest_file(folder=data_loc, file_extension="\*.p")
-        print(import_name)
     else:
         import_name = "{}\{}".format(data_loc, file_name)
+
+    logging.debug(import_name)
 
     return pkl.load(open(import_name, "rb"))
 
@@ -55,16 +56,17 @@ def save_to_csv(data, file_name, folder):
     save_as = "{}/{}_{}.csv".format(folder, file_name, set_timestamp)
     data.to_csv(save_as, sep=";", decimal=",")
 
-    print("Data saved as {}".format(save_as))
+    logging.debug("Data saved as {}".format(save_as))
 
 
 def import_temp_file(data_loc, file_name=None, set_index=True):
 
     if file_name is None:
         import_name = read_latest_file(folder=data_loc, file_extension="\*.csv")
-        print(import_name)
     else:
         import_name = "{}\{}".format(data_loc, file_name)
+
+    logging.debug("Used file named: {}".format(import_name))
 
     data = pd.read_csv(import_name, sep=";", decimal=",")
 

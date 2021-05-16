@@ -63,53 +63,6 @@ def process_order_data() -> pd.DataFrame:
         inplace=True,
     )
 
-    """
-    raw_data = pd.read_excel(
-        order_data,
-        dtype={
-            "Consumentgroep": str,
-            "Inkooprecept": str,
-            "VerkString": str,
-            "SU": str,
-            "Organisatie": str,
-            "Weekjaar": str,
-            "Week": str,
-            "Datum": str,
-            "Besteld #CE": int,
-        },
-    )
-
-    raw_data.rename(
-        columns={
-            "ConsumentGroep": cn.CONSUMENT_GROEP,
-            "InkoopRecept": cn.INKOOP_RECEPT,
-            "VerkString": cn.VERKOOP_ART,
-            "SU": cn.SELECT_ORG,
-            "Organisatie": cn.ORGANISATIE,
-            "Weekjaar": cn.WEEK_NUMBER,
-            "Week": cn.WEEK,
-            "Datum": cn.ORDER_DATE,
-            "Besteld #CE": cn.CE_BESTELD,
-        },
-        errors="raise",
-        inplace=True,
-    )
-
-    raw_data[cn.ORDER_DATE] = pd.to_datetime(raw_data[cn.ORDER_DATE], format="%Y-%m-%d")
-
-    # Splitsen van consumentgroepnummers, verkoopartikelen en inkoopreceptnummers
-    raw_data[cn.CONSUMENT_GROEP_NR] = (
-        raw_data[cn.CONSUMENT_GROEP].str.split("-", expand=True, n=1)[0].astype(int)
-    )
-    raw_data[[cn.VERKOOP_ART_NR, cn.VERKOOP_ART_NM]] = raw_data[
-        cn.VERKOOP_ART
-    ].str.split(" - ", expand=True, n=1)
-    raw_data[[cn.INKOOP_RECEPT_NR, cn.INKOOP_RECEPT_NM]] = raw_data[
-        cn.INKOOP_RECEPT
-    ].str.split(" - ", expand=True, n=1)
-    
-    """
-
     raw_data[cn.ORDER_DATE] = pd.to_datetime(raw_data[cn.ORDER_DATE], format="%Y-%m-%d")
 
     raw_data[cn.VERKOOP_ART_NR] = raw_data[cn.VERKOOP_ART_NR].astype(int)
@@ -117,6 +70,9 @@ def process_order_data() -> pd.DataFrame:
 
     # Voeg hier het weeknummer en jaar toe o.b.v. de besteldatum
     gf.add_week_year(data=raw_data, date_name=cn.ORDER_DATE)
+
+    logging.debug("Loaded data with orders between {} and {}".format(raw_data[cn.ORDER_DATE].min(),
+                                                                     raw_data[cn.ORDER_DATE].max()))
 
     return raw_data[
         [
@@ -146,15 +102,6 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
     # Bepalen van datum 'vandaag'
     today = int(datetime.datetime.strftime(datetime.datetime.now(), "%Y%m%d"))
 
-    # Ophalen van KNMI weer data, betreft nu temperatuur en zonuren
-    """
-    _, _, _, data_temp_sun = knmy.get_knmi_data(type='daily',
-                                                stations=[260],
-                                                start=20180801, end=today,
-                                                variables=['TEMP', 'SUNR'],
-                                                parse=True)
-    """
-
     # Tijdelijke oplossing van ophalen weerdata
     temp_weather_name = 'current_weather_data.zip'
     url = "https://cdn.knmi.nl/knmi/map/page/klimatologie/gegevens/daggegevens/etmgeg_260.zip"
@@ -169,20 +116,17 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
 
     data_download[cn.W_DATE] = pd.to_datetime(data_download['YYYYMMDD'], format='%Y%m%d')
     data_download = data_download[data_download[cn.W_DATE] >= "2018-08-01"]
+
+    logging.debug("Downloaded weather data between {} and {}".format(data_download[cn.W_DATE].min(),
+                                                                    data_download[cn.W_DATE].max()))
+
     data_download.rename(columns=lambda x: x.strip(), inplace=True)
     raw_weer_data = data_download.loc[1:, :][[cn.W_DATE, 'TG', 'TN', 'TX', 'SQ']]
 
     os.remove(temp_weather_name)
 
-    # Vewerken ruwe weerdata, hernoemen van kolommen
-    # raw_weer_data = data_temp_sun.loc[1:, :][['YYYYMMDD', 'TG', 'TN', 'TX', 'SQ']]
-    # raw_weer_data[cn.W_DATE] = pd.to_datetime(raw_weer_data['YYYYMMDD'], format="%Y%m%d")
-    # raw_weer_data.drop('YYYYMMDD', axis=1, inplace=True)
-
     raw_weer_data.set_index(cn.W_DATE, inplace=True)
     raw_weer_data.columns = [cn.TEMP_GEM, cn.TEMP_MIN, cn.TEMP_MAX, cn.ZONUREN]
-
-    # Deel alle cijfers door 10 om tot normale waarden voor temp, uren en mm te komen
 
     for c in raw_weer_data.columns:
         if raw_weer_data[c].dtype == 'O':
@@ -190,6 +134,7 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
             raw_weer_data[c] = raw_weer_data[c].fillna(method='backfill')
             raw_weer_data[c] = raw_weer_data[c].astype(int)
 
+    # Deel alle cijfers door 10 om tot normale waarden voor temp, uren en mm te komen
     raw_weer_data = np.round(raw_weer_data.astype(int) / 10, 1)
 
     # Voeg weeknumemr toe
@@ -274,14 +219,6 @@ def process_product_status() -> pd.DataFrame:
         dtype={"Artikel": str, "Block ID": str, "Blocktekst": str},
     ).dropna(how="all")
 
-    """ Oude import
-    raw_product_status = pd.read_excel(
-        product_status_data,
-        sheet_name="Blad2",
-        dtype={"Nummer": str, "Omschrijving": str, "Geblokkeerd": str},
-    ).dropna(how="all")
-    """
-
     raw_product_status.rename(
         columns={
             "Artikel": "inkooprecept_nr",
@@ -354,18 +291,18 @@ def data_filtering(unfiltered_data: pd.DataFrame, su_filter=True) -> pd.DataFram
     :return: Gefilterde data
     """
 
-    LOGGER.info("Unfiltered data: {} lines".format(len(unfiltered_data)))
+    logging.debug("Unfiltered data: {} lines".format(len(unfiltered_data)))
 
     # Selecteert enkel de bulk, rol en aankoopproducten, corresponderen met nummers 14-16
     filter_1 = unfiltered_data[
         (unfiltered_data["consumentgroep_nr"].between(14, 16, inclusive=True))
     ]
-    print("Bul, rol, aankoop data: {} lines".format(len(filter_1)))
+    logging.debug("Bul, rol, aankoop data: {} lines".format(len(filter_1)))
 
     # Enkel bestellingen van leden van de SuperUnie
     if su_filter:
         filter_2 = filter_1[(filter_1[cn.SELECT_ORG] == "Superunie")]
-        print("Bestellingen leden: {} lines".format(len(filter_2)))
+        logging.debug("Bestellingen leden: {} lines".format(len(filter_2)))
     else:
         filter_2 = filter_1
 
@@ -373,7 +310,7 @@ def data_filtering(unfiltered_data: pd.DataFrame, su_filter=True) -> pd.DataFram
     filter_3 = filter_2[
         filter_2["besteldatum"] >= pd.Timestamp(year=2018, month=8, day=1)
         ]
-    print("Bestellingen na 01/08/2018: {} lines".format(len(filter_3)))
+    logging.debug("Bestellingen na 01/08/2018: {} lines".format(len(filter_3)))
 
     # Enkel actieve producten
     #filter_4 = filter_3[filter_3["inkooprecept_geblokkeerd"] == "Nee"]
@@ -501,10 +438,6 @@ def process_data(
     )
     weer_data.sort_index(ascending=False, inplace=True)
 
-    """weer_data = hff_predictor.generic.files.import_temp_file(
-        data_loc=fm.WEATHER_DATA_PPR_FOLDER, set_index=True
-    )"""
-
     # Importeren van product status data
     product_status = process_product_status()
 
@@ -592,7 +525,7 @@ def data_prep_wrapper(
 
     last_train_date = prediction_date - datetime.timedelta(weeks=prediction_window)
 
-    print("The value for reload_data in data prep wrapper is: {}.".format(reload_data))
+    logging.debug("The value for reload_data in data prep wrapper is: {}.".format(reload_data))
 
     if reload_data:
         (

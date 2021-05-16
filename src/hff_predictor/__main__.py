@@ -43,12 +43,14 @@ def main():
         "--window",
         "-w",
         type=int,
+        default=2,
     )
 
     parser.add_argument(
         "--reload",
         "-r",
         type=str,
+        default="N",
     )
 
     parser.add_argument(

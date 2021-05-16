@@ -3,8 +3,6 @@ import pandas as pd
 import numpy as np
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
-from hff_predictor.model.model_types.regression_types import regression_model_fit
-from hff_predictor.model.model_types.tree_based_types import tree_based_fit
 from hff_predictor.model.preprocessing import fit_model, predictor
 
 import logging
@@ -49,9 +47,7 @@ def get_top_correlations(y, y_lags, top_correl=5):
 
 
 def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
-
     # Baseline features
-    # level_cols = ['trans_period_1', 'period_2', 'trans_period_2', 'period_3']
     all_level_features = X_exog[cn.STRUCTURAL_BREAK_COLS]
     all_season_features = X_exog[cn.SEASONAL_COLS]
     all_month_features = X_exog[cn.MONTH_COLS]
@@ -144,19 +140,12 @@ def batch_fit_model(
             corr_name, correlation_val = get_top_correlations(
                 y=pd.DataFrame(resid), y_lags=all_possible_features, top_correl=1
             )
-            # print("Selected features: {}".format(selected_features.shape))
-            # print("Selected feature: {}".format(corr_name))
-            # print("Remaining features before dropping: {}".format(all_possible_features.shape))
 
             selected_features = selected_features.join(
                 all_possible_features[corr_name], how="left"
             )
 
-            # print("Selected features after adding: {}".format(selected_features.shape))
-
             all_possible_features.drop(corr_name, axis=1, inplace=True)
-
-            # print("Remaining features after dropping: {}".format(all_possible_features.shape))
 
             mdl_fit = fit_model(y=y, X=selected_features, model=model)
             resid = y - mdl_fit.predict(selected_features)
@@ -333,28 +322,6 @@ def init_train():
     predict_dict = hff_predictor.generic.files.read_pkl(
         file_name=fm.PREDICT_DATA, data_loc=fm.SAVE_LOC
     )
-    num_samples = 3
-
-    model_type = "OLS"
-    Y = fit_dict[cn.Y_TRUE]
-    Y_ar = fit_dict[cn.Y_AR]
-    X_exog = fit_dict[cn.X_EXOG]
-    # Y_cross_ar = fit_dict['correlations']
-    model = model_type
-
-    Yp_ar_m = predict_dict[cn.Y_AR_M]
-    Yp_ar_nm = predict_dict[cn.Y_AR_NM]
-    Xp_exog = predict_dict[cn.X_EXOG]
-
-    Yf_ar_opt = ar_f
-    Yf_exog_opt = exog_f
-    fitted_models = model_fits
-    find_comparable_model = True
-    prediction_window = 2
-
-    Y_org = fit_dict[cn.Y_TRUE]
-    Yar_org = fit_dict[cn.Y_AR]
-    X_org = fit_dict[cn.X_EXOG]
 
     Yis_fit, model_fits, all_pars, ar_f, exog_f = batch_fit_model(
         Y=fit_dict[cn.Y_TRUE],

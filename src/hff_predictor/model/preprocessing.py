@@ -9,7 +9,7 @@ LOGGER = logging.getLogger(__name__)
 
 def fit_model(y, X, model="OLS"):
     regression_method = ["OLS", "Poisson", "Negative-Binomial"]
-    tree_method = ["XGBoost"]
+    tree_method = ["XGBoost", "LightGBM"]
 
     if model in regression_method:
         return regression_types.regression_model_fit(y=y, X=X)
@@ -19,7 +19,7 @@ def fit_model(y, X, model="OLS"):
 
 def predictor(Xpred, fitted_model, model="OLS"):
     regression_method = ["OLS", "Poisson", "Negative-Binomial"]
-    tree_method = ["XGBoost"]
+    tree_method = ["XGBoost", "LightGBM"]
 
     if model in regression_method:
         prediction = fitted_model.predict(Xpred)
@@ -27,7 +27,7 @@ def predictor(Xpred, fitted_model, model="OLS"):
         Xpred = np.ascontiguousarray(Xpred)
         prediction = fitted_model.predict(Xpred)
     else:
-        ValueError("No correct model specified.")
+        logging.error("No correct model specified.")
 
     prediction = np.round(prediction, 0)
     prediction[prediction < 0] = 0

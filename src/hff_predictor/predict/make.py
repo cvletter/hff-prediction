@@ -12,6 +12,7 @@ from hff_predictor.model.benchmark import moving_average
 import logging
 LOGGER = logging.getLogger(__name__)
 
+
 def run_prediction_bootstrap(
     date_to_predict=cn.PREDICTION_DATE,
     prediction_window=cn.PREDICTION_WINDOW,
@@ -144,12 +145,16 @@ def run_prediction_bootstrap(
             all_predictions = pd.concat([all_predictions, temp_os])
 
             na_values = all_predictions.isna().sum().sum()
-            print("In {} there are {} na_values".format(date_to_predict, na_values))
+            logging.debug("In {} there are {} na_values".format(date_to_predict, na_values))
 
     all_output[date_to_predict][cn.PREDICTION_OS] = all_predictions
 
     if save_predictions:
-        original_prediction = all_predictions[all_predictions[cn.BOOTSTRAP_ITER] == 0]
+        original_prediction = all_predictions[all_predictions[cn.BOOTSTRAP_ITER] == 0].T
+
+        # print(original_prediction)
+        # print(all_output[date_to_predict][cn.MA_BENCHMARK].T)
+
         #TODO: Add benchmark here
         save_name = "predictions_p{}_d{}".format(prediction_window, date_to_predict)
         hff_predictor.generic.files.save_to_csv(data=original_prediction,

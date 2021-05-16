@@ -16,7 +16,7 @@ model_settings = {
     "prediction_window": 2,
     "train_size": 70,
     "differencing": False,
-    "ar_lags": 2,
+    "ar_lags": 3,
     "fit_model": "OLS",
     "feature_threshold": [0.2, 30],
     "bootstraps": 1,
@@ -24,7 +24,7 @@ model_settings = {
 
 
 def batch_prediction_bs(prediction_date):
-    print("Starting for date: {}".format(prediction_date))
+    logging.info("Starting for date: {}".format(prediction_date))
 
     p_window = model_settings["prediction_window"]
     train_size = model_settings["train_size"]
@@ -71,6 +71,6 @@ def init_test(date, periods):
     )
 
     elapsed = round((time.time() - start), 2)
-    print("It takes {} seconds to run a prediction.".format(elapsed))
+    logging.info("It takes {} seconds to run a prediction.".format(elapsed))
 
 
