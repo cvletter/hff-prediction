@@ -1,5 +1,5 @@
 import time
-import hff_predictor.generic.files
+import hff_predictor.generic.files as fl
 import pandas as pd
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
@@ -112,7 +112,7 @@ def run_prediction_bootstrap(
     )
 
     ma_predictions = moving_average(active_products=active_products,
-                                    window=prediction_window,
+                                    prediction_window=prediction_window,
                                     prediction_date=date_to_predict)
 
     all_output[date_to_predict] = {}
@@ -155,14 +155,10 @@ def run_prediction_bootstrap(
 
     if save_predictions:
 
-        # print(original_prediction)
-        # print(all_output[date_to_predict][cn.MA_BENCHMARK].T)
-
-        #TODO: Add benchmark here met rol totaal
         save_name = "predictions_p{}_d{}".format(prediction_window, date_to_predict)
-        hff_predictor.generic.files.save_to_csv(data=prediction_output,
-                                                file_name=save_name,
-                                                folder=fm.PREDICTIONS_FOLDER)
+        fl.save_to_csv(data=prediction_output,
+                       file_name=save_name,
+                       folder=fm.PREDICTIONS_FOLDER)
 
     return all_output
 
