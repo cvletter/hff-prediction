@@ -80,8 +80,8 @@ def performance_quality(predictions, benchmark, true_values,
     predictions[predictions <= 0] = 0.0
 
     # Keep only actual prediction
-    predictions = predictions[predictions[cn.BOOTSTRAP_ITER] == 0]
-    predictions.drop(cn.BOOTSTRAP_ITER, axis=1, inplace=True)
+    #predictions = predictions[predictions[cn.BOOTSTRAP_ITER] == 0]
+    #predictions.drop(cn.BOOTSTRAP_ITER, axis=1, inplace=True, errors='ignore')
 
     # Collect all prediction dates in test set
     all_prediction_dates = predictions.index.unique().sort_values(

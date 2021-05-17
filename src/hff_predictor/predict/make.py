@@ -8,6 +8,7 @@ from hff_predictor.data.prepare import data_prep_wrapper
 from hff_predictor.model.fit import fit_and_predict
 from hff_predictor.predict.setup import prediction_setup_wrapper
 from hff_predictor.model.benchmark import moving_average
+from hff_predictor.model.bootstrapper import bootstrap
 
 import logging
 LOGGER = logging.getLogger(__name__)
@@ -110,7 +111,8 @@ def run_prediction_bootstrap(
         feature_threshold=[feature_threshold[0], feature_threshold[1]],
     )
 
-    ma_predictions = moving_average(active_products=active_products, window=prediction_window,
+    ma_predictions = moving_average(active_products=active_products,
+                                    window=prediction_window,
                                     prediction_date=date_to_predict)
 
     all_output[date_to_predict] = {}
@@ -128,36 +130,37 @@ def run_prediction_bootstrap(
 
     all_output[date_to_predict][cn.MA_BENCHMARK] = ma_predictions
 
+    prediction_output = all_predictions
+
     if do_bootstrap:
-        all_predictions[cn.BOOTSTRAP_ITER] = 0
+        boundaries = bootstrap(
+            prediction=all_predictions,
+            fit_dict=fit_data,
+            predict_dict=predict_data,
+            bootstrap=True,
+            iterations=2,
+            model_type=model_type,
+            feature_threshold=feature_threshold,
+        )
 
-        for i in range(1, bootstrap_iter):
-            print("Running iteration {} of {}".format(i, bootstrap_iter))
-            fits, temp_os, pars = fit_and_predict(
-                fit_dict=fit_data,
-                predict_dict=predict_data,
-                bootstrap=True,
-                model_type=model_type,
-                feature_threshold=[feature_threshold[0], feature_threshold[1]],
-            )
-            temp_os[cn.BOOTSTRAP_ITER] = i
+        prediction_output = pd.concat([all_predictions, boundaries.T, ma_predictions]).T
+        prediction_output.columns = ["voorspelling", "ondergrens", "bovengrens", "5weeks_gemiddelde"]
 
-            all_predictions = pd.concat([all_predictions, temp_os])
+        # all_predictions.drop(cn.BOOTSTRAP_ITER, axis=1, inplace=True)
 
-            na_values = all_predictions.isna().sum().sum()
-            logging.debug("In {} there are {} na_values".format(date_to_predict, na_values))
+        na_values = all_predictions.isna().sum().sum()
+        logging.debug("In {} there are {} na_values".format(date_to_predict, na_values))
 
     all_output[date_to_predict][cn.PREDICTION_OS] = all_predictions
 
     if save_predictions:
-        original_prediction = all_predictions[all_predictions[cn.BOOTSTRAP_ITER] == 0].T
 
         # print(original_prediction)
         # print(all_output[date_to_predict][cn.MA_BENCHMARK].T)
 
-        #TODO: Add benchmark here
+        #TODO: Add benchmark here met rol totaal
         save_name = "predictions_p{}_d{}".format(prediction_window, date_to_predict)
-        hff_predictor.generic.files.save_to_csv(data=original_prediction,
+        hff_predictor.generic.files.save_to_csv(data=prediction_output,
                                                 file_name=save_name,
                                                 folder=fm.PREDICTIONS_FOLDER)
 
@@ -184,3 +187,14 @@ def init_predict(date, window, reload):
     elapsed = round((time.time() - start), 2)
     print("It takes {} seconds to run a prediction.".format(elapsed))
 
+
+date_to_predict = "2021-04-12"
+prediction_window = 2
+train_obs = cn.TRAIN_OBS
+difference = False
+lags = cn.N_LAGS
+model_type = "OLS"
+feature_threshold = None
+bootstrap_iter = 2
+reload_data = "N"
+save_predictions = True

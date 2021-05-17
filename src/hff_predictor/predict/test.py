@@ -19,7 +19,7 @@ model_settings = {
     "ar_lags": 3,
     "fit_model": "OLS",
     "feature_threshold": [0.2, 30],
-    "bootstraps": 1,
+    "bootstraps": 2,
 }
 
 
