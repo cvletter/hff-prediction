@@ -37,6 +37,7 @@ def main():
         "--date",
         "-d",
         type=str,
+        required=True
     )
 
     parser.add_argument(
@@ -49,8 +50,8 @@ def main():
     parser.add_argument(
         "--reload",
         "-r",
-        type=str,
-        default="N",
+        action='store_true',
+        default=False,
     )
 
     parser.add_argument(

@@ -13,8 +13,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 def output_to_dict(data_loc):
-    result_file = read_pkl(data_loc=data_loc
-                               )
+    result_file = read_pkl(data_loc=data_loc)
+
     for i in range(0, len(result_file)):
         if i == 0:
             all_dicts = result_file[i]

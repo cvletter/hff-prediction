@@ -16,7 +16,7 @@ def xgboost_regression_fit(y, X):
 
 def lightgbm_regression_fit(y, X):
     # alternative objective for count data: 'count:poisson'
-    mdl = lightgbm.LGBMRegressor(n_jobs=1)
+    mdl = lightgbm.LGBMRegressor()
     return mdl.fit(y=y, X=X)
 
 

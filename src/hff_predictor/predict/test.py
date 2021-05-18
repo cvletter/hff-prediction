@@ -60,6 +60,7 @@ def init_test(date, periods):
     pred_dates = list(prediction_dates[cn.FIRST_DOW])
 
     num_cores = multiprocessing.cpu_count()
+    #num_cores = 1
     pool = multiprocessing.Pool(num_cores)
     results = pool.map(batch_prediction_bs, pred_dates)
 

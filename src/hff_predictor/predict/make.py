@@ -3,6 +3,7 @@ import hff_predictor.generic.files as fl
 import pandas as pd
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
+
 from hff_predictor.features.create import prep_all_features
 from hff_predictor.data.prepare import data_prep_wrapper
 from hff_predictor.model.fit import fit_and_predict
@@ -23,9 +24,13 @@ def run_prediction_bootstrap(
     model_type="OLS",
     feature_threshold=None,
     bootstrap_iter=None,
-    reload_data="N",
+    reload_data=False,
     save_predictions=False
 ):
+    start_prediction = time.time()
+
+    LOGGER.info("Maak voorspelling voor: {}".format(date_to_predict))
+
     if feature_threshold is None:
         feature_threshold = [0.2, 30]
 
@@ -34,13 +39,6 @@ def run_prediction_bootstrap(
 
     else:
         do_bootstrap = True
-
-    if reload_data == "Y":
-        reload_data = True
-    elif reload_data == "N":
-        reload_data = False
-    else:
-        raise ValueError("Input for reloading data should be 'Y' or 'N'")
 
     def convert_series_to_dataframe(input_series, date_val, index_name=cn.FIRST_DOW):
         input_df = pd.DataFrame(input_series).T
@@ -84,6 +82,13 @@ def run_prediction_bootstrap(
         save_to_csv=True,
     )
 
+    if reload_data:
+        data_load_log = "Data is voorbereid en opnieuw ingeladen"
+    else:
+        data_load_log = "Data is voorbereid en maar niet opnieuw ingeladen"
+
+    LOGGER.debug(data_load_log)
+
     exogenous_features = prep_all_features(
         weather_data_processed=weather_data_processed,
         order_data_su=order_data_su,
@@ -92,6 +97,8 @@ def run_prediction_bootstrap(
         train_obs=train_obs,
         save_file=False,
     )
+
+    LOGGER.debug("Features zijn voorbereid")
 
     fit_data, predict_data = prediction_setup_wrapper(
         prediction_date=date_to_predict,
@@ -104,6 +111,8 @@ def run_prediction_bootstrap(
         save_to_pkl=False,
     )
 
+    LOGGER.debug("Data is voorbereid voor voorspelling")
+
     in_sample_fits, all_predictions, all_pars = fit_and_predict(
         fit_dict=fit_data,
         predict_dict=predict_data,
@@ -114,6 +123,8 @@ def run_prediction_bootstrap(
     ma_predictions = moving_average(active_products=active_products,
                                     prediction_window=prediction_window,
                                     prediction_date=date_to_predict)
+
+    LOGGER.debug("Model is gefit en voorspellingen zijn gemaakt")
 
     all_output[date_to_predict] = {}
     all_output[date_to_predict][cn.MOD_PROD] = fit_data[cn.MOD_PROD]
@@ -133,12 +144,14 @@ def run_prediction_bootstrap(
     prediction_output = all_predictions
 
     if do_bootstrap:
+        LOGGER.debug("Bootstrap wordt uitgevoerd met {} iteraties".format(bootstrap_iter))
+
         boundaries = bootstrap(
             prediction=all_predictions,
             fit_dict=fit_data,
             predict_dict=predict_data,
             bootstrap=True,
-            iterations=2,
+            iterations=bootstrap_iter,
             model_type=model_type,
             feature_threshold=feature_threshold,
         )
@@ -160,37 +173,23 @@ def run_prediction_bootstrap(
                        file_name=save_name,
                        folder=fm.PREDICTIONS_FOLDER)
 
+    elapsed = round((time.time() - start_prediction), 2)
+    LOGGER.info("De voorspelling is klaar en duurde {} seconden".format(elapsed))
+
     return all_output
 
 
 def init_predict(date, window, reload):
-    start = time.time()
 
-    # In sample testing of 2020-31-8
     test = run_prediction_bootstrap(
         date_to_predict=date,
         prediction_window=window,
         train_obs=cn.TRAIN_OBS,
         difference=False,
         lags=cn.N_LAGS,
-        model_type="OLS",
+        model_type="LightGBM",
         feature_threshold=None,
         bootstrap_iter=2,
         reload_data=reload,
         save_predictions=True
     )
-
-    elapsed = round((time.time() - start), 2)
-    print("It takes {} seconds to run a prediction.".format(elapsed))
-
-
-date_to_predict = "2021-04-12"
-prediction_window = 2
-train_obs = cn.TRAIN_OBS
-difference = False
-lags = cn.N_LAGS
-model_type = "OLS"
-feature_threshold = None
-bootstrap_iter = 2
-reload_data = "N"
-save_predictions = True

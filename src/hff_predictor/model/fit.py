@@ -89,7 +89,7 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
             optimal_lags = lag
 
     lag_values = y_ar.iloc[:, :optimal_lags]
-    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS + cn.MONTH_COLS
+    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS + cn.MONTH_COLS + [cn.HOLIDAY_COLS]
 
     X_exog_rf = X_exog.drop(columns=drop_cols, inplace=False, errors="ignore")
 

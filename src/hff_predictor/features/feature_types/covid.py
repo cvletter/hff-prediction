@@ -3,22 +3,26 @@ import hff_predictor.config.column_names as cn
 import hff_predictor.generic.dates as gf
 
 
-def prep_covid_features():
+def prep_covid_features() -> pd.DataFrame:
+    """
+    Houdt bij wanneer persconferenties zijn geweest rondom Corona.
+    :return: Dataset met indicatoren per persconferentie
+    """
+
+    # Dataframe om Covid features aan toe te voegen
     covid_dates = pd.DataFrame(
         pd.date_range("2018-01-01", periods=cn.FEATURE_PERIOD_LENGTH, freq="D"), columns=["day"]
     )
 
+    # Datums van persconferenties
     persco_1 = pd.to_datetime(["2020-03-09"])
     persco_2_horeca_dicht = pd.to_datetime(["2020-03-16"])
     persco_3_lockdown = pd.to_datetime(["2020-03-23"])
     persco_4 = pd.to_datetime(["2020-04-02"])
     persco_5_scholen_open = pd.to_datetime(["2020-04-21"])
     persco_6_kappers_open = pd.to_datetime(["2020-05-06"])
-    # kappers_open = pd.to_datetime(['2020-05-11'])
     persco_7_horeca_open = pd.to_datetime(["2020-05-19"])
-    # horeca_open = pd.to_datetime(['2020-06-01'])
     persco_8 = pd.to_datetime(["2020-06-24"])
-    # verdere_versoepelingen = pd.to_datetime(['2020-07-01'])
     persco_9 = pd.to_datetime(["2020-08-06"])
     persco_10 = pd.to_datetime(["2020-08-18"])
     persco_11 = pd.to_datetime(["2020-09-01"])
@@ -38,6 +42,7 @@ def prep_covid_features():
     persco_25 = pd.to_datetime(["2021-04-13"])
     persco_26 = pd.to_datetime(["2021-04-20"])
 
+    # Verzameling van alle persconferenties
     persconferentie = [
         persco_1,
         persco_2_horeca_dicht,
@@ -67,6 +72,7 @@ def prep_covid_features():
         persco_26,
     ]
 
+    # Persconferenties die negatief waren met beperkingen
     negatieve_persconferenties = [
         persco_1,
         persco_2_horeca_dicht,
@@ -88,6 +94,7 @@ def prep_covid_features():
         persco_24,
     ]
 
+    # Meer hoopvolle persconferenties
     positieve_persconferenties = [
         persco_4,
         persco_5_scholen_open,
@@ -99,6 +106,7 @@ def prep_covid_features():
         persco_26,
     ]
 
+    # Toevoegen van de persconferentie groeperingen
     covid_dates["negatieve_persconf"] = [
         1 if x in negatieve_persconferenties else 0 for x in covid_dates["day"]
     ]
@@ -149,11 +157,23 @@ def prep_covid_features():
     covid_dates["persco_15"] = [
         1 if x == persco_15_horeca_dicht else 0 for x in covid_dates["day"]
     ]
+    covid_dates["persco_16"] = [1 if x == persco_16 else 0 for x in covid_dates["day"]]
+    covid_dates["persco_17"] = [1 if x == persco_17 else 0 for x in covid_dates["day"]]
+    covid_dates["persco_18"] = [1 if x == persco_18 else 0 for x in covid_dates["day"]]
+    covid_dates["persco_19"] = [1 if x == persco_19 else 0 for x in covid_dates["day"]]
+    covid_dates["persco_20"] = [1 if x == persco_20 else 0 for x in covid_dates["day"]]
+    covid_dates["persco_21"] = [1 if x == persco_21 else 0 for x in covid_dates["day"]]
+    covid_dates["persco_22"] = [1 if x == persco_22 else 0 for x in covid_dates["day"]]
+    covid_dates["persco_23"] = [1 if x == persco_23 else 0 for x in covid_dates["day"]]
+    covid_dates["persco_24"] = [1 if x == persco_24 else 0 for x in covid_dates["day"]]
 
+
+    # Voeg eerste dag van week toe ter voorbereiding op groepering
     gf.add_week_year(data=covid_dates, date_name="day")
     gf.add_first_day_week(
         add_to=covid_dates, week_col_name=cn.WEEK_NUMBER, set_as_index=True
     )
+    # Verwijder dag, niet nodig
     covid_dates.drop("day", axis=1, inplace=True)
 
     return covid_dates.groupby(cn.FIRST_DOW, as_index=True).max()

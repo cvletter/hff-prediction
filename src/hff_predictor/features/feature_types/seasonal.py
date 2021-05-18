@@ -3,16 +3,22 @@ import hff_predictor.config.column_names as cn
 import hff_predictor.generic.dates as gf
 
 
-def prep_holiday_features():
+def prep_holiday_features() -> pd.DataFrame:
+    """
+    Functie om feestdag features te genereren
+    :return: Dataset met feestdag features
+    """
 
+    # Functie om snel feestdag toe te voegen
     def add_holiday(holiday, output_df, dates):
         output_df[holiday] = [1 if x in dates else 0 for x in output_df["day"]]
 
+    # Verzamelfunctie voor alle feestdagen
     holiday_dates = pd.DataFrame(
         pd.date_range("2018-01-01", periods=cn.FEATURE_PERIOD_LENGTH, freq="D"), columns=["day"]
     )
 
-    # Christmas
+    # Kerst
     christmas_dt = pd.to_datetime(
         [
             "2018-12-24",
@@ -23,6 +29,7 @@ def prep_holiday_features():
         ]
     )
 
+    # Nieuwjaar
     newyears_dt = pd.to_datetime(
         [
             "2018-12-31",
@@ -33,6 +40,7 @@ def prep_holiday_features():
         ]
     )
 
+    # Pasen
     easter_dt = pd.to_datetime(
         [
             "2018-03-26",
@@ -43,6 +51,7 @@ def prep_holiday_features():
         ]
     )
 
+    # Pinksteren
     pentecost_dt = pd.to_datetime(
         [
             "2018-05-14",
@@ -53,6 +62,7 @@ def prep_holiday_features():
         ]
     )
 
+    # Moederdag
     mothers_dt = pd.to_datetime(
         [
             "2018-05-07",
@@ -63,6 +73,7 @@ def prep_holiday_features():
         ]
     )
 
+    # Vaderdag
     fathers_dt = pd.to_datetime(
         [
             "2018-06-11",
@@ -73,6 +84,7 @@ def prep_holiday_features():
         ]
     )
 
+    # Sinterklaas
     sinterklaas_dt = pd.to_datetime(
         [
             "2018-11-26",
@@ -83,6 +95,7 @@ def prep_holiday_features():
         ]
     )
 
+    # Koningsdag
     kingsday_dt = pd.to_datetime(
         [
             "2018-04-23",
@@ -93,6 +106,7 @@ def prep_holiday_features():
         ]
     )
 
+    # Hemelvaart
     ascensionday_dt = pd.to_datetime(
         [
             "2018-05-07",
@@ -103,6 +117,7 @@ def prep_holiday_features():
         ]
     )
 
+    # Voeg feestdagen toe
     add_holiday(holiday="christmas", output_df=holiday_dates, dates=christmas_dt)
     add_holiday(holiday="newyears", output_df=holiday_dates, dates=newyears_dt)
     add_holiday(holiday="easter", output_df=holiday_dates, dates=easter_dt)
@@ -114,33 +129,47 @@ def prep_holiday_features():
     add_holiday(holiday="kingsday", output_df=holiday_dates, dates=kingsday_dt)
     add_holiday(holiday="ascension_day", output_df=holiday_dates, dates=ascensionday_dt)
 
+    # Voeg eerste dag van week toe
     gf.add_week_year(data=holiday_dates, date_name="day")
     gf.add_first_day_week(
         add_to=holiday_dates, week_col_name=cn.WEEK_NUMBER, set_as_index=True
     )
     holiday_dates.drop("day", axis=1, inplace=True)
 
+    # Voeg een totaal van alle feestdagen toe
     holiday_dates["all_holidays"] = holiday_dates.sum(axis=1)
 
     return holiday_dates.groupby(cn.FIRST_DOW, as_index=True).max()
 
 
-def prep_seasonal_features():
+def prep_seasonal_features() -> pd.DataFrame:
+    """
+    Functie om seizoens features toe te voegen
+    :return: Dataset met seizoensfactoren
+    """
+
+    # Verzamelobject voor alle seizoensfactoren
     seasonal_dates = pd.DataFrame(
         pd.date_range("2018-01-01", periods=cn.FEATURE_PERIOD_LENGTH, freq="D"), columns=["day"]
     )
 
+    # Het vierde seizoen (herfst) is uitgesloten om conflict in dataset te voorkomen
+
+    # Winter is december, januari, februari
     seasonal_dates["winter"] = [
         1 if (x.month <= 2) or (x.month == 12) else 0 for x in seasonal_dates["day"]
     ]
+    # Lente is maart, april, mei
     seasonal_dates["lente"] = [
         1 if 3 <= x.month <= 5 else 0 for x in seasonal_dates["day"]
     ]
+
+    # Zomer juni, juli, augustus
     seasonal_dates["zomer"] = [
         1 if 6 <= x.month <= 8 else 0 for x in seasonal_dates["day"]
     ]
 
-    # seasonal_dates["januari"] = [1 if x.month ==1 else 0 for x in seasonal_dates["day"]]
+    # Maanden, januari uitgesloten om conflict in dataset te voorkomen
     seasonal_dates["februari"] = [1 if x.month == 2 else 0 for x in seasonal_dates["day"]]
     seasonal_dates["maart"] = [1 if x.month == 3 else 0 for x in seasonal_dates["day"]]
     seasonal_dates["maart"] = [1 if x.month == 3 else 0 for x in seasonal_dates["day"]]
@@ -154,13 +183,14 @@ def prep_seasonal_features():
     seasonal_dates["november"] = [1 if x.month == 11 else 0 for x in seasonal_dates["day"]]
     seasonal_dates["december"] = [1 if x.month == 12 else 0 for x in seasonal_dates["day"]]
 
+    # Voeg eerste dag van week toe
     gf.add_week_year(data=seasonal_dates, date_name="day")
     gf.add_first_day_week(
         add_to=seasonal_dates, week_col_name=cn.WEEK_NUMBER, set_as_index=True
     )
     seasonal_dates.drop("day", axis=1, inplace=True)
 
+    # Groepren op weekniveau
     seasonal_dates = seasonal_dates.groupby(cn.FIRST_DOW, as_index=True).max()
-    # seasonal_dates['trend'] = np.arange(1, len(seasonal_dates)+1)
 
     return seasonal_dates

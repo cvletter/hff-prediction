@@ -525,7 +525,7 @@ def data_prep_wrapper(
 
     last_train_date = prediction_date - datetime.timedelta(weeks=prediction_window)
 
-    logging.debug("The value for reload_data in data prep wrapper is: {}.".format(reload_data))
+    LOGGER.debug("The value for reload_data in data prep wrapper is: {}.".format(reload_data))
 
     if reload_data:
         (
