@@ -187,7 +187,7 @@ def init_predict(date, window, reload):
         train_obs=cn.TRAIN_OBS,
         difference=False,
         lags=cn.N_LAGS,
-        model_type="LightGBM",
+        model_type="OLS",
         feature_threshold=None,
         bootstrap_iter=2,
         reload_data=reload,

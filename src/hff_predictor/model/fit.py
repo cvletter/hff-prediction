@@ -9,33 +9,53 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
-def get_top_correlations(y, y_lags, top_correl=5):
-    # Rowwise mean of input arrays & subtract from input arrays themeselves
+def get_top_correlations(y: pd.Series, y_lags: pd.DataFrame, top_correl: int = 5) -> tuple:
+    """
+    Bepaalt de variabelen die het meest correleren met geselecteerde target
+    :param y: De target variabele, in dit geval vaak de bestellingen per halffabricaat
+    :param y_lags: De verklarende variabelen
+    :param top_correl: Top x variabelen die moeten worden geselecteerd
+    :return: Top x correlerende variabelen
+    """
 
+    # Onderstaande operaties bepalen zoveel mogelijk o.b.v. lineaire algebra de correlaties voor heel veel variabelen
+
+    # Correlatie formule deel 1
     A_mA = y - y.mean()
     B_mB = y_lags - y_lags.mean()
 
-    # Sum of squares across rows
+    # Correlatie formule deel 2
     ssA = (A_mA ** 2).sum()
     ssB = (B_mB ** 2).sum()
 
+    # Correlatie formule deel 3
     numerator = np.dot(A_mA.T, B_mB)
     denominator = np.sqrt(np.dot(pd.DataFrame(ssA), pd.DataFrame(ssB).T))
+
+    # De correlaties
     correls = np.divide(
         numerator, denominator, out=np.zeros_like(numerator), where=denominator != 0
     )
+
+    # Correlaties opgeslagen als dataframe, met goede kolommen en index
     corrs = pd.DataFrame(correls, index=y.columns, columns=y_lags.columns)
 
+    # Negeert correlaties met zichzelf, die worden apart behandeld in AR optimalisatie
     for i in corrs.index:
         for j in corrs.columns:
             if i == j[:-7]:
                 corrs.loc[i, j] = -1e9
 
+    # Bepaal top correlaties
     top_correlations = {}
+
+    # Als alleen de meest correlerende feature eruit moet worden gehaald
     if len(y.columns) == 1 & top_correl == 1:
         top_name = corrs.T.idxmax()[0]
         top_value = round(corrs[top_name].values[0], 3)
         return top_name, top_value
+
+    # Als een grote set met top p correlerend variabelende moet worden bepaald
     else:
         for p in corrs.index:
             top_correlations[p] = (
@@ -46,8 +66,19 @@ def get_top_correlations(y, y_lags, top_correl=5):
         return top_correlations, corrs
 
 
-def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
-    # Baseline features
+def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame,
+                      constant: bool = True, model: str = "OLS"):
+    """
+    Optimaliseren van autoregressieve componenten in model
+    :param y: Target variabele
+    :param y_ar: Vertraagde autoregressieve componenten
+    :param X_exog: Exogene variabelen
+    :param constant: Constante toevoegen of niet
+    :param model: Model type
+    :return: Geoptimaliseerde AR componenten
+    """
+
+    # Selecteer welke baseline features moeten worden meegenomen in het bepalen van AR componenten
     all_level_features = X_exog[cn.STRUCTURAL_BREAK_COLS]
     all_season_features = X_exog[cn.SEASONAL_COLS]
     all_month_features = X_exog[cn.MONTH_COLS]
@@ -60,17 +91,20 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
         all_holiday_features, how='left'
     )
 
+    # Verwijder features als ze volledig bestaan uit nullen
     use_baseline_features = all_baseline_features.loc[
         :, (all_baseline_features != 0).any(axis=0)
     ]
 
+    # Voorkom lineaire afhankelijkheid, als de som van meerdere features gelijk is aan een andere feature
     if use_baseline_features.sum(axis=1).sum() == len(y):
         use_baseline_features = use_baseline_features.iloc[:, 1:]
 
-    # season_break_cols = use_baseline_features.join(all_season_features, how="left")
+    # Zet vooraf een startpunt voor optimale lags
     optimal_lags = 1
     min_fit_val = 1e9
 
+    # Loop over verschillende lag opties heen
     for lag in range(1, len(sorted_lags) + 1):
 
         _y_ar = y_ar.iloc[:, :lag]
@@ -79,18 +113,23 @@ def optimize_ar_model(y, y_ar, X_exog, constant=True, model="OLS"):
         if constant:
             X_ar.insert(0, "constant", 1)
 
+        # Fit model met huidige lags
         _fit = fit_model(y=y, X=X_ar, model=model)
 
+        # Bepaal in-sample fout
         _fit_value = round((abs(y - _fit.predict(X_ar)) / y).median(), 5)
         # print("Current fit value {}, with {} lags".format(_fit_value, lag))
 
+        # Update optimale lags, als de fitwaarde beter is
         if _fit_value < min_fit_val:
             min_fit_val = _fit_value
             optimal_lags = lag
 
+    # Optimale lag waarden
     lag_values = y_ar.iloc[:, :optimal_lags]
-    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS + cn.MONTH_COLS + [cn.HOLIDAY_COLS]
 
+    # Verwijder deze variableen uit set met exogene features om dubbele selectie te voorkomen
+    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS + cn.MONTH_COLS + [cn.HOLIDAY_COLS]
     X_exog_rf = X_exog.drop(columns=drop_cols, inplace=False, errors="ignore")
 
     return lag_values.join(use_baseline_features, how="left"), X_exog_rf

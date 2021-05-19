@@ -72,6 +72,6 @@ def init_test(date, periods):
     )
 
     elapsed = round((time.time() - start), 2)
-    logging.info("It takes {} seconds to run a prediction.".format(elapsed))
+    LOGGER.info("It takes {} seconds to run a prediction.".format(elapsed))
 
 

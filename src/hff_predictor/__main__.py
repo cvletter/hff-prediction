@@ -36,8 +36,7 @@ def main():
     parser.add_argument(
         "--date",
         "-d",
-        type=str,
-        required=True
+        type=str
     )
 
     parser.add_argument(

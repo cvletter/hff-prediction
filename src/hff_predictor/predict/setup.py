@@ -26,10 +26,10 @@ def split_products(
     obs_count.columns = ["count"]
 
     series_to_model = obs_count[obs_count["count"] >= min_obs].index
-    logging.info("Number of products able to model: {}".format(len(series_to_model)))
+    LOGGER.info("Number of products able to model: {}".format(len(series_to_model)))
 
     series_not_to_model = obs_count[obs_count["count"] < min_obs].index
-    logging.info("Number of products not able to model: {}".format(len(series_not_to_model)))
+    LOGGER.info("Number of products not able to model: {}".format(len(series_not_to_model)))
 
     # Consumentgroep nummer inladen
     consumentgroep_nr = import_temp_file(data_loc=fm.ORDER_DATA_CG_PR_FOLDER, set_index=False)
@@ -52,10 +52,10 @@ def split_products(
 
 def create_lagged_sets(y_modelable, y_nonmodelable, exogenous_features, prediction_window, lags):
     # Look-back only features: Orders, superunie, weather
-    exog_features_lookback = exogenous_features['weather'].join(
-        exogenous_features['superunie_pct'], how='left').join(
-        exogenous_features['superunie_n'], how='left'
-    )
+
+    exog_features_lookback = exogenous_features['superunie_n'].join(
+        exogenous_features['superunie_pct'], how='left')
+       # .join(exogenous_features['weather'], how='left') # wee tijd hier weggelaten
 
     # Generate lags
     exog_features_lookback_lags = dtr.create_lags(exog_features_lookback, lag_range=lags)
@@ -65,7 +65,8 @@ def create_lagged_sets(y_modelable, y_nonmodelable, exogenous_features, predicti
     # Features that can look forward
     exog_features_lookahead = (exogenous_features['holidays'].join(
         exogenous_features['campaigns'], how='left').join(
-        exogenous_features['covid'], how='left')
+        exogenous_features['covid'], how='left').join(
+        exogenous_features['weather'], how='left') # tijdelijk weer toegevoegd
     )
 
     exog_features_no_adj = exogenous_features['seasons'].join(exogenous_features['breaks'], how='left')
