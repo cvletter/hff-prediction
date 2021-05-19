@@ -54,8 +54,8 @@ def create_lagged_sets(y_modelable, y_nonmodelable, exogenous_features, predicti
     # Look-back only features: Orders, superunie, weather
 
     exog_features_lookback = exogenous_features['superunie_n'].join(
-        exogenous_features['superunie_pct'], how='left')
-       # .join(exogenous_features['weather'], how='left') # wee tijd hier weggelaten
+        exogenous_features['superunie_pct'], how='left').join(
+        exogenous_features['weather'], how='left')
 
     # Generate lags
     exog_features_lookback_lags = dtr.create_lags(exog_features_lookback, lag_range=lags)
@@ -65,8 +65,8 @@ def create_lagged_sets(y_modelable, y_nonmodelable, exogenous_features, predicti
     # Features that can look forward
     exog_features_lookahead = (exogenous_features['holidays'].join(
         exogenous_features['campaigns'], how='left').join(
-        exogenous_features['covid'], how='left').join(
-        exogenous_features['weather'], how='left') # tijdelijk weer toegevoegd
+        exogenous_features['covid'], how='left')
+     #   .join( exogenous_features['weather'], how='left') # tijdelijk weer toegevoegd
     )
 
     exog_features_no_adj = exogenous_features['seasons'].join(exogenous_features['breaks'], how='left')
