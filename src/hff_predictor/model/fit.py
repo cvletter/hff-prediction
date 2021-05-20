@@ -9,7 +9,7 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
-def get_top_correlations(y: pd.Series, y_lags: pd.DataFrame, top_correl: int = 5) -> tuple:
+def get_top_correlations(y: pd.DataFrame, y_lags: pd.DataFrame, top_correl: int = 5) -> tuple:
     """
     Bepaalt de variabelen die het meest correleren met geselecteerde target
     :param y: De target variabele, in dit geval vaak de bestellingen per halffabricaat
@@ -118,7 +118,6 @@ def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame,
 
         # Bepaal in-sample fout
         _fit_value = round((abs(y - _fit.predict(X_ar)) / y).median(), 5)
-        # print("Current fit value {}, with {} lags".format(_fit_value, lag))
 
         # Update optimale lags, als de fitwaarde beter is
         if _fit_value < min_fit_val:
@@ -135,96 +134,120 @@ def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame,
     return lag_values.join(use_baseline_features, how="left"), X_exog_rf
 
 
-def batch_fit_model(
-    Y, Y_ar, X_exog, add_constant=True, model="OLS", feature_threshold=None
-):
+def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame,
+                    add_constant: bool = True, model:str = "OLS", feature_threshold: list = None):
+    """
+    Hier worden de modellen gefit in batch vorm, of wel voor alle producten
+    :param Y: Alle producten, werkelijke waarden
+    :param Y_ar: Vertraagde (AR) componenten
+    :param X_exog: Externe factoren
+    :param add_constant: Voeg een constante toe indien nodig
+    :param model: Type model
+    :param feature_threshold: Grenswaarden optimalisatie features
+    :return: Geschatte modellen
+    """
 
+    # Standaard settings voor feature optimalisatie
     if feature_threshold is None:
         feature_threshold = [0.2, 15]
 
+    # Prepareer objecten om resultaten in te verzamelen
     Y_pred = pd.DataFrame(index=Y.index)
     fitted_models = {}
     all_params = {}
     optimized_ar_features = {}
     optimized_exog_features = {}
 
+    # Schat en optimaliseer model per product
     for product in Y.columns:
         y_name = product
         y = Y[y_name]
+
+        # Haal de lags op voor dat product
         lag_index = [y_name in x for x in Y_ar.columns]
         y_ar = Y_ar.iloc[:, lag_index]
 
+        # Haal de andere lags op, die mogelijk voorspelfactoren kunnen zijn
         lag_index_other = [y_name not in x for x in Y_ar.columns]
         y_ar_other = Y_ar.iloc[:, lag_index_other]
 
-        ar_baseline, X_exog_rf = optimize_ar_model(
-            y=y, y_ar=y_ar, X_exog=X_exog, constant=add_constant, model=model
-        )
+        # Optimaliseer eerst autoregressieve componenten
+        ar_baseline, X_exog_rf = optimize_ar_model(y=y, y_ar=y_ar, X_exog=X_exog,
+                                                   constant=add_constant, model=model)
+
+        # Schat het baseline model, nog zonder exogene factoren
         baseline_fit = fit_model(y=y, X=ar_baseline, model=model)
 
+        # Collectie van alle mogelijke factoren
         all_possible_features = y_ar_other.join(X_exog_rf, how="left")
 
+        # Overgebleven residuen als verschil tussen werkelijke waarde en geschatte baseline model
         resid = y - baseline_fit.predict(ar_baseline)
-        correlation_val = 1
-        selected_features = ar_baseline.copy(deep=True)
+        correlation_val = 1 # startwaarde correlatie
+        selected_features = ar_baseline.copy(deep=True) # startset met geselecteerde features
 
         if add_constant:
             selected_features.insert(0, "constant", 1)
 
-        while (
-            correlation_val > feature_threshold[0]
-            and selected_features.shape[1] < feature_threshold[1]
-        ):
+        # Deze functie blijft lopen totdat het geselecteerde aantal features zijn toegevoegd met hoogste correlaties
+        while (correlation_val > feature_threshold[0]
+               and selected_features.shape[1] < feature_threshold[1]):
 
-            corr_name, correlation_val = get_top_correlations(
-                y=pd.DataFrame(resid), y_lags=all_possible_features, top_correl=1
-            )
+            # Bepaalde top correlaties met huidgie residuen
+            corr_name, correlation_val = get_top_correlations(y=pd.DataFrame(resid),
+                                                              y_lags=all_possible_features, top_correl=1)
 
+            # Voeg hoogst correlerende feature toe aan set geselecteerde features
             selected_features = selected_features.join(
                 all_possible_features[corr_name], how="left"
             )
 
+            # Verwijder deze feature dan uit de mogelijk te selecteren variabelen
             all_possible_features.drop(corr_name, axis=1, inplace=True)
 
+            # Schat model met huidige features en bewaar nieuwe residuen
             mdl_fit = fit_model(y=y, X=selected_features, model=model)
             resid = y - mdl_fit.predict(selected_features)
 
+        # Verzamel de AR componenten
         ar_name = "{}_last".format(y_name)
         ar_cols = [ar_name in x for x in selected_features.columns]
 
+        # Selecteer de exogenene factoren en scheid ze van de AR factoren
         exog_cols = [not x for x in ar_cols]
         ar_features = selected_features.iloc[:, ar_cols]
         exog_features = selected_features.iloc[:, exog_cols]
 
+        # Schat het finale model en bewaar de fit, parameters en optimale AR factoren
         Y_pred[y_name] = mdl_fit.predict(selected_features)
         fitted_models[y_name] = mdl_fit
         all_params[y_name] = selected_features.columns
         optimized_ar_features[y_name] = ar_features.columns
         optimized_exog_features[y_name] = exog_features.columns
 
-        # Determine Prediction intervals
-
-    return (
-        Y_pred,
-        fitted_models,
-        all_params,
-        optimized_ar_features,
-        optimized_exog_features,
-    )
+    return Y_pred, fitted_models, all_params, optimized_ar_features, optimized_exog_features,
 
 
-def batch_make_prediction(
-    Yp_ar_m,
-    Yp_ar_nm,
-    Xp_exog,
-    fitted_models,
-    Yf_ar_opt,
-    Yf_exog_opt,
-    add_constant=True,
-    prep_input=True,
-    model_type="OLS",
-    find_comparable_model=True,
-):
+def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog: pd.DataFrame,
+                          fitted_models: list, Yf_ar_opt: pd.DataFrame, Yf_exog_opt: pd.DataFrame,
+                          add_constant: bool = True, prep_input: bool = True, model_type: str = "OLS",
+                          find_comparable_model: bool = True):
+    """
+    Maak voorspellingen in batch vorm
+    :param Yp_ar_m: AR componenten van modelleerbare producten
+    :param Yp_ar_nm: AR componenten vna niet modelleerbare producten
+    :param Xp_exog: Exogene factoren
+    :param fitted_models: Geschatte modellen
+    :param Yf_ar_opt: Geoptimaliseerde AR componenten
+    :param Yf_exog_opt: Geoptimaliseerde exogene factoren
+    :param add_constant: Voeg een constante toe indien nodig
+    :param prep_input: Bereid input voor
+    :param model_type: Type model
+    :param find_comparable_model: Vind een vergleijkbaar model voor niet voorspelbare modellen
+    :return: Voorspelling per producten
+    """
+
+    # Transformeer tot DataFrame
     def series_to_dataframe(pd_series):
         return pd.DataFrame(pd_series).transpose()
 
@@ -235,9 +258,12 @@ def batch_make_prediction(
 
     Y_pred = pd.DataFrame(index=Yp_ar_m.index)
 
+    # Verwijder de lag underscript ('_last1w'), is exact 7 tekens
     Ym_products = list(set([x[:-7] for x in Yp_ar_m.columns]))  # Remove 'lag' tag
 
+    # Maak een voorspelling per product
     for y_name_m in Ym_products:
+
         lag_index = [y_name_m in x for x in Yp_ar_m.columns]
         Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
 
