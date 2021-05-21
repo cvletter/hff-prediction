@@ -10,42 +10,53 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
-def split_products(
-    active_products,
-    min_obs=cn.TRAIN_OBS,
-    prediction_date=cn.PREDICTION_DATE,
-    prediction_window=cn.PREDICTION_WINDOW,
-):
+def split_products(active_products: pd.DataFrame, min_obs: int = cn.TRAIN_OBS,
+                   prediction_date: str = cn.PREDICTION_DATE, prediction_window: int = cn.PREDICTION_WINDOW) -> tuple:
+    """
+    Maakt onderscheid tussen modelleerbaar en niet modelleerbare  producten, op basis beschikbare data
+
+    :param active_products: Producten die in de laatste week van voorspellen nog zijn besteld
+    :param min_obs: Observaties nodig voor schatten model
+    :param prediction_date: Datum voor voorspelling
+    :param prediction_window: Aantal weken dat vooruit wordt voorspeld
+    :return: Verschillende subsets aan producten, modelleerbaar en niet modelleerbaar
+    """
+
+    # Bepaal hier het window waartussen de benodigde observaties beschikbaar moeten zijn
     last_train_date = prediction_date - datetime.timedelta(weeks=prediction_window)
     first_train_date = last_train_date - datetime.timedelta(weeks=min_obs)
     fitting_window = active_products.loc[last_train_date:first_train_date]
 
     active_products = active_products.loc[last_train_date:first_train_date]
 
+    # Tel per product hoeveel observaties er beschikbaar zijn
     obs_count = pd.DataFrame(fitting_window.count())
     obs_count.columns = ["count"]
 
+    # Splits producten in modelleerbaar en niet modelleerbaar
     series_to_model = obs_count[obs_count["count"] >= min_obs].index
     LOGGER.info("Number of products able to model: {}".format(len(series_to_model)))
 
     series_not_to_model = obs_count[obs_count["count"] < min_obs].index
     LOGGER.info("Number of products not able to model: {}".format(len(series_not_to_model)))
 
-    # Consumentgroep nummer inladen
+    # Consumentgroep nummer inladen om rol producten te identificeren
     consumentgroep_nr = import_temp_file(data_loc=fm.ORDER_DATA_CG_PR_FOLDER, set_index=False)
     consumentgroep_nr = consumentgroep_nr[[cn.INKOOP_RECEPT_NM, cn.CONSUMENT_GROEP_NR]]
     consumentgroep_nr.set_index(cn.INKOOP_RECEPT_NM, inplace=True)
 
+    # Vind rolproducten
     active_rol_products = dtr.find_rol_products(data=active_products,
                                                 consumentgroep_nrs=consumentgroep_nr)
 
+    # Selecteer modlleerbare producten
     products_model = active_products[series_to_model].copy(deep=True)
 
     # Product groupings
-    products_model[cn.MOD_PROD_SUM] = products_model.sum(axis=1) # Modelable products
-    products_model[cn.ALL_PROD_SUM] = active_products.sum(axis=1) # All products
-    products_model[cn.ALL_ROL_SUM] = active_products[active_rol_products].sum(axis=1) # All rol-products
-    products_no_model = active_products[series_not_to_model]
+    products_model[cn.MOD_PROD_SUM] = products_model.sum(axis=1)  # Modelable products
+    products_model[cn.ALL_PROD_SUM] = active_products.sum(axis=1)  # All products
+    products_model[cn.ALL_ROL_SUM] = active_products[active_rol_products].sum(axis=1)  # All rol-products
+    products_no_model = active_products[series_not_to_model]  # Niet modlleerbare producten
 
     return products_model, products_no_model
 
