@@ -12,6 +12,7 @@ LOGGER = logging.getLogger(__name__)
 def get_top_correlations(y: pd.DataFrame, y_lags: pd.DataFrame, top_correl: int = 5) -> tuple:
     """
     Bepaalt de variabelen die het meest correleren met geselecteerde target
+
     :param y: De target variabele, in dit geval vaak de bestellingen per halffabricaat
     :param y_lags: De verklarende variabelen
     :param top_correl: Top x variabelen die moeten worden geselecteerd
@@ -70,6 +71,7 @@ def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame,
                       constant: bool = True, model: str = "OLS"):
     """
     Optimaliseren van autoregressieve componenten in model
+
     :param y: Target variabele
     :param y_ar: Vertraagde autoregressieve componenten
     :param X_exog: Exogene variabelen
@@ -138,6 +140,7 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame,
                     add_constant: bool = True, model:str = "OLS", feature_threshold: list = None):
     """
     Hier worden de modellen gefit in batch vorm, of wel voor alle producten
+
     :param Y: Alle producten, werkelijke waarden
     :param Y_ar: Vertraagde (AR) componenten
     :param X_exog: Externe factoren
@@ -233,7 +236,8 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
                           add_constant: bool = True, prep_input: bool = True, model_type: str = "OLS",
                           find_comparable_model: bool = True):
     """
-    Maak voorspellingen in batch vorm
+    Maakt hier de  voorspellingen in batch vorm
+
     :param Yp_ar_m: AR componenten van modelleerbare producten
     :param Yp_ar_nm: AR componenten vna niet modelleerbare producten
     :param Xp_exog: Exogene factoren
@@ -264,12 +268,14 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
     # Maak een voorspelling per product
     for y_name_m in Ym_products:
 
+        # Haal vertraagde (lag) kolommen op, om juiste featureset samen te stellen o.b.v model fit
         lag_index = [y_name_m in x for x in Yp_ar_m.columns]
         Xp_ar_m = Yp_ar_m.iloc[:, lag_index]
 
         Xf_ar_m = Yf_ar_opt[y_name_m]
         Xp_ar_m = Xp_ar_m.iloc[:, :Xf_ar_m.shape[0]]
 
+        # Voeg de vertraagde kolommen toe aan de feature set
         Xp_all_features = Yp_ar_m.join(Xp_exog, how="left")
 
         Xf_exog_m = Yf_exog_opt[y_name_m].drop("constant")
@@ -279,32 +285,40 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
         if add_constant:
             Xp_ar_m.insert(0, "constant", 1)
 
+        # Totale set met features
         Xp_tot = Xp_ar_m.join(Xp_arx_m, how="left")
 
+        # Maak voorspelling aan de hand van predictor functie
         Y_pred[y_name_m] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[y_name_m], model=model_type)
         # Y_pred[y_name_m] = fitted_models[y_name_m].predict(Xp_tot)
 
+    # Selecteer hier de producten die niet-modelleerbaar zijn
     Ynm_products = list(set([x[:-7] for x in Yp_ar_nm.columns]))
     for y_name_nm in Ynm_products:
 
         lag_index = [y_name_nm in x for x in Yp_ar_nm.columns]
         Xp_ar_nm = Yp_ar_nm.iloc[:, lag_index]
 
+        # Zoek naar een vergelijkbaar product om toch een voorspelling te maken
         if find_comparable_model:
             # Find product which has similar magnitude absolute sales
             lag_val = "_last0w"
+            # Haal de laatst beschikbare waarde op van te voorspellen pnroduct
             _y_nm_val = Yp_ar_nm["{}{}".format(y_name_nm, lag_val)][0]
 
+            # Haal de waarden op over dezelfde periode van modelleerbare producten
             lag1_index = [lag_val in x for x in Yp_ar_m.columns]
             _Y_m_vals = Yp_ar_m.iloc[:, lag1_index]
 
+            # Selecteer meest vergelijkbare product als product die er abosluut gezien het dichtst bij zit
             _closest_prod = (abs(_Y_m_vals - _y_nm_val) / _y_nm_val).T
-
             closest_product_name = _closest_prod.idxmin()[0][:-7]
 
         else:
+            # Alternatief model is simpelweg de som van modelleerbare producten
             closest_product_name = cn.MOD_PROD_SUM
 
+        # Vanaf hier worden dezelfde stappen utigevoerd als voor modelleerbare producten
         Xf_ar_cp = Yf_ar_opt[closest_product_name]
         Xp_ar_nm = Xp_ar_nm.iloc[:, : Xf_ar_cp.shape[0]]
 
@@ -320,15 +334,30 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
         Xp_tot = Xp_ar_nm.join(Xp_arx_cp, how="left")
 
         Y_pred[y_name_nm] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[closest_product_name], model=model_type)
-        # Y_pred[y_name_nm] = fitted_models[closest_product_name].predict(Xp_tot)
 
     return Y_pred
 
 
-def fit_and_predict(
-    fit_dict, predict_dict, model_type="OLS", bootstrap=False, feature_threshold=None
-):
-    def reset_index(data):
+def fit_and_predict(fit_dict: dict, predict_dict: dict, model_type: str = "OLS",
+                    bootstrap: bool = False, feature_threshold: list = None) -> tuple:
+    """
+    Combinatie functie van schatten van het model en het maken van de voorspelling
+
+    :param fit_dict: Verzamelobject om model te fitten
+    :param predict_dict: Verzamel object om model te schatten
+    :param model_type: Type voorspelmodel
+    :param bootstrap: Bootstrap functie
+    :param feature_threshold: Optimalisatie parameters
+    :return: Voorspellingen
+    """
+
+    def reset_index(data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Hulpfunctie om indices te resetten
+
+        :param data: Data met verkeerde index
+        :return: Data met nieuwe index, tbv bootstrapping
+        """
         data_new = data.reset_index(drop=True, inplace=False)
         data_new["bootstrap_index"] = np.arange(data.shape[0])
         return data_new.set_index("bootstrap_index", inplace=False, drop=True)
@@ -336,12 +365,12 @@ def fit_and_predict(
     if feature_threshold is None:
         feature_threshold = [0.2, 15]
 
+    # Input variabelen, om eventueel bootstrap samples van te maken
     Y_org = fit_dict[cn.Y_TRUE]
     Yar_org = fit_dict[cn.Y_AR]
     X_org = fit_dict[cn.X_EXOG]
 
-    # Y_org.sample(n=Y_org.shape[0], replace=True)
-
+    # Data wordt tot een bootstrap sample gemaakt, wat in feite een random sample is van het origineel
     if bootstrap:
         Y_fit = Y_org.sample(n=Y_org.shape[0], replace=True)
         Yar_fit = Yar_org.loc[Y_fit.index, :]
@@ -356,6 +385,7 @@ def fit_and_predict(
         Yar_fit = Yar_org
         X_fit = X_org
 
+    # Fit hier de modellen
     Yis_fit, model_fits, all_pars, Yar_opt, X_opt = batch_fit_model(
         Y=Y_fit,
         Y_ar=Yar_fit,
@@ -365,6 +395,7 @@ def fit_and_predict(
         feature_threshold=[feature_threshold[0], feature_threshold[1]],
     )
 
+    # Maak hier de voorspellingen
     Yos_pred = batch_make_prediction(
         Yp_ar_m=predict_dict[cn.Y_AR_M],
         Yp_ar_nm=predict_dict[cn.Y_AR_NM],

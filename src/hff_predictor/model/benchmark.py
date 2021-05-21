@@ -8,6 +8,7 @@ def moving_average(active_products: pd.DataFrame, prediction_date: str, periods:
                    prediction_window: int = cn.PREDICTION_WINDOW, min_obs: int = cn.TRAIN_OBS) -> pd.DataFrame:
     """
     Maakt een voorspelling op basis van het gemiddelde van de afgelopen N weken (periods)
+
     :param active_products: Totaal dataframe met alle actieve producten
     :param prediction_date: Datum van voorspelling
     :param periods: Aantal weken waarover moet worden gemiddeld (nu 5 weken)

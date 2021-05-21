@@ -150,7 +150,7 @@ def run_prediction_bootstrap(
             prediction=all_predictions,
             fit_dict=fit_data,
             predict_dict=predict_data,
-            bootstrap=True,
+            bootstrap_sample=True,
             iterations=bootstrap_iter,
             model_type=model_type,
             feature_threshold=feature_threshold,
