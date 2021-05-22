@@ -269,11 +269,11 @@ def performance_quality(predictions, benchmark, true_values,
         predictions_tot.loc[d, "bmrk_error_rol"] = _bmrk_err_tot_rol
 
     return (
-        predictions_tot,
-        predictions_mod_total,
-        predictions_nmod_total,
-        predictions_mod,
-        true_values_mod,
+        predictions_tot.astype(float),
+        predictions_mod_total.astype(float),
+        predictions_nmod_total.astype(float),
+        predictions_mod.astype(float),
+        true_values_mod.astype(float),
     )
 
 

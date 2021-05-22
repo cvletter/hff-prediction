@@ -17,7 +17,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
-                             train_obs: int, difference: bool, lags: int,
+                             train_obs: int, difference: bool, lags: int, weather_forecast: bool,
                              model_type: str, feature_threshold: list = None, bootstrap_iter: int = None,
                              reload_data: bool = False, save_predictions: bool = False):
     """
@@ -28,6 +28,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
     :param train_obs: Aantal observaties waar mee wordt getraind
     :param difference: Eerste verschillen
     :param lags: Aantal weken waarin wordt teruggekeken
+    :param weather_forecast: Optie om weersfactoren als voorspelling mee te nemen
     :param model_type: Type model voor voorspellingen
     :param feature_threshold: Feature optimalisatie parameter
     :param bootstrap_iter: Aantal bootstrap iteraties
@@ -113,6 +114,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
     # Bereid voorspelsetup voor
     start_setup = time.time()
     fit_data, predict_data = prediction_setup_wrapper(prediction_date=date_to_predict,
+                                                      weather_forecast=weather_forecast,
                                                       prediction_window=prediction_window, train_obs=train_obs,
                                                       nlags=lags, difference=difference, act_products=active_products,
                                                       exog_features=exogenous_features, save_to_pkl=False)
@@ -137,19 +139,19 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
 
     # Verzamel de voorspellingen in het output object
     all_output[date_to_predict] = {}
-    all_output[date_to_predict][cn.MOD_PROD] = fit_data[cn.MOD_PROD]
-    all_output[date_to_predict][cn.NON_MOD_PROD] = fit_data[cn.NON_MOD_PROD]
+    all_output[date_to_predict][cn.MOD_PROD] = fit_data[cn.MOD_PROD].astype(str)
+    all_output[date_to_predict][cn.NON_MOD_PROD] = fit_data[cn.NON_MOD_PROD].astype(str)
 
     # Verzamnel de geselecteerde features
     all_output[date_to_predict][cn.SELECTED_FEATURES] = all_pars
 
     # Verzamel de fit errors
     avg_fit_err, avg_pct_err = in_sample_error(all_fits=in_sample_fits, all_true_values=fit_data[cn.Y_TRUE])
-    all_output[date_to_predict][cn.FIT_ERROR_ABS] = avg_fit_err
-    all_output[date_to_predict][cn.FIT_ERROR_PCT] = avg_pct_err
+    all_output[date_to_predict][cn.FIT_ERROR_ABS] = avg_fit_err.astype(float)
+    all_output[date_to_predict][cn.FIT_ERROR_PCT] = avg_pct_err.astype(float)
 
     # Verzamel de MA voorspelling
-    all_output[date_to_predict][cn.MA_BENCHMARK] = ma_predictions
+    all_output[date_to_predict][cn.MA_BENCHMARK] = ma_predictions.astype(int)
 
     # Maak een apart object aan voor de voorspellingen, ter voorbereiding op eventuele bootstrap
     prediction_output = all_predictions
@@ -168,7 +170,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
             feature_threshold=feature_threshold,
         )
 
-        prediction_output = pd.concat([all_predictions, boundaries.T, ma_predictions]).T
+        prediction_output = pd.concat([all_predictions, boundaries.T, ma_predictions]).T.astype(int)
         prediction_output.columns = ["voorspelling", "ondergrens", "bovengrens", "5weeks_gemiddelde"]
 
         # all_predictions.drop(cn.BOOTSTRAP_ITER, axis=1, inplace=True)
@@ -180,7 +182,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
         elapsed_bootstrap = round((time.time() - start_bootstrap), 2)
         LOGGER.debug("Bootstrap voorspellingen zijn gemaakt, dit duurde {} seconden".format(elapsed_bootstrap))
 
-    all_output[date_to_predict][cn.PREDICTION_OS] = all_predictions
+    all_output[date_to_predict][cn.PREDICTION_OS] = all_predictions.astype(int)
 
     if save_predictions:
 
@@ -199,6 +201,7 @@ def init_predict(date, window, reload):
         date_to_predict=date,
         prediction_window=window,
         train_obs=ps.TRAIN_OBS,
+        weather_forecast=ps.WEATHER_FORECAST,
         difference=ps.DIFFERENCING,
         lags=ps.N_LAGS,
         model_type=ps.MODEL_TYPE,

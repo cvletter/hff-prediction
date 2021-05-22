@@ -18,3 +18,5 @@ setuptools~=49.6.0
 xgboost~=1.4.1
 sklearn~=0.24.2
 lightgbm~=3.2.1
+selenium~=3.141.0
+bs4~=0.0.1

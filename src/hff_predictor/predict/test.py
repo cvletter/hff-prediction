@@ -21,6 +21,7 @@ model_settings = {
     "fit_model": ps.MODEL_TYPE,
     "feature_threshold": ps.FEATURE_OPT,
     "bootstraps": ps.BOOTSTRAP_ITER,
+    "weather_forecast": ps.WEATHER_FORECAST
 }
 
 
@@ -40,12 +41,16 @@ def batch_prediction_bs(prediction_date: str):
     fit_model = model_settings["fit_model"]
     feature_threshold = model_settings["feature_threshold"]
     bootstrap_iterations = model_settings["bootstraps"]
+    weather_forecast = model_settings["weather_forecast"]
 
     # Maakt voorspelling
+    LOGGER.info("Maak voorspelling voor datum: {}".format(prediction_date))
+
     _predict = run_prediction_bootstrap(
         date_to_predict=prediction_date,
         prediction_window=p_window,
         train_obs=train_size,
+        weather_forecast=weather_forecast,
         difference=differencing,
         lags=ar_lags,
         model_type=fit_model,
@@ -61,8 +66,8 @@ def init_test(date, periods):
     start = time.time()
 
     # Genereert hier set met datums
-    prediction_dates = pd.DataFrame( pd.date_range(end=date, periods=periods, freq="W-MON").astype(str),
-                                     columns=[cn.FIRST_DOW])
+    prediction_dates = pd.DataFrame(pd.date_range(end=date, periods=periods, freq="W-MON").astype(str),
+                                    columns=[cn.FIRST_DOW])
 
     LOGGER.info("Maakt in totaal {} voorspellingen, tussen {} en {}".format(periods,
                                                                             min(prediction_dates[cn.FIRST_DOW]),

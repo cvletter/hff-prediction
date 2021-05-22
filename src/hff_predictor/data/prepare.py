@@ -104,6 +104,7 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
 
     # Tijdelijke oplossing van ophalen weerdata
     temp_weather_name = 'current_weather_data.zip'
+
     url = "https://cdn.knmi.nl/knmi/map/page/klimatologie/gegevens/daggegevens/etmgeg_260.zip"
     r = re.get(url, allow_redirects=True)
     zfile = open(temp_weather_name, 'wb')
@@ -121,12 +122,12 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
                                                                     data_download[cn.W_DATE].max()))
 
     data_download.rename(columns=lambda x: x.strip(), inplace=True)
-    raw_weer_data = data_download.loc[1:, :][[cn.W_DATE, 'TG', 'TN', 'TX', 'SQ']]
+    raw_weer_data = data_download.loc[1:, :][[cn.W_DATE, 'TG', 'TN', 'TX', 'SQ', 'RH']]
 
     os.remove(temp_weather_name)
 
     raw_weer_data.set_index(cn.W_DATE, inplace=True)
-    raw_weer_data.columns = [cn.TEMP_GEM, cn.TEMP_MIN, cn.TEMP_MAX, cn.ZONUREN]
+    raw_weer_data.columns = [cn.TEMP_GEM, cn.TEMP_MIN, cn.TEMP_MAX, cn.ZONUREN, cn.NEERSLAG_MM]
 
     for c in raw_weer_data.columns:
         if raw_weer_data[c].dtype == 'O':
@@ -149,6 +150,7 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
                 cn.TEMP_MIN: "min",
                 cn.TEMP_MAX: "max",
                 cn.ZONUREN: "sum",
+                cn.NEERSLAG_MM: "sum",
             }
         )
 
@@ -157,7 +159,8 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
             cn.TEMP_GEM,
             cn.TEMP_MIN,
             cn.TEMP_MAX,
-            cn.ZONUREN
+            cn.ZONUREN,
+            cn.NEERSLAG_MM,
         ]
 
     return raw_weer_data
