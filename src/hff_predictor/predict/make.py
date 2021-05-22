@@ -20,6 +20,21 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
                              train_obs: int, difference: bool, lags: int,
                              model_type: str, feature_threshold: list = None, bootstrap_iter: int = None,
                              reload_data: bool = False, save_predictions: bool = False):
+    """
+    Deze functie brengt alles bij elkaar, van data inladen tot maken van voorspellingen
+
+    :param date_to_predict: Voorspeldatum
+    :param prediction_window: Aantal weken dat vooruit wordt voorspeld
+    :param train_obs: Aantal observaties waar mee wordt getraind
+    :param difference: Eerste verschillen
+    :param lags: Aantal weken waarin wordt teruggekeken
+    :param model_type: Type model voor voorspellingen
+    :param feature_threshold: Feature optimalisatie parameter
+    :param bootstrap_iter: Aantal bootstrap iteraties
+    :param reload_data: Optie om data opnieuw in te laden
+    :param save_predictions: Optie om resultaten op te slaan
+    :return: Voorspellingen
+    """
     # Start timer
     start_total = time.time()
 
