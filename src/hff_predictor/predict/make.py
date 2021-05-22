@@ -144,7 +144,6 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
 
     # Verzamnel de geselecteerde features
     all_output[date_to_predict][cn.SELECTED_FEATURES] = all_pars
-
     # Verzamel de fit errors
     avg_fit_err, avg_pct_err = in_sample_error(all_fits=in_sample_fits, all_true_values=fit_data[cn.Y_TRUE])
     all_output[date_to_predict][cn.FIT_ERROR_ABS] = avg_fit_err.astype(float)
@@ -187,7 +186,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
     if save_predictions:
 
         save_name = "predictions_p{}_d{}".format(prediction_window, date_to_predict)
-        fl.save_to_csv(data=prediction_output,file_name=save_name, folder=fm.PREDICTIONS_FOLDER)
+        fl.save_to_csv(data=prediction_output, file_name=save_name, folder=fm.PREDICTIONS_FOLDER)
 
     elapsed = round((time.time() - start_total), 2)
     LOGGER.info("De voorspelling is klaar en duurde {} seconden".format(elapsed))
