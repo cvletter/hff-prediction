@@ -57,6 +57,7 @@ def main():
         "--periods",
         "-p",
         type=int,
+        default=2
     )
 
     parser.add_argument(

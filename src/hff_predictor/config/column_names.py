@@ -88,15 +88,14 @@ STRUCTURAL_BREAK_COLS = [
 
 FIRST_AVAILABLE_DATE = datetime.datetime.strptime("2018-08-01", "%Y-%m-%d")
 PREDICTION_DATE = datetime.datetime.strptime("2020-08-31", "%Y-%m-%d")
-PREDICTION_WINDOW = 2
-LAST_TRAIN_DATE = PREDICTION_DATE - datetime.timedelta(weeks=PREDICTION_WINDOW)
 
 TRAIN_OBS = 70
-
+PREDICTION_WINDOW = 2
 HOLIDAY_FORWARD = 2
 N_LAGS = 2
 MA_PERIOD = 5
 FEATURE_PERIOD_LENGTH = 2500 # Number of days to generate for features
+LAST_TRAIN_DATE = PREDICTION_DATE - datetime.timedelta(weeks=PREDICTION_WINDOW)
 
 # Feature groups
 WEATHER = "weather"

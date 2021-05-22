@@ -503,7 +503,7 @@ def process_data(
 
 # Wrapping function to do entire data preparation
 def data_prep_wrapper(
-        prediction_date: datetime.datetime,
+        prediction_date:str,
         prediction_window: int,
         reload_data=False,
         agg_weekly=True,

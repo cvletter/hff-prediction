@@ -2,6 +2,7 @@ import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 import hff_predictor.generic.dates as gf
 import hff_predictor.generic.files
+import hff_predictor.config.prediction_settings as ps
 from hff_predictor.predict.make import run_prediction_bootstrap
 import pandas as pd
 import multiprocessing
@@ -11,21 +12,27 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
-# Prediction
+# Vaste settings die door de multiprocessing heen gaan
 model_settings = {
-    "prediction_window": 2,
-    "train_size": 70,
-    "differencing": False,
-    "ar_lags": 3,
-    "fit_model": "OLS",
-    "feature_threshold": [0.2, 30],
-    "bootstraps": 2,
+    "prediction_window": ps.PREDICTION_WINDOW,
+    "train_size": ps.TRAIN_OBS,
+    "differencing": ps.DIFFERENCING,
+    "ar_lags": ps.N_LAGS,
+    "fit_model": ps.MODEL_TYPE,
+    "feature_threshold": ps.FEATURE_OPT,
+    "bootstraps": ps.BOOTSTRAP_ITER,
 }
 
 
-def batch_prediction_bs(prediction_date):
-    logging.info("Starting for date: {}".format(prediction_date))
+def batch_prediction_bs(prediction_date: str):
+    """
+    Aparte batch functie met 1 parameter, zodat voorspellingen kunnen worden gegenereerd via multiprocessing
 
+    :param prediction_date: Voorspeldatum
+    :return: Multiprocessing object met voorspelling
+    """
+
+    # Haalt voorspelsettings op
     p_window = model_settings["prediction_window"]
     train_size = model_settings["train_size"]
     differencing = model_settings["differencing"]
@@ -34,6 +41,7 @@ def batch_prediction_bs(prediction_date):
     feature_threshold = model_settings["feature_threshold"]
     bootstrap_iterations = model_settings["bootstraps"]
 
+    # Maakt voorspelling
     _predict = run_prediction_bootstrap(
         date_to_predict=prediction_date,
         prediction_window=p_window,
@@ -52,26 +60,36 @@ def init_test(date, periods):
 
     start = time.time()
 
-    prediction_dates = pd.DataFrame(
-        pd.date_range(end=date, periods=periods, freq="W-MON").astype(str),
-        columns=[cn.FIRST_DOW],
-    )
+    # Genereert hier set met datums
+    prediction_dates = pd.DataFrame( pd.date_range(end=date, periods=periods, freq="W-MON").astype(str),
+                                     columns=[cn.FIRST_DOW])
+
+    LOGGER.info("Maakt in totaal {} voorspellingen, tussen {} en {}".format(periods,
+                                                                            min(prediction_dates[cn.FIRST_DOW]),
+                                                                            max(prediction_dates[cn.FIRST_DOW])))
 
     pred_dates = list(prediction_dates[cn.FIRST_DOW])
 
+    # Aantal cores die tegelijkertijd kunnen worden ingeschakeld
     num_cores = multiprocessing.cpu_count()
-    #num_cores = 1
+
+    if model_settings["fit_model"] != "OLS":
+        LOGGER.warning("Zet aantal cores terug naar 1, optimalisatie loopt anders vast als gevolg van algoritme")
+
+    # Run alle predicties en pool resutlaten
     pool = multiprocessing.Pool(num_cores)
     results = pool.map(batch_prediction_bs, pred_dates)
 
     pool.close()
     pool.join()
 
+    # Sla resultaten op in pickle bestand
     hff_predictor.generic.files.save_to_pkl(
         data=results, file_name="test_result_bs_2p_2l_70obs", folder=fm.TEST_RESULTS_FOLDER
     )
 
     elapsed = round((time.time() - start), 2)
-    LOGGER.info("It takes {} seconds to run a prediction.".format(elapsed))
+    LOGGER.info("Het duurt {} seconden om alle {} voorspellingen te genereren".format(elapsed,
+                                                                                      periods))
 
 
