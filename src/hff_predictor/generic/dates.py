@@ -36,7 +36,7 @@ def add_week_year(data: pd.DataFrame, date_name: str = cn.ORDER_DATE) -> None:
         data.set_index(date_name, inplace=True)
 
 
-def add_first_day_week(add_to: pd.DataFrame, week_col_name: str =cn.WEEK_NUMBER, set_as_index: bool = False) -> None:
+def add_first_day_week(add_to: pd.DataFrame, week_col_name: str = cn.WEEK_NUMBER, set_as_index: bool = False) -> None:
     """
     Voegt de eerste dag van de week toe, dit is de primaire index waarop wordt gegroepeerd
     :param add_to: Dataframe waar het aan moet worden toegevoegd
@@ -71,3 +71,30 @@ def add_first_day_week(add_to: pd.DataFrame, week_col_name: str =cn.WEEK_NUMBER,
     if set_as_index:
         add_to.reset_index(inplace=True, drop=True)
         add_to.set_index(cn.FIRST_DOW, inplace=True)
+
+
+def first_day_of_week(prediction_window: int = cn.PREDICTION_WINDOW):
+    """
+    Gets the first day of the week for automated week detection
+
+    :param prediction_window: Weeks to predict ahead from current week
+
+    :return:
+    """
+
+    # Huidige dag
+    current_day = datetime.datetime.now()
+
+    # Aantal dagen sinds maandag
+    days_since_monday = current_day.isoweekday() - 1
+
+    # Corrigeer naar afgelopen maandag
+    last_monday = current_day - datetime.timedelta(days=days_since_monday)
+
+    # Stel voorspeldatum vast o.b.v. prediction window
+    prediction_for = last_monday + datetime.timedelta(days=prediction_window*7)
+
+    current_week = datetime.datetime.strftime(last_monday, "%Y-%m-%d")
+    prediction_date = datetime.datetime.strftime(prediction_for, "%Y-%m-%d")
+
+    return current_week, prediction_date

@@ -1,5 +1,7 @@
 import pandas as pd
 import hff_predictor.config.column_names as cn
+import hff_predictor.generic.files as fl
+import hff_predictor.config.file_management as fm
 
 
 def first_difference_data(undifferenced_data: pd.DataFrame, delta: int = 1, scale: bool = True) -> pd.DataFrame:
@@ -82,3 +84,17 @@ def find_rol_products(data: pd.DataFrame, consumentgroep_nrs: pd.DataFrame) -> l
     # Bepalen welke van de actieve producten rol producten zijn
     rol_products = consumentgroep_nrs[consumentgroep_nrs[cn.CONSUMENT_GROEP_NR] == 16].index
     return list(set.intersection(set(rol_products), set(data_cols)))
+
+
+def add_product_number(data: pd.DataFrame) -> pd.DataFrame:
+    product_nrs = fl.import_temp_file(data_loc=fm.ORDER_DATA_CG_PR_FOLDER, set_index=False)
+    product_nrs = product_nrs[[cn.INKOOP_RECEPT_NM, cn.INKOOP_RECEPT_NR]]
+    product_nrs = product_nrs.drop_duplicates(cn.INKOOP_RECEPT_NM, keep='first')
+    product_nrs.set_index(cn.INKOOP_RECEPT_NM, inplace=True)
+
+    data_with_prod_nr = data.join(product_nrs, how='left')
+    data_with_prod_nr.reset_index(inplace=True)
+    data_with_prod_nr = data_with_prod_nr.set_index(cn.INKOOP_RECEPT_NR, inplace=False)
+    data_with_prod_nr.rename(columns={'index': cn.INKOOP_RECEPT_NM}, inplace=True)
+
+    return data_with_prod_nr.sort_index(ascending=True)

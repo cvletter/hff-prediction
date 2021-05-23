@@ -4,6 +4,7 @@ from hff_predictor.model.fit import init_train
 from hff_predictor.predict.make import init_predict
 from hff_predictor.predict.test import init_test
 from hff_predictor.evaluation.evaluate import init_evaluate
+import hff_predictor.config.column_names as cn
 
 import pkg_resources
 import logging.config
@@ -36,7 +37,8 @@ def main():
     parser.add_argument(
         "--date",
         "-d",
-        type=str
+        type=str,
+        default=cn.DEFAULT_PRED_DATE
     )
 
     parser.add_argument(

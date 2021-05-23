@@ -451,7 +451,8 @@ def process_data(
 
     # Sla op tot welke categorie elk product behoort: Bulk, rol of aankoop
 
-    product_consumentgroep = order_data[['inkooprecept_naam', 'consumentgroep_nr']].drop_duplicates(keep='first')
+    product_consumentgroep = order_data[['inkooprecept_naam', 'inkooprecept_nr', 'consumentgroep_nr']].drop_duplicates(
+        keep='first')
 
     hff_predictor.generic.files.save_to_csv(
         data=product_consumentgroep, file_name=fm.PRODUCT_CONSUMENTGROEP_NR, folder=fm.ORDER_DATA_CG_PR_FOLDER

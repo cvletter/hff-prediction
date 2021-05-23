@@ -18,11 +18,11 @@ def prep_weather_features(input_weer_data: pd.DataFrame, index_col: str = cn.FIR
     input_weer_data.sort_index(ascending=False, inplace=True)
 
     # Selecteer weersfactoren
-    cols = [cn.TEMP_GEM, cn.ZONUREN]
+    cols = [cn.TEMP_GEM, cn.ZONUREN, cn.NEERSLAG_MM]
     weer_data_a = input_weer_data[cols]
 
     # Neem eeste verschillen van weer
     weer_data_d = weer_data_a.diff(periods=-1)
-    weer_data_d.columns = ["d_temperatuur_gem", "d_zonuren"]
+    weer_data_d.columns = ["d_temperatuur_gem", "d_zonuren", "d_neerslag_mm"]
 
     return weer_data_a.join(weer_data_d, how="left").dropna(how="any")

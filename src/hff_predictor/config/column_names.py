@@ -9,6 +9,7 @@ SELECT_ORG = "gebruiken"
 ORGANISATIE = "organisatie"
 CE_BESTELD = "ce_besteld"
 WEEK = "week"
+DEFAULT_PRED_DATE = "current"
 
 # WEER DATA
 W_DATE = "date"
@@ -76,7 +77,9 @@ MONTH_COLS = [
     "november", "december"
 ]
 
-HOLIDAY_COLS = "all_holidays_next2w"
+HOLIDAY_COLS = "all_holidays_next4w"
+WEATHER_COLS = ["temperatuur_gem_next4w", "neerslag_mm_next4w"]
+PERSCO_COLS = "persconferentie_next4w"
 
 STRUCTURAL_BREAK_COLS = [
     "a_trans_period_1",

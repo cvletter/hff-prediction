@@ -11,6 +11,8 @@ from hff_predictor.model.fit import fit_and_predict
 from hff_predictor.predict.setup import prediction_setup_wrapper
 from hff_predictor.model.benchmark import moving_average
 from hff_predictor.model.bootstrapper import bootstrap
+from hff_predictor.data.transformations import add_product_number
+from hff_predictor.generic.dates import first_day_of_week
 
 import logging
 LOGGER = logging.getLogger(__name__)
@@ -184,9 +186,9 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
     all_output[date_to_predict][cn.PREDICTION_OS] = all_predictions.astype(int)
 
     if save_predictions:
-
+        pred_out = add_product_number(data=prediction_output)
         save_name = "predictions_p{}_d{}".format(prediction_window, date_to_predict)
-        fl.save_to_csv(data=prediction_output, file_name=save_name, folder=fm.PREDICTIONS_FOLDER)
+        fl.save_to_csv(data=pred_out, file_name=save_name, folder=fm.PREDICTIONS_FOLDER)
 
     elapsed = round((time.time() - start_total), 2)
     LOGGER.info("De voorspelling is klaar en duurde {} seconden".format(elapsed))
@@ -196,8 +198,18 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
 
 def init_predict(date, window, reload):
 
+    if date == cn.DEFAULT_PRED_DATE:
+        current_week, prediction_date = first_day_of_week()
+
+        LOGGER.info("Using automated week detection, current week starts on {}, making a prediction for {}". format(
+            current_week,
+            prediction_date
+        ))
+    else:
+        prediction_date = date
+
     test = run_prediction_bootstrap(
-        date_to_predict=date,
+        date_to_predict=prediction_date,
         prediction_window=window,
         train_obs=ps.TRAIN_OBS,
         weather_forecast=ps.WEATHER_FORECAST,

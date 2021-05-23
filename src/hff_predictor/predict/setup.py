@@ -124,7 +124,7 @@ def create_predictive_context(y_modelable_lag: pd.DataFrame,
 
     # Zorg dat niet aangepaste features in juiste volgorde staan en verschuif dan de waarden in de juiste context
     # Deze verschuif ik nu dus 2 weken vooruit, om ze mee te kunnen nemen in het totaal en die vervolgens
-    # 2 weken te vertragen, waardoro de niet aangepaste features ook echt niet aangepast worden
+    # 2 weken te vertragen, waardoor de niet aangepaste features ook echt niet aangepast worden
     features_na_corr = features_no_adj.sort_index(ascending=False).shift(prediction_window)
 
     # Breng alle features bij elkaar

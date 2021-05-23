@@ -85,13 +85,16 @@ def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame,
     all_season_features = X_exog[cn.SEASONAL_COLS]
     all_month_features = X_exog[cn.MONTH_COLS]
     all_holiday_features = X_exog[cn.HOLIDAY_COLS]
+    all_weather_features = X_exog[cn.WEATHER_COLS]
+    all_persco_features = X_exog[cn.PERSCO_COLS]
     sorted_lags = y_ar.columns.sort_values(ascending=True)
 
     all_baseline_features = all_level_features.join(
         all_season_features, how='left').join(
         all_month_features, how='left').join(
-        all_holiday_features, how='left'
-    )
+        all_holiday_features, how='left').join(
+        all_weather_features, how='left').join(
+        all_persco_features, how='left')
 
     # Verwijder features als ze volledig bestaan uit nullen
     use_baseline_features = all_baseline_features.loc[
@@ -130,7 +133,9 @@ def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame,
     lag_values = y_ar.iloc[:, :optimal_lags]
 
     # Verwijder deze variableen uit set met exogene features om dubbele selectie te voorkomen
-    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS + cn.MONTH_COLS + [cn.HOLIDAY_COLS]
+    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS + cn.MONTH_COLS + [cn.HOLIDAY_COLS]\
+                + cn.WEATHER_COLS + [cn.PERSCO_COLS]
+
     X_exog_rf = X_exog.drop(columns=drop_cols, inplace=False, errors="ignore")
 
     return lag_values.join(use_baseline_features, how="left"), X_exog_rf
