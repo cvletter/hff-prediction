@@ -37,6 +37,12 @@ def save_to_pkl(data: pd.DataFrame, file_name: str, folder: str):
     )
 
     save_as = "{}/{}_{}.p".format(folder, file_name, set_timestamp)
+    search_in_folder = folder + "\*.p"
+    current_latest_file = max(glob.iglob(pathname=search_in_folder), key=os.path.getctime)
+
+    for i in glob.glob(search_in_folder):
+        if i != current_latest_file:
+            os.remove(i)
 
     with open(save_as, "wb") as f:
         pkl.dump(data, f)
@@ -80,16 +86,20 @@ def save_to_csv(data: pd.DataFrame, file_name: str, folder: str):
         current_time.minute,
     )
 
-    # Forceer dat alles als float moet worden opgeslagen
-    # data_converted = data.astype(float)
-
     save_as = "{}/{}_{}.csv".format(folder, file_name, set_timestamp)
+    search_in_folder = folder + "\*.csv"
+    current_latest_file = max(glob.iglob(pathname=search_in_folder), key=os.path.getctime)
+
+    for i in glob.glob(search_in_folder):
+        if i != current_latest_file:
+            os.remove(i)
+
     data.to_csv(save_as, sep=";", decimal=",")
 
     logging.debug("Data saved as {}".format(save_as))
 
 
-def import_temp_file(data_loc: pd.DataFrame, file_name: str= None, set_index: bool = True):
+def import_temp_file(data_loc: pd.DataFrame, file_name: str = None, set_index: bool = True):
     """
     Functie om snel tijdelijke bestanden in te laden
     :param data_loc: Plek waar data is opgeslagen

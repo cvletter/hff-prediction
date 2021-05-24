@@ -38,6 +38,7 @@ ORDER_DATA_SU_PROCESSED = "order_data_week_superunie_processed"
 CAMPAIGN_DATA_PROCESSED = "campaign_data_processed"
 PRODUCT_CONSUMENTGROEP_NR = "product_consumentgroep_nr"
 FEATURES_PROCESSED = "exogenous_features_processed"
+
 # Output
 PREDICTIONS_FOLDER = r"U:\Productie Voorspelmodel\Output\Voorspellingen"
 INTERMEDIARY_RESULTS_FOLDER = r"U:\Productie Voorspelmodel\Output\Tussenresultaten"

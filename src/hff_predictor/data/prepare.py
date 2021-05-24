@@ -131,8 +131,13 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
 
     for c in raw_weer_data.columns:
         if raw_weer_data[c].dtype == 'O':
-            raw_weer_data[c] = raw_weer_data[c].str.strip().replace('', np.NaN)
-            raw_weer_data[c] = raw_weer_data[c].fillna(method='backfill')
+            if c == cn.NEERSLAG_MM:
+                raw_weer_data[c] = raw_weer_data[c].str.strip().replace('', 0)
+            else:
+                raw_weer_data[c] = raw_weer_data[c].str.strip().replace('', np.NaN)
+
+            raw_weer_data[c] = raw_weer_data[c].fillna(method='bfill')
+            raw_weer_data[c] = raw_weer_data[c].fillna(method='ffill')
             raw_weer_data[c] = raw_weer_data[c].astype(int)
 
     # Deel alle cijfers door 10 om tot normale waarden voor temp, uren en mm te komen

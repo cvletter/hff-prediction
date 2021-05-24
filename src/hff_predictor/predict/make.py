@@ -198,6 +198,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
 
 def init_predict(date, window, reload):
 
+    # Bepaalt hier de week waar een voorspelling voor moet worden gemaakt o.b.v. automatische detectie
     if date == cn.DEFAULT_PRED_DATE:
         current_week, prediction_date = first_day_of_week()
 

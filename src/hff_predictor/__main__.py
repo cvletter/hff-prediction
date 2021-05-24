@@ -4,6 +4,7 @@ from hff_predictor.model.fit import init_train
 from hff_predictor.predict.make import init_predict
 from hff_predictor.predict.test import init_test
 from hff_predictor.evaluation.evaluate import init_evaluate
+from hff_predictor.config.folder_structure import init_folder_setup
 import hff_predictor.config.column_names as cn
 
 import pkg_resources
@@ -24,7 +25,8 @@ def main():
         "train": [init_train],
         "predict": [init_predict],
         "test": [init_test],
-        "evaluate": [init_evaluate]
+        "evaluate": [init_evaluate],
+        "setup_folder": [init_folder_setup]
     }
 
     parser = argparse.ArgumentParser(description="HFF predictor")
@@ -68,6 +70,14 @@ def main():
         type=str,
     )
 
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=str,
+        default="find"
+
+    )
+
     arguments, _ = parser.parse_known_args()
 
     for method in mode_methods[arguments.mode]:
@@ -77,6 +87,8 @@ def main():
             method(arguments.date, arguments.periods)
         elif arguments.mode in ["evaluate"]:
             method(arguments.summary)
+        elif arguments.mode in ["setup_folder"]:
+            method(arguments.output)
         else:
             method()
 
