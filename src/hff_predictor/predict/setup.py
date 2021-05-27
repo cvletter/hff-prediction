@@ -81,9 +81,9 @@ def create_lagged_sets(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
         exogenous_features['superunie_pct'], how='left')
 
     # Subset van variabelen die ook vooruit kunnen kijken, zoals feestdagen, campagnes en COVID features
-    exog_features_lookahead = (exogenous_features['holidays'].join(
-        exogenous_features['campaigns'], how='left').join(
-        exogenous_features['covid'], how='left'))
+    exog_features_lookahead = exogenous_features['covid']
+
+    exog_features_lookahead_far = exogenous_features['holidays'].join(exogenous_features['campaigns'], how='left')
 
     # Als weersvoorspellingen moeten worden meegenomen, voeg deze dan aan de look ahead set toe
     if weather_forecast:
@@ -107,11 +107,18 @@ def create_lagged_sets(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
     lookahead = prediction_window + 3
     lookahead_range = list(reversed(range(-lags, lookahead)))
 
+    lookahead_far = prediction_window + 5
+    lookahead_far_range = list(reversed(range(-lags, lookahead_far)))
+
     exog_features_lookahead_lags = dtr.create_lags(exog_features_lookahead, lag_range=lookahead_range)
+    exog_features_lookahead_far_lags = dtr.create_lags(exog_features_lookahead_far, lag_range=lookahead_far_range)
+
+    exog_features_lookahead_combined_lags = exog_features_lookahead_lags.join(
+        exog_features_lookahead_far_lags, how='left')
 
     return (y_m_lags, y_nm_lags,
             exog_features_lookback_lags,
-            exog_features_lookahead_lags,
+            exog_features_lookahead_combined_lags,
             exog_features_no_adj)
 
 

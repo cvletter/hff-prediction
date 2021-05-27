@@ -209,6 +209,8 @@ def init_predict(date, window, reload):
     else:
         prediction_date = date
 
+    print("Aantal bootstraps:{}".format(ps.BOOTSTRAP_ITER))
+
     test = run_prediction_bootstrap(
         date_to_predict=prediction_date,
         prediction_window=window,

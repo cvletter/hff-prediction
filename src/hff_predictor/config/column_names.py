@@ -77,7 +77,7 @@ MONTH_COLS = [
     "november", "december"
 ]
 
-HOLIDAY_COLS = "all_holidays_next4w"
+HOLIDAY_COLS = ["all_holidays_next4w", "all_holidays_next6w"]
 WEATHER_COLS = ["temperatuur_gem_next4w", "neerslag_mm_next4w"]
 PERSCO_COLS = "persconferentie_next4w"
 

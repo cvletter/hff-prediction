@@ -133,7 +133,7 @@ def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame,
     lag_values = y_ar.iloc[:, :optimal_lags]
 
     # Verwijder deze variableen uit set met exogene features om dubbele selectie te voorkomen
-    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS + cn.MONTH_COLS + [cn.HOLIDAY_COLS]\
+    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS + cn.MONTH_COLS + cn.HOLIDAY_COLS \
                 + cn.WEATHER_COLS + [cn.PERSCO_COLS]
 
     X_exog_rf = X_exog.drop(columns=drop_cols, inplace=False, errors="ignore")
