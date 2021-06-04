@@ -40,11 +40,9 @@ def save_to_pkl(data: pd.DataFrame, file_name: str, folder: str):
     search_in_folder = folder + "\*.p"
     current_latest_file = max(glob.iglob(pathname=search_in_folder), key=os.path.getctime)
 
-    """
     for i in glob.glob(search_in_folder):
         if i != current_latest_file:
             os.remove(i)
-    """
 
     with open(save_as, "wb") as f:
         pkl.dump(data, f)
@@ -91,11 +89,10 @@ def save_to_csv(data: pd.DataFrame, file_name: str, folder: str):
     save_as = "{}/{}_{}.csv".format(folder, file_name, set_timestamp)
     search_in_folder = folder + "\*.csv"
     current_latest_file = max(glob.iglob(pathname=search_in_folder), key=os.path.getctime)
-    """    
+
     for i in glob.glob(search_in_folder):
         if i != current_latest_file:
             os.remove(i)
-    """
 
     data.to_csv(save_as, sep=";", decimal=",")
 
