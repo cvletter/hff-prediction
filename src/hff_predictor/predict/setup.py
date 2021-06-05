@@ -6,6 +6,7 @@ import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 import hff_predictor.data.transformations as dtr
 from hff_predictor.generic.files import import_temp_file
+from hff_predictor.data.transformations import fill_missing_values
 
 import logging
 LOGGER = logging.getLogger(__name__)
@@ -81,7 +82,7 @@ def create_lagged_sets(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame,
         exogenous_features['superunie_pct'], how='left')
 
     # Subset van variabelen die ook vooruit kunnen kijken, zoals feestdagen, campagnes en COVID features
-    exog_features_lookahead = exogenous_features['covid'].join(exogenous_features['weather'], how='left')
+    exog_features_lookahead = exogenous_features['weather'].join(exogenous_features['covid'], how='left')
 
     exog_features_lookahead_far = exogenous_features['holidays'].join(exogenous_features['campaigns'], how='left')
 
@@ -105,6 +106,7 @@ def create_lagged_sets(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame,
     lookahead_far_range = list(reversed(range(-lags, lookahead_far)))
 
     exog_features_lookahead_lags = dtr.create_lags(exog_features_lookahead, lag_range=lookahead_range)
+
     exog_features_lookahead_far_lags = dtr.create_lags(exog_features_lookahead_far, lag_range=lookahead_far_range)
 
     exog_features_lookahead_combined_lags = exog_features_lookahead_lags.join(
@@ -137,9 +139,13 @@ def create_predictive_context(y_modelable_lag: pd.DataFrame,
     # Breng de juiste voorspelcontext aan en verwijder nu NaN waarden onderaan
     features_total_shift = features_total.shift(-prediction_window)[:-prediction_window]
 
+    features_total2 = features_lag_lookahead.shift(-prediction_window).join(
+        features_lag_lookback, how='left').join(features_na_corr, how='left')[:-prediction_window]
+    fill_missing_values(features_total2)
+
     return (y_modelable_lag.shift(-prediction_window)[:-prediction_window],
             y_nonmodelable_lag.shift(-prediction_window)[:-prediction_window],
-            features_total,
+            features_total2,
             features_total_shift
             )
 

@@ -30,7 +30,7 @@ def process_order_data() -> pd.DataFrame:
                                 "ConsGrp Naam": str,
                                 "Organisatie": str,
                                 "Superunie": str,
-                                "InkoopRecept": int,
+                                "InkoopRecept": pd.Int64Dtype(),
                                 "InkoopRecept Omschrijving": str,
                                 "Weekjaar": str,
                                 "Periode": str,
@@ -84,10 +84,12 @@ def process_order_data() -> pd.DataFrame:
         inplace=True,
     )
 
-    raw_data[cn.ORDER_DATE] = pd.to_datetime(raw_data[cn.ORDER_DATE], format="%Y-%m-%d")
+    # raw_data[cn.ORDER_DATE] = pd.to_datetime(raw_data[cn.ORDER_DATE], format="%Y-%m-%d")
+    raw_data[cn.ORDER_DATE] = pd.to_datetime(raw_data[cn.ORDER_DATE], format="%d-%m-%Y")
+    raw_data = raw_data[raw_data[cn.ORDER_DATE] <= datetime.datetime.now()]
 
     raw_data[cn.VERKOOP_ART_NR] = raw_data[cn.VERKOOP_ART_NR].astype(int)
-    raw_data[cn.INKOOP_RECEPT_NR] = raw_data[cn.INKOOP_RECEPT_NR].astype(int)
+    raw_data[cn.INKOOP_RECEPT_NR] = raw_data[cn.INKOOP_RECEPT_NR].astype(pd.Int64Dtype())
 
     # Voeg hier het weeknummer en jaar toe o.b.v. de besteldatum
     gf.add_week_year(data=raw_data, date_name=cn.ORDER_DATE)
@@ -373,7 +375,7 @@ def data_aggregation(
     time_agg = cn.WEEK_NUMBER if weekly else cn.ORDER_DATE
     product_agg = cn.CE_BESTELD
 
-    group_cols = [time_agg, cn.INKOOP_RECEPT_NM, cn.INKOOP_RECEPT_NR]
+    group_cols = [time_agg, cn.INKOOP_RECEPT_NM]
 
     if not exclude_su:
         group_cols += [cn.ORGANISATIE]
@@ -406,6 +408,8 @@ def make_pivot(aggregated_data: pd.DataFrame, weekly=True) -> pd.DataFrame:
 
     if aggregated_data.index.name == date_granularity:
         aggregated_data.reset_index(inplace=True, drop=False)
+
+    aggregated_data = aggregated_data[aggregated_data[cn.INKOOP_RECEPT_NM] != '1BITE SAMPLE ETIKET']
 
     # Hier wordt de pivot uitgevoerd
     pivoted_data = pd.DataFrame(
@@ -480,12 +484,10 @@ def process_data(
     weer_data.sort_index(ascending=False, inplace=True)
 
     # Importeren van product status data
-    product_status = process_product_status()
+    #product_status = process_product_status()
 
     # Toevoegen van product status
-    add_product_status(
-        order_data_processed=order_data, product_status_processed=product_status
-    )
+    #add_product_status( order_data_processed=order_data, product_status_processed=product_status)
 
     # Sla op tot welke categorie elk product behoort: Bulk, rol of aankoop
 
@@ -503,6 +505,7 @@ def process_data(
     order_data_wk = data_aggregation(
         filtered_data=order_data_filtered, weekly=agg_weekly, exclude_su=exclude_su
     )
+
     gf.add_first_day_week(
         add_to=order_data_wk, week_col_name=cn.WEEK_NUMBER, set_as_index=True
     )

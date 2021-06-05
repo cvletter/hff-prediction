@@ -174,8 +174,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
         )
 
         prediction_output = pd.concat([all_predictions, boundaries.T, ma_predictions, all_wpredictions.T]).T.astype(int)
-        prediction_output.columns = ["voorspelling", "ondergrens", "bovengrens", "5weeks_gemiddelde",
-                                     "beter_weer", "slechter_weer"]
+        prediction_output.columns = ["voorspelling", "ondergrens", "bovengrens", "5weeks_gemiddelde", "beter_weer", "slechter_weer"]
 
         # all_predictions.drop(cn.BOOTSTRAP_ITER, axis=1, inplace=True)
 
@@ -211,8 +210,6 @@ def init_predict(date, window, reload):
         ))
     else:
         prediction_date = date
-
-    print("Aantal bootstraps:{}".format(ps.BOOTSTRAP_ITER))
 
     test = run_prediction_bootstrap(
         date_to_predict=prediction_date,
