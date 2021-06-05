@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import requests as re
 import zipfile as zf
+import sys
 import os
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
@@ -106,7 +107,13 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
     temp_weather_name = 'current_weather_data.zip'
 
     url = "https://cdn.knmi.nl/knmi/map/page/klimatologie/gegevens/daggegevens/etmgeg_260.zip"
-    r = re.get(url, allow_redirects=True)
+
+    try:
+        r = re.get(url, allow_redirects=True)
+    except re.exceptions.MissingSchema:
+        LOGGER.critical("Niet in staat om meest recente weerdata te downloaden, check connectie")
+        sys.exit(1)
+
     zfile = open(temp_weather_name, 'wb')
     zfile.write(r.content)
     zfile.close()
@@ -158,6 +165,8 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
                 cn.NEERSLAG_MM: "sum",
             }
         )
+
+        raw_weer_data[cn.NEERSLAG_MM][raw_weer_data[cn.NEERSLAG_MM] < 0.0] = 0.0
 
         raw_weer_data.columns = [
             cn.WEEK_NUMBER,
@@ -403,7 +412,11 @@ def find_active_products(
     """
 
     # Isoleert de rij met data van producten in de week waar een order moet zijn gemaakt
-    eval_data = raw_product_ts.loc[eval_week].T
+    try:
+        eval_data = raw_product_ts.loc[eval_week].T
+    except KeyError:
+        LOGGER.critical("Benodigde data niet beschikbaar voor het maken van een voorspelling, check input data ")
+        sys.exit(50)
     eval_data.drop("week_jaar", inplace=True, errors="ignore")
 
     # Evalueert hier welke producten een waarde beschikbaar hebben, m.a.w. bestellingen

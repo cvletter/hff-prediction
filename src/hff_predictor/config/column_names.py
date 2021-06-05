@@ -78,7 +78,12 @@ MONTH_COLS = [
 ]
 
 HOLIDAY_COLS = ["all_holidays_next4w"]
-WEATHER_COLS = ["temperatuur_gem_next4w", "neerslag_mm_next4w"]
+WEATHER_COLS = ["temperatuur_gem_next4w", "neerslag_mm_next4w", "zonuren_next4w"]
+
+WEATHER_PRED_COLS = ["temperatuur_gem_next3w", "neerslag_mm_next3w", "zonuren_next3w",
+                     "d_temperatuur_gem_next4w", "d_neerslag_mm_next4w", "d_zonuren_next4w",
+                     "d_temperatuur_gem_next3w", "d_neerslag_mm_next3w", "d_zonuren_next3w"]
+
 PERSCO_COLS = "persconferentie_next4w"
 
 STRUCTURAL_BREAK_COLS = [

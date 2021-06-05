@@ -116,7 +116,6 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
     # Bereid voorspelsetup voor
     start_setup = time.time()
     fit_data, predict_data = prediction_setup_wrapper(prediction_date=date_to_predict,
-                                                      weather_forecast=weather_forecast,
                                                       prediction_window=prediction_window, train_obs=train_obs,
                                                       nlags=lags, difference=difference, act_products=active_products,
                                                       exog_features=exogenous_features, save_to_pkl=False)
@@ -130,7 +129,8 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
     in_sample_fits, all_predictions, all_pars = fit_and_predict(fit_dict=fit_data, predict_dict=predict_data,
                                                                 model_type=model_type,
                                                                 feature_threshold=[feature_threshold[0],
-                                                                                   feature_threshold[1]])
+                                                                                   feature_threshold[1]],
+                                                                weather_forecast=weather_forecast)
 
     # Maak de moving average voorspellingen
     ma_predictions = moving_average(active_products=active_products, prediction_window=prediction_window,
@@ -169,6 +169,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
             iterations=bootstrap_iter,
             model_type=model_type,
             feature_threshold=feature_threshold,
+            weather_forecast=weather_forecast
         )
 
         prediction_output = pd.concat([all_predictions, boundaries.T, ma_predictions]).T.astype(int)

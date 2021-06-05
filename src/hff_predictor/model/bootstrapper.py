@@ -9,6 +9,7 @@ LOGGER = logging.getLogger(__name__)
 def bootstrap(prediction: pd.DataFrame,
               fit_dict: dict,
               predict_dict: dict,
+              weather_forecast: bool,
               bootstrap_sample: bool = True,
               iterations: int = 2,
               model_type: str = "OLS",
@@ -40,6 +41,7 @@ def bootstrap(prediction: pd.DataFrame,
             bootstrap=bootstrap_sample,
             model_type=model_type,
             feature_threshold=feature_threshold,
+            weather_forecast=weather_forecast
         )
 
         # Voeg iteratienummer toe

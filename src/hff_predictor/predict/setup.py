@@ -62,7 +62,7 @@ def split_products(active_products: pd.DataFrame, min_obs: int = cn.TRAIN_OBS,
     return products_model, products_no_model
 
 
-def create_lagged_sets(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, weather_forecast: bool,
+def create_lagged_sets(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame,
                        exogenous_features: pd.DataFrame, prediction_window: int, lags: Union[list, int]) -> tuple:
     """
     Functie om vertraagde en vooruitkijkende varianten te genereren van bestaande set met features
@@ -81,15 +81,9 @@ def create_lagged_sets(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
         exogenous_features['superunie_pct'], how='left')
 
     # Subset van variabelen die ook vooruit kunnen kijken, zoals feestdagen, campagnes en COVID features
-    exog_features_lookahead = exogenous_features['covid']
+    exog_features_lookahead = exogenous_features['covid'].join(exogenous_features['weather'], how='left')
 
     exog_features_lookahead_far = exogenous_features['holidays'].join(exogenous_features['campaigns'], how='left')
-
-    # Als weersvoorspellingen moeten worden meegenomen, voeg deze dan aan de look ahead set toe
-    if weather_forecast:
-        exog_features_lookahead = exog_features_lookahead.join(exogenous_features['weather'], how='left')
-    else:
-        exog_features_lookback = exog_features_lookback.join(exogenous_features['weather'], how='left')
 
     # Genereren van de vertraging voor lookback features
     exog_features_lookback_lags = dtr.create_lags(exog_features_lookback, lag_range=lags)
@@ -112,6 +106,7 @@ def create_lagged_sets(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
 
     exog_features_lookahead_lags = dtr.create_lags(exog_features_lookahead, lag_range=lookahead_range)
     exog_features_lookahead_far_lags = dtr.create_lags(exog_features_lookahead_far, lag_range=lookahead_far_range)
+
 
     exog_features_lookahead_combined_lags = exog_features_lookahead_lags.join(
         exog_features_lookahead_far_lags, how='left')
@@ -151,7 +146,7 @@ def create_predictive_context(y_modelable_lag: pd.DataFrame,
 
 
 def create_model_setup(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, exogenous_features: pd.DataFrame,
-                       weather_forecast: bool = False, difference: bool = False, lags: int = cn.N_LAGS,
+                       difference: bool = False, lags: int = cn.N_LAGS,
                        prediction_date: str = cn.PREDICTION_DATE,
                        prediction_window: int = cn.PREDICTION_WINDOW,) -> tuple:
     """
@@ -195,7 +190,6 @@ def create_model_setup(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
     # Maak de sets met vertraagde variabelen
     y_m_lags, y_nm_lags, X_lbl, X_lal, X_na = create_lagged_sets(y_modelable=y_modelable,
                                                                  y_nonmodelable=y_nonmodelable,
-                                                                 weather_forecast=weather_forecast,
                                                                  exogenous_features=exogenous_features,
                                                                  prediction_window=prediction_window,
                                                                  lags=lags)
@@ -249,7 +243,7 @@ def create_model_setup(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
     return model_fitting, model_prediction
 
 
-def prediction_setup_wrapper(prediction_date: str, prediction_window: int, train_obs: int, weather_forecast: bool,
+def prediction_setup_wrapper(prediction_date: str, prediction_window: int, train_obs: int,
                              nlags: int, difference: bool, act_products: pd.DataFrame,
                              exog_features: pd.DataFrame, save_to_pkl: bool = False,) -> tuple:
     """
@@ -290,7 +284,6 @@ def prediction_setup_wrapper(prediction_date: str, prediction_window: int, train
     # Maak hier de totale setup
     data_fitting, data_prediction = create_model_setup(y_modelable=products_model, y_nonmodelable=products_nmodel,
                                                        prediction_date=prediction_date,
-                                                       weather_forecast=weather_forecast,
                                                        prediction_window=prediction_window,
                                                        exogenous_features=exog_features,
                                                        difference=difference, lags=nlags,)
@@ -321,7 +314,6 @@ def init_setup_prediction():
         prediction_date="2021-04-26",
         prediction_window=2,
         train_obs=cn.TRAIN_OBS,
-        weather_forecast=True,
         nlags=3,
         difference=False,
         act_products=active_products_t,

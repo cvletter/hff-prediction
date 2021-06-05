@@ -103,6 +103,7 @@ config.json
 model_authorizer.json
 
 *.pkl
+*.csv
 *.log
 *.dot
 .DS_store
@@ -110,3 +111,6 @@ model_authorizer.json
 
 # Other
 # prediction/file_management.py
+
+# Powershell scripts
+*.ps1

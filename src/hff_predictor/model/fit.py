@@ -67,7 +67,7 @@ def get_top_correlations(y: pd.DataFrame, y_lags: pd.DataFrame, top_correl: int 
         return top_correlations, corrs
 
 
-def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame,
+def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame, weather_forecast: bool,
                       constant: bool = True, model: str = "OLS"):
     """
     Optimaliseren van autoregressieve componenten in model
@@ -85,7 +85,7 @@ def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame,
     all_season_features = X_exog[cn.SEASONAL_COLS]
     all_month_features = X_exog[cn.MONTH_COLS]
     all_holiday_features = X_exog[cn.HOLIDAY_COLS]
-    all_weather_features = X_exog[cn.WEATHER_COLS]
+
     all_persco_features = X_exog[cn.PERSCO_COLS]
     sorted_lags = y_ar.columns.sort_values(ascending=True)
 
@@ -93,8 +93,18 @@ def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame,
         all_season_features, how='left').join(
         all_month_features, how='left').join(
         all_holiday_features, how='left').join(
-        all_weather_features, how='left').join(
         all_persco_features, how='left')
+
+    # Verwijder deze variableen uit set met exogene features om dubbele selectie te voorkomen
+    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS + cn.MONTH_COLS + cn.HOLIDAY_COLS + [cn.PERSCO_COLS]
+
+    # Optie om weersvoorspelling aan benchmark toe te voegen
+    if weather_forecast:
+        all_weather_features = X_exog[cn.WEATHER_COLS]
+        all_baseline_features = all_baseline_features.join(
+            all_weather_features, how='left')
+
+        drop_cols += cn.WEATHER_COLS
 
     # Verwijder features als ze volledig bestaan uit nullen
     use_baseline_features = all_baseline_features.loc[
@@ -132,17 +142,13 @@ def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame,
     # Optimale lag waarden
     lag_values = y_ar.iloc[:, :optimal_lags]
 
-    # Verwijder deze variableen uit set met exogene features om dubbele selectie te voorkomen
-    drop_cols = cn.SEASONAL_COLS + cn.STRUCTURAL_BREAK_COLS + cn.MONTH_COLS + cn.HOLIDAY_COLS \
-                + cn.WEATHER_COLS + [cn.PERSCO_COLS]
-
     X_exog_rf = X_exog.drop(columns=drop_cols, inplace=False, errors="ignore")
 
     return lag_values.join(use_baseline_features, how="left"), X_exog_rf
 
 
-def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame,
-                    add_constant: bool = True, model:str = "OLS", feature_threshold: list = None):
+def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, weather_forecast: bool,
+                    add_constant: bool = True, model: str = "OLS", feature_threshold: list = None):
     """
     Hier worden de modellen gefit in batch vorm, of wel voor alle producten
 
@@ -166,6 +172,8 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame,
     optimized_ar_features = {}
     optimized_exog_features = {}
 
+    X_exog_nw = X_exog.drop(cn.WEATHER_PRED_COLS, inplace=False, axis=1)
+
     # Schat en optimaliseer model per product
     for product in Y.columns:
         y_name = product
@@ -180,8 +188,9 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame,
         y_ar_other = Y_ar.iloc[:, lag_index_other]
 
         # Optimaliseer eerst autoregressieve componenten
-        ar_baseline, X_exog_rf = optimize_ar_model(y=y, y_ar=y_ar, X_exog=X_exog,
-                                                   constant=add_constant, model=model)
+        ar_baseline, X_exog_rf = optimize_ar_model(y=y, y_ar=y_ar, X_exog=X_exog_nw,
+                                                   constant=add_constant, model=model,
+                                                   weather_forecast=weather_forecast)
 
         # Schat het baseline model, nog zonder exogene factoren
         baseline_fit = fit_model(y=y, X=ar_baseline, model=model)
@@ -238,7 +247,8 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame,
 
 def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog: pd.DataFrame,
                           fitted_models: list, Yf_ar_opt: pd.DataFrame, Yf_exog_opt: pd.DataFrame,
-                          add_constant: bool = True, prep_input: bool = True, model_type: str = "OLS",
+                          weather_forecast: bool, add_constant: bool = True, prep_input: bool = True,
+                          model_type: str = "OLS",
                           find_comparable_model: bool = True):
     """
     Maakt hier de  voorspellingen in batch vorm
@@ -292,8 +302,10 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
 
         # Totale set met features
         Xp_tot = Xp_ar_m.join(Xp_arx_m, how="left")
+        # print(Xp_tot['b_period_2'])
 
         # Maak voorspelling aan de hand van predictor functie
+        #TODO weather forecast param aan predictor toevoegen
         Y_pred[y_name_m] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[y_name_m], model=model_type)
         # Y_pred[y_name_m] = fitted_models[y_name_m].predict(Xp_tot)
 
@@ -338,12 +350,13 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
 
         Xp_tot = Xp_ar_nm.join(Xp_arx_cp, how="left")
 
+        # TODO weather forecast param aan predictor toevoegen
         Y_pred[y_name_nm] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[closest_product_name], model=model_type)
 
     return Y_pred
 
 
-def fit_and_predict(fit_dict: dict, predict_dict: dict, model_type: str = "OLS",
+def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, model_type: str = "OLS",
                     bootstrap: bool = False, feature_threshold: list = None) -> tuple:
     """
     Combinatie functie van schatten van het model en het maken van de voorspelling
@@ -390,7 +403,8 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, model_type: str = "OLS",
         Yar_fit = Yar_org
         X_fit = X_org
 
-    # Fit hier de modellen
+
+    # Fit standaard model
     Yis_fit, model_fits, all_pars, Yar_opt, X_opt = batch_fit_model(
         Y=Y_fit,
         Y_ar=Yar_fit,
@@ -398,9 +412,10 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, model_type: str = "OLS",
         X_exog=X_fit,
         model=model_type,
         feature_threshold=[feature_threshold[0], feature_threshold[1]],
+        weather_forecast=weather_forecast
     )
 
-    # Maak hier de voorspellingen
+    # Maak standaard voorspellingen
     Yos_pred = batch_make_prediction(
         Yp_ar_m=predict_dict[cn.Y_AR_M],
         Yp_ar_nm=predict_dict[cn.Y_AR_NM],
@@ -411,6 +426,36 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, model_type: str = "OLS",
         add_constant=True,
         model_type=model_type,
         find_comparable_model=True,
+        weather_forecast=weather_forecast
+    )
+
+    # Fit weersvoorspelling model
+    wYis_fit, wmodel_fits, wall_pars, wYar_opt, wX_opt = batch_fit_model(
+        Y=Y_fit,
+        Y_ar=Yar_fit,
+        add_constant=True,
+        X_exog=X_fit,
+        model=model_type,
+        feature_threshold=[feature_threshold[0], feature_threshold[1]],
+        weather_forecast=True
+    )
+
+    print(X_fit['temperatuur_gem_next2w'][0:2])
+    print(X_fit['zonuren_next2w'][0:2])
+    print(X_fit['neerslag_mm_next2w'][0:2])
+
+    # Maak voorspellingen met weersvoorspellingen
+    wYos_pred = batch_make_prediction(
+        Yp_ar_m=predict_dict[cn.Y_AR_M],
+        Yp_ar_nm=predict_dict[cn.Y_AR_NM],
+        Xp_exog=predict_dict[cn.X_EXOG],
+        fitted_models=wmodel_fits,
+        Yf_ar_opt=wYar_opt,
+        Yf_exog_opt=wX_opt,
+        add_constant=True,
+        model_type=model_type,
+        find_comparable_model=True,
+        weather_forecast=False
     )
 
 

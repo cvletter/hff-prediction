@@ -28,7 +28,7 @@ def fit_model(y: pd.Series, X: pd.DataFrame, model: str = "OLS"):
         return tree_based_types.tree_based_fit(y=y, X=X)
 
 
-def predictor(Xpred: pd.DataFrame, fitted_model, model: str = "OLS"):
+def predictor(Xpred: pd.DataFrame, fitted_model, weather_scenario: bool = False, model: str = "OLS"):
     """
     Voorspel wrapping funcite omwille van verschillende model types
 
@@ -39,6 +39,10 @@ def predictor(Xpred: pd.DataFrame, fitted_model, model: str = "OLS"):
     """
     regression_method = ["OLS", "Poisson", "Negative-Binomial"]
     tree_method = ["XGBoost", "LightGBM"]
+
+    if weather_scenario:
+        pass
+
 
     # Model selectie
     if model in regression_method:

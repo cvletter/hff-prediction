@@ -12,4 +12,4 @@ MIN_CORRELATION = 0.2            # Minimum correlatie die een feature moet hebbe
 FEATURE_OPT = [MIN_CORRELATION,  # Combinatie van bovenstaande parameters
                MAX_FEATURES]
 FEATURE_PERIOD_LENGTH = 2500     # Number of days to generate for features
-WEATHER_FORECAST = True          # Weersfactoren worden ook als voorspelling meegenomen
+WEATHER_FORECAST = False          # Weersfactoren worden ook als voorspelling meegenomen
