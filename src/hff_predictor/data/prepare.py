@@ -22,9 +22,28 @@ def process_order_data() -> pd.DataFrame:
     :return: Verwerking van ruwe data, voegt datum toe, hernoemt variabelen en maakt ze geschikt voor verder gebruik.
     Hier wordt nog geen data verwijderd.
     """
+    order_data = read_latest_file(folder=fm.ORDER_DATA_FOLDER, file_extension="\*.csv")
 
-    order_data = read_latest_file(folder=fm.ORDER_DATA_FOLDER, file_extension="\*.xlsx")
+    raw_data = pd.read_csv(order_data,
+                           dtype={
+                                "Artikelgroep": int,
+                                "ConsGrp Naam": str,
+                                "Organisatie": str,
+                                "Superunie": str,
+                                "InkoopRecept": int,
+                                "InkoopRecept Omschrijving": str,
+                                "Weekjaar": str,
+                                "Periode": str,
+                                "Week": int,
+                                "Leverdatum": str,
+                                "Order": str,
+                                "Artikelen": str,
+                                "Artikelomschrijving": str,
+                                "Besteld #CE": int,
+                            },
+                            )
 
+    """
     raw_data = pd.read_excel(
         order_data,
         dtype={
@@ -44,6 +63,7 @@ def process_order_data() -> pd.DataFrame:
             "Besteld #CE": int,
         },
     )
+    """
 
     raw_data.rename(
         columns={
