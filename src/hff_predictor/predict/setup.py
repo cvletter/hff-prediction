@@ -107,7 +107,6 @@ def create_lagged_sets(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame,
     exog_features_lookahead_lags = dtr.create_lags(exog_features_lookahead, lag_range=lookahead_range)
     exog_features_lookahead_far_lags = dtr.create_lags(exog_features_lookahead_far, lag_range=lookahead_far_range)
 
-
     exog_features_lookahead_combined_lags = exog_features_lookahead_lags.join(
         exog_features_lookahead_far_lags, how='left')
 

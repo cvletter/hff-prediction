@@ -126,11 +126,12 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
 
     # Schat hier de modellen en maak de voorspellingen
     start_fit = time.time()
-    in_sample_fits, all_predictions, all_pars = fit_and_predict(fit_dict=fit_data, predict_dict=predict_data,
-                                                                model_type=model_type,
-                                                                feature_threshold=[feature_threshold[0],
-                                                                                   feature_threshold[1]],
-                                                                weather_forecast=weather_forecast)
+    in_sample_fits, all_predictions, all_pars, all_wpredictions = fit_and_predict(
+        fit_dict=fit_data, predict_dict=predict_data,
+        model_type=model_type,
+        feature_threshold=[feature_threshold[0],
+                           feature_threshold[1]],
+        weather_forecast=weather_forecast)
 
     # Maak de moving average voorspellingen
     ma_predictions = moving_average(active_products=active_products, prediction_window=prediction_window,
@@ -172,8 +173,9 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
             weather_forecast=weather_forecast
         )
 
-        prediction_output = pd.concat([all_predictions, boundaries.T, ma_predictions]).T.astype(int)
-        prediction_output.columns = ["voorspelling", "ondergrens", "bovengrens", "5weeks_gemiddelde"]
+        prediction_output = pd.concat([all_predictions, boundaries.T, ma_predictions, all_wpredictions.T]).T.astype(int)
+        prediction_output.columns = ["voorspelling", "ondergrens", "bovengrens", "5weeks_gemiddelde",
+                                     "beter_weer", "slechter_weer"]
 
         # all_predictions.drop(cn.BOOTSTRAP_ITER, axis=1, inplace=True)
 

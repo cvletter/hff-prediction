@@ -248,7 +248,7 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
 def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog: pd.DataFrame,
                           fitted_models: list, Yf_ar_opt: pd.DataFrame, Yf_exog_opt: pd.DataFrame,
                           weather_forecast: bool, add_constant: bool = True, prep_input: bool = True,
-                          model_type: str = "OLS",
+                          model_type: str = "OLS", weather_values: dict = None,
                           find_comparable_model: bool = True):
     """
     Maakt hier de  voorspellingen in batch vorm
@@ -277,6 +277,10 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
 
     Y_pred = pd.DataFrame(index=Yp_ar_m.index)
 
+    if weather_values is not None:
+        Y_pred_bw = pd.DataFrame(index=Yp_ar_m.index)
+        Y_pred_ww = pd.DataFrame(index=Yp_ar_m.index)
+
     # Verwijder de lag underscript ('_last1w'), is exact 7 tekens
     Ym_products = list(set([x[:-7] for x in Yp_ar_m.columns]))  # Remove 'lag' tag
 
@@ -302,12 +306,14 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
 
         # Totale set met features
         Xp_tot = Xp_ar_m.join(Xp_arx_m, how="left")
-        # print(Xp_tot['b_period_2'])
 
         # Maak voorspelling aan de hand van predictor functie
-        #TODO weather forecast param aan predictor toevoegen
-        Y_pred[y_name_m] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[y_name_m], model=model_type)
-        # Y_pred[y_name_m] = fitted_models[y_name_m].predict(Xp_tot)
+        if weather_values is not None:
+            Y_pred_bw[y_name_m], Y_pred_ww[y_name_m] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[y_name_m],
+                                                                model=model_type, weather_scenario=weather_values)
+        else:
+            Y_pred[y_name_m] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[y_name_m],
+                                         model=model_type, weather_scenario=weather_values)
 
     # Selecteer hier de producten die niet-modelleerbaar zijn
     Ynm_products = list(set([x[:-7] for x in Yp_ar_nm.columns]))
@@ -350,8 +356,23 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
 
         Xp_tot = Xp_ar_nm.join(Xp_arx_cp, how="left")
 
-        # TODO weather forecast param aan predictor toevoegen
-        Y_pred[y_name_nm] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[closest_product_name], model=model_type)
+        if weather_values is not None:
+            Y_pred_bw[y_name_nm], Y_pred_ww[y_name_nm] = predictor(Xpred=Xp_tot,
+                                                                   fitted_model=fitted_models[closest_product_name],
+                                                                   model=model_type, weather_scenario=weather_values)
+
+        else:
+            Y_pred[y_name_nm] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[closest_product_name],
+                                          model=model_type, weather_scenario=weather_values)
+
+    if weather_values is not None:
+        Y_pred_bw = Y_pred_bw.T
+        Y_pred_bw.columns = ['beter_weer']
+
+        Y_pred_ww = Y_pred_ww.T
+        Y_pred_ww.columns = ['slechter_weer']
+
+        Y_pred = Y_pred_bw.join(Y_pred_ww)
 
     return Y_pred
 
@@ -430,37 +451,44 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
     )
 
     # Fit weersvoorspelling model
-    wYis_fit, wmodel_fits, wall_pars, wYar_opt, wX_opt = batch_fit_model(
-        Y=Y_fit,
-        Y_ar=Yar_fit,
-        add_constant=True,
-        X_exog=X_fit,
-        model=model_type,
-        feature_threshold=[feature_threshold[0], feature_threshold[1]],
-        weather_forecast=True
-    )
 
-    print(X_fit['temperatuur_gem_next2w'][0:2])
-    print(X_fit['zonuren_next2w'][0:2])
-    print(X_fit['neerslag_mm_next2w'][0:2])
+    if bootstrap:
+        return Yis_fit, Yos_pred, all_pars
 
-    # Maak voorspellingen met weersvoorspellingen
-    wYos_pred = batch_make_prediction(
-        Yp_ar_m=predict_dict[cn.Y_AR_M],
-        Yp_ar_nm=predict_dict[cn.Y_AR_NM],
-        Xp_exog=predict_dict[cn.X_EXOG],
-        fitted_models=wmodel_fits,
-        Yf_ar_opt=wYar_opt,
-        Yf_exog_opt=wX_opt,
-        add_constant=True,
-        model_type=model_type,
-        find_comparable_model=True,
-        weather_forecast=False
-    )
+    if not bootstrap:
+        wYis_fit, wmodel_fits, wall_pars, wYar_opt, wX_opt = batch_fit_model(
+            Y=Y_fit,
+            Y_ar=Yar_fit,
+            add_constant=True,
+            X_exog=X_fit,
+            model=model_type,
+            feature_threshold=[feature_threshold[0], feature_threshold[1]],
+            weather_forecast=True
+        )
+
+        weather_values = {'temperatuur_gem_next4w': np.mean(X_fit['temperatuur_gem_next2w'][0:2]),
+                          'zonuren_next4w': np.mean(X_fit['zonuren_next2w'][0:2]),
+                          'neerslag_mm_next4w': np.mean(X_fit['neerslag_mm_next2w'][0:2])}
 
 
+        # Maak voorspellingen met weersvoorspellingen
+        wYos_pred = batch_make_prediction(
+            Yp_ar_m=predict_dict[cn.Y_AR_M],
+            Yp_ar_nm=predict_dict[cn.Y_AR_NM],
+            Xp_exog=predict_dict[cn.X_EXOG],
+            fitted_models=wmodel_fits,
+            Yf_ar_opt=wYar_opt,
+            Yf_exog_opt=wX_opt,
+            add_constant=True,
+            model_type=model_type,
+            find_comparable_model=True,
+            weather_forecast=True,
+            weather_values=weather_values
+        )
 
-    return Yis_fit, Yos_pred, all_pars
+        return Yis_fit, Yos_pred, all_pars, wYos_pred
+
+
 
 
 def init_train():
