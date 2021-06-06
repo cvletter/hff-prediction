@@ -85,7 +85,6 @@ def optimize_ar_model(y: pd.Series, y_ar: pd.DataFrame, X_exog: pd.DataFrame, we
     all_season_features = X_exog[cn.SEASONAL_COLS]
     all_month_features = X_exog[cn.MONTH_COLS]
     all_holiday_features = X_exog[cn.HOLIDAY_COLS]
-
     all_persco_features = X_exog[cn.PERSCO_COLS]
     sorted_lags = y_ar.columns.sort_values(ascending=True)
 
@@ -466,9 +465,9 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
             weather_forecast=True
         )
 
-        weather_values = {'temperatuur_gem_next4w': np.mean(X_fit['temperatuur_gem_next2w'][0:2]),
-                          'zonuren_next4w': np.mean(X_fit['zonuren_next2w'][0:2]),
-                          'neerslag_mm_next4w': np.mean(X_fit['neerslag_mm_next2w'][0:2])}
+        weather_values = {'temperatuur_gem_next2w': np.mean(X_fit['temperatuur_gem_next2w'][0:2]),
+                          'zonuren_next2w': np.mean(X_fit['zonuren_next2w'][0:2]),
+                          'neerslag_mm_next2w': np.mean(X_fit['neerslag_mm_next2w'][0:2])}
 
 
         # Maak voorspellingen met weersvoorspellingen

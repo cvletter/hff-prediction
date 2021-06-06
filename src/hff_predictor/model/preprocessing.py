@@ -58,7 +58,7 @@ def predictor(Xpred: pd.DataFrame, fitted_model, weather_scenario = None, model:
         X_new = X.copy(deep=True)
 
         for c in cn.WEATHER_COLS:
-            if c == 'neerslag_mm_nextw4w':
+            if c == 'neerslag_mm_next2w':
                 X_new.loc[:, c] = weather_scenario[c] * (1-factor)
             else:
                 X_new.loc[:, c] = weather_scenario[c] * (1+factor)

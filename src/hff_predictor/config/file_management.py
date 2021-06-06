@@ -1,5 +1,6 @@
 # Key folders
 BASE_FOLDER = "E:\Productie Voorspelmodel\Data"
+# BASE_FOLDER = "U:\Productie Voorspelmodel"
 
 # Input folders
 ORDER_DATA_FOLDER = BASE_FOLDER + "\Input\Bestellingen"

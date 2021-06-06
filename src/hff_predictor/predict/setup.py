@@ -63,91 +63,62 @@ def split_products(active_products: pd.DataFrame, min_obs: int = cn.TRAIN_OBS,
     return products_model, products_no_model
 
 
-def create_lagged_sets(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame,
-                       exogenous_features: pd.DataFrame, prediction_window: int, lags: Union[list, int]) -> tuple:
-    """
-    Functie om vertraagde en vooruitkijkende varianten te genereren van bestaande set met features
+def create_predictive_context(y_modelable,
+                               y_nonmodelable,
+                               exogenous_features,
+                               prediction_date,
+                               prediction_window):
 
-    :param y_modelable: Dataset met modelleerbare producten
-    :param y_nonmodelable: Dataset met niet-modelleerbare producten
-    :param weather_forecast: Genereer weersvoorspellingen
-    :param exogenous_features: Externe factoren
-    :param prediction_window: Voorspelwindow, vaak 2
-    :param lags: Aantal vertragingen of vooruitkijkende punten
-    :return: Set met vertraagde variabelen
-    """
+    current_max_date = y_modelable.index.max()
+    required_max_date = prediction_date
+    n_dates = int(4 + (required_max_date - current_max_date).days / 7)
+    dates_to_add = [current_max_date + datetime.timedelta(days=7*i) for i in range(1, n_dates+1)]
+    new_index = list(y_modelable.index) + dates_to_add
+
+    def context_creator(data, required_index, prediction_window):
+        data_new = pd.DataFrame(index=required_index).sort_index(ascending=False, inplace=False)
+        data_new = data_new.join(data, how='left')
+        return data_new.shift(-prediction_window)[:-prediction_window]
+
+    y_mod_context = context_creator(data=y_modelable, required_index=new_index, prediction_window=prediction_window)
+    y_nmod_context = context_creator(data=y_nonmodelable, required_index=new_index, prediction_window=prediction_window)
+    exogenous_features_context = {}
+    for x in exogenous_features.keys():
+        exogenous_features_context[x] = context_creator(data=exogenous_features[x], required_index=new_index,
+                                                            prediction_window=prediction_window)
+
+    return y_mod_context, y_nmod_context, exogenous_features_context
+
+
+def create_lagged_sets(y_mod_context, y_nmod_context, exogenous_features_context, lags, prediction_window):
+
+    y_mod_lags = dtr.create_lags(data=y_mod_context, lag_range=lags)
+    y_nmod_lags = dtr.create_lags(data=y_nmod_context, lag_range=lags)
 
     # Subset van variabelen die alleen kunnen terugkijken: Superunie factoren (o.b.v. bestellingen) en weer
-    exog_features_lookback = exogenous_features['superunie_n'].join(
-        exogenous_features['superunie_pct'], how='left')
+    exog_features_lookback = exogenous_features_context['superunie_n'].join(
+        exogenous_features_context['superunie_pct'], how='left')
+
+    exog_features_lookback_lags = dtr.create_lags(data=exog_features_lookback, lag_range=lags)
 
     # Subset van variabelen die ook vooruit kunnen kijken, zoals feestdagen, campagnes en COVID features
-    exog_features_lookahead = exogenous_features['weather'].join(exogenous_features['covid'], how='left')
+    exog_features_lookahead = exogenous_features_context['weather'].join(
+        exogenous_features_context['covid'], how='left').join(
+        exogenous_features_context['holidays'], how='left').join(
+        exogenous_features_context['campaigns'], how='left')
 
-    exog_features_lookahead_far = exogenous_features['holidays'].join(exogenous_features['campaigns'], how='left')
-
-    # Genereren van de vertraging voor lookback features
-    exog_features_lookback_lags = dtr.create_lags(exog_features_lookback, lag_range=lags)
-    y_m_lags = dtr.create_lags(y_modelable, lag_range=lags)
-    y_nm_lags = dtr.create_lags(y_nonmodelable, lag_range=lags)
+    lookahead_range = list(reversed(range(-lags, prediction_window + 1)))
+    exog_features_lookahead_lags = dtr.create_lags(data=exog_features_lookahead, lag_range=lookahead_range)
 
     # Voor seizoenen en structurele breuken wordt nu geen correctie uitgevoerd
-    exog_features_no_adj = exogenous_features['seasons'].join(exogenous_features['breaks'], how='left')
+    exog_features_no_adj = exogenous_features_context['seasons'].join(exogenous_features_context['breaks'], how='left')
 
-    # Hier staat nu hard-coded welke range de faetures vooruit kunnen kijken
-
-    # +3, betekent een range tot (-lags, 5). Dit leidt tot een range met voorspellingen tot + 4 weken vooruit
-    # In de volgende functie wordt de voorspelcontext gezet, waardoor er 2 weken vanuaf gaan
-    # Hier door wordt er feitelijkt maar 4 - 2 = 2 weken vooruit gekeken, ofwel de week van de voorspelling
-    lookahead = prediction_window + 3
-    lookahead_range = list(reversed(range(-lags, lookahead)))
-
-    lookahead_far = prediction_window + 5
-    lookahead_far_range = list(reversed(range(-lags, lookahead_far)))
-
-    exog_features_lookahead_lags = dtr.create_lags(exog_features_lookahead, lag_range=lookahead_range)
-
-    exog_features_lookahead_far_lags = dtr.create_lags(exog_features_lookahead_far, lag_range=lookahead_far_range)
-
-    exog_features_lookahead_combined_lags = exog_features_lookahead_lags.join(
-        exog_features_lookahead_far_lags, how='left')
-
-    return (y_m_lags, y_nm_lags,
-            exog_features_lookback_lags,
-            exog_features_lookahead_combined_lags,
-            exog_features_no_adj)
-
-
-def create_predictive_context(y_modelable_lag: pd.DataFrame,
-                              y_nonmodelable_lag: pd.DataFrame,
-                              features_lag_lookback: pd.DataFrame,
-                              features_lag_lookahead: pd.DataFrame,
-                              features_no_adj: pd.DataFrame,
-                              prediction_window: int) -> tuple:
-
-    # Zorg dat niet aangepaste features in juiste volgorde staan en verschuif dan de waarden in de juiste context
-    # Deze verschuif ik nu dus 2 weken vooruit, om ze mee te kunnen nemen in het totaal en die vervolgens
-    # 2 weken te vertragen, waardoor de niet aangepaste features ook echt niet aangepast worden
-    features_na_corr = features_no_adj.sort_index(ascending=False).shift(prediction_window)
-
-    # Breng alle features bij elkaar
-    features_total = features_lag_lookback.join(
-        features_lag_lookahead, how='left').join(
-        features_na_corr, how='left'
+    exog_features_total = exog_features_lookback_lags.join(
+        exog_features_lookahead_lags, how="left").join(
+        exog_features_no_adj, how="left"
     )
 
-    # Breng de juiste voorspelcontext aan en verwijder nu NaN waarden onderaan
-    features_total_shift = features_total.shift(-prediction_window)[:-prediction_window]
-
-    features_total2 = features_lag_lookahead.shift(-prediction_window).join(
-        features_lag_lookback, how='left').join(features_na_corr, how='left')[:-prediction_window]
-    fill_missing_values(features_total2)
-
-    return (y_modelable_lag.shift(-prediction_window)[:-prediction_window],
-            y_nonmodelable_lag.shift(-prediction_window)[:-prediction_window],
-            features_total2,
-            features_total_shift
-            )
+    return y_mod_lags, y_nmod_lags, exog_features_total
 
 
 def create_model_setup(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, exogenous_features: pd.DataFrame,
@@ -192,40 +163,37 @@ def create_model_setup(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
         y_modelable = dtr.first_difference_data(undifferenced_data=y_modelable, delta=1, scale=False)
         y_nonmodelable = dtr.first_difference_data(undifferenced_data=y_nonmodelable, delta=1, scale=False)
 
-    # Maak de sets met vertraagde variabelen
-    y_m_lags, y_nm_lags, X_lbl, X_lal, X_na = create_lagged_sets(y_modelable=y_modelable,
-                                                                 y_nonmodelable=y_nonmodelable,
-                                                                 exogenous_features=exogenous_features,
-                                                                 prediction_window=prediction_window,
-                                                                 lags=lags)
+    # Maak predictive context
+    y_mod_context, y_nmod_context, exogenous_features_context = create_predictive_context(
+        y_modelable=y_modelable,
+        y_nonmodelable=y_nonmodelable,
+        exogenous_features=exogenous_features,
+        prediction_date=prediction_date,
+        prediction_window=prediction_window)
 
-    # Maak de verschillende sets in de juiste context
-    # AR features modelleerbaar en niet modelleerbaar, features totaal (exog_t) en features in context (exog_l)
-    y_ar_m, y_ar_nm, X_exog_t, X_exog_l = create_predictive_context(y_modelable_lag=y_m_lags,
-                                                                    y_nonmodelable_lag=y_nm_lags,
-                                                                    features_lag_lookback=X_lbl,
-                                                                    features_lag_lookahead=X_lal,
-                                                                    features_no_adj=X_na,
-                                                                    prediction_window=prediction_window)
+    y_mod_lags, y_nmod_lags, exog_features_total = create_lagged_sets(
+        y_mod_context=y_mod_context,
+        y_nmod_context=y_nmod_context,
+        exogenous_features_context=exogenous_features_context,
+        lags=lags,
+        prediction_window=prediction_window)
+
 
     # Zet de fitting window
     max_date = last_train_date
-    min_date = y_ar_m.index.min() + datetime.timedelta(days=7*lags) # Adjust for lags
+    min_date = y_mod_lags.index.min() + datetime.timedelta(days=7*lags) # Adjust for lags
 
     # Maak de juiste fit sets: AR factoren, externe factoren en werkelijke waarden
-    y_ar_m_fit = y_ar_m.loc[max_date: min_date]
-    X_exog_fit = X_exog_l.loc[y_ar_m_fit.index]
+    y_ar_m_fit = y_mod_lags.loc[max_date: min_date]
+    X_exog_fit = exog_features_total.loc[y_ar_m_fit.index]
     y_true_fit = y_modelable.loc[y_ar_m_fit.index]
 
     # Isoleer de waarden die gaan worden gebruikt voor predictie
-    yl_ar_m_prd = y_m_lags.loc[last_train_date]
-    yl_ar_nm_prd = y_nm_lags.loc[last_train_date]
-    X_exog_prd = X_exog_t.loc[last_train_date]
+    yl_ar_m_prd = y_mod_lags.loc[prediction_date]
+    yl_ar_nm_prd = y_nmod_lags.loc[prediction_date]
+    X_exog_prd = exog_features_total.loc[prediction_date]
 
     # Pas de index aan van de waarden die worden gebruikt voor de voorspelling
-    yl_ar_m_prd.name += datetime.timedelta(days=prediction_window * 7)
-    yl_ar_nm_prd.name += datetime.timedelta(days=prediction_window * 7)
-    X_exog_prd.name += datetime.timedelta(days=prediction_window * 7)
 
     # Verzamel alle fit elementen in een dict
     model_fitting = {

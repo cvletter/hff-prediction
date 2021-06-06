@@ -1,6 +1,7 @@
 import datetime
 import pandas as pd
 import hff_predictor.config.column_names as cn
+import hff_predictor.data.transformations as dtr
 
 
 def prep_su_features(input_order_data: pd.DataFrame, prediction_date: str, train_obs: int, index_col: str):
@@ -104,6 +105,9 @@ def prep_su_features(input_order_data: pd.DataFrame, prediction_date: str, train
 
     rename_cols(input_data=su_pct, suffix="SU_pct")
     rename_cols(input_data=su_n, suffix="SU_count")
+
+    dtr.fill_missing_values(data=su_pct)
+    dtr.fill_missing_values(data=su_n)
 
     return su_pct.sort_index(ascending=False, inplace=False), su_n.sort_index(
         ascending=False, inplace=False
