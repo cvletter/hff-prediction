@@ -94,7 +94,15 @@ def first_day_of_week(prediction_window: int = cn.PREDICTION_WINDOW):
     # Stel voorspeldatum vast o.b.v. prediction window
     prediction_for = last_monday + datetime.timedelta(days=prediction_window*7)
 
+    if current_day.isoweekday() == 1:
+        prediction_for -= datetime.timedelta(days=(prediction_window-1)*7)
+
     current_week = datetime.datetime.strftime(last_monday, "%Y-%m-%d")
     prediction_date = datetime.datetime.strftime(prediction_for, "%Y-%m-%d")
+
+    LOGGER.info("De voorspelweek wordt automatisch bepaald, "
+                "de huidige week start op: {}, voorspelling wordt gemaakt voor {}".format(current_week,
+                                                                                          prediction_date
+                                                                                          ))
 
     return current_week, prediction_date

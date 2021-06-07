@@ -1,4 +1,5 @@
 import time
+import sys
 import hff_predictor.generic.files as fl
 import pandas as pd
 import hff_predictor.config.column_names as cn
@@ -173,14 +174,19 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
             weather_forecast=weather_forecast
         )
 
-        prediction_output = pd.concat([all_predictions, boundaries.T, ma_predictions, all_wpredictions.T]).T.astype(int)
-        prediction_output.columns = ["voorspelling", "ondergrens", "bovengrens", "5weeks_gemiddelde", "beter_weer", "slechter_weer"]
+        pred_out = pd.concat([all_predictions, boundaries.T, ma_predictions, all_wpredictions.T]).T
+        nan_values = pred_out.isna().sum().sum()
 
-        # all_predictions.drop(cn.BOOTSTRAP_ITER, axis=1, inplace=True)
+        try:
+            prediction_output = pred_out.astype(int)
+            LOGGER.debug("Er zijn {} ontbrekende voorspellingen".format(nan_values))
+        except ValueError:
+            LOGGER.critical("Er zijn {} ontbrekende voorspellingen, controleer of data correct is ingeladen,"
+                            " de voorspelling is gestopt".format(nan_values))
+            sys.exit(1)
 
-        na_values = all_predictions.isna().sum().sum()
-        if na_values > 0:
-            LOGGER.warning("In {} there are {} na_values".format(date_to_predict, na_values))
+        prediction_output.columns = ["voorspelling", "ondergrens", "bovengrens",
+                                     "5weeks_gemiddelde", "beter_weer", "slechter_weer"]
 
         elapsed_bootstrap = round((time.time() - start_bootstrap), 2)
         LOGGER.debug("Bootstrap voorspellingen zijn gemaakt, dit duurde {} seconden".format(elapsed_bootstrap))
@@ -203,11 +209,6 @@ def init_predict(date, window, reload):
     # Bepaalt hier de week waar een voorspelling voor moet worden gemaakt o.b.v. automatische detectie
     if date == cn.DEFAULT_PRED_DATE:
         current_week, prediction_date = first_day_of_week()
-
-        LOGGER.info("Using automated week detection, current week starts on {}, making a prediction for {}". format(
-            current_week,
-            prediction_date
-        ))
     else:
         prediction_date = date
 
