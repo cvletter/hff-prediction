@@ -29,13 +29,14 @@ def save_to_pkl(data: pd.DataFrame, file_name: str, folder: str):
     :return: Geeft niks terug
     """
     current_time = datetime.datetime.now()
-    set_timestamp = "{}{}{}_{}{}".format(
+    set_timestamp = "{}{:02d}{:02d}_{}{}".format(
         current_time.year,
         current_time.month,
         current_time.day,
         current_time.hour,
         current_time.minute,
     )
+
 
     save_as = "{}/{}_{}.p".format(folder, file_name, set_timestamp)
     search_in_folder = folder + "\*.p"
@@ -79,7 +80,7 @@ def save_to_csv(data: pd.DataFrame, file_name: str, folder: str):
     :return: Geeft niks terug
     """
     current_time = datetime.datetime.now()
-    set_timestamp = "{}{}{}_{}{}".format(
+    set_timestamp = "{}{:02d}{:02d}_{}{}".format(
         current_time.year,
         current_time.month,
         current_time.day,
