@@ -3,6 +3,7 @@ import pickle as pkl
 import os
 import glob
 import pandas as pd
+import hff_predictor.config.file_management as fm
 
 import logging
 LOGGER = logging.getLogger(__name__)
@@ -90,9 +91,10 @@ def save_to_csv(data: pd.DataFrame, file_name: str, folder: str):
     search_in_folder = folder + "\*.csv"
     current_latest_file = max(glob.iglob(pathname=search_in_folder), key=os.path.getctime)
 
-    for i in glob.glob(search_in_folder):
-        if i != current_latest_file:
-            os.remove(i)
+    if folder != fm.PREDICTIONS_FOLDER:
+        for i in glob.glob(search_in_folder):
+            if i != current_latest_file:
+                os.remove(i)
 
     data.to_csv(save_as, sep=";", decimal=",")
 
