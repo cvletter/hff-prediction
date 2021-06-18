@@ -135,7 +135,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
         weather_forecast=weather_forecast)
 
     # Maak de moving average voorspellingen
-    ma_predictions = moving_average(active_products=active_products, prediction_window=prediction_window,
+    ma_predictions, ma_now = moving_average(active_products=active_products, prediction_window=prediction_window,
                                     prediction_date=date_to_predict)
 
     elapsed_prediction = round((time.time() - start_fit), 2)
@@ -155,8 +155,10 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
 
     # Verzamel de MA voorspelling
     all_output[date_to_predict][cn.MA_BENCHMARK] = ma_predictions.astype(int)
+    all_output[date_to_predict]["last_week"] = ma_now.astype(int)
 
     # Maak een apart object aan voor de voorspellingen, ter voorbereiding op eventuele bootstrap
+
     prediction_output = all_predictions
 
     if do_bootstrap:
@@ -174,7 +176,8 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
             weather_forecast=weather_forecast
         )
 
-        pred_out = pd.concat([all_predictions, boundaries.T, ma_predictions, all_wpredictions.T]).T
+        pred_out = pd.concat([ma_now, all_predictions, boundaries.T, ma_predictions, all_wpredictions.T]).T
+
         nan_values = pred_out.isna().sum().sum()
 
         try:
@@ -185,8 +188,11 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
                             " de voorspelling is gestopt".format(nan_values))
             sys.exit(1)
 
-        prediction_output.columns = ["voorspelling", "ondergrens", "bovengrens",
-                                     "5weeks_gemiddelde", "beter_weer", "slechter_weer"]
+        prediction_output['modelleerbaar'] = "Ja"
+        prediction_output.loc[fit_data[cn.NON_MOD_PROD], 'modelleerbaar'] = "Nee"
+
+        prediction_output.columns = ["afgelopen_week", "voorspelling", "ondergrens", "bovengrens",
+                                     "5weeks_gemiddelde", "beter_weer", "slechter_weer", "modelleerbaar"]
 
         elapsed_bootstrap = round((time.time() - start_bootstrap), 2)
         LOGGER.debug("Bootstrap voorspellingen zijn gemaakt, dit duurde {} seconden".format(elapsed_bootstrap))

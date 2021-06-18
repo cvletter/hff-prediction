@@ -178,7 +178,6 @@ def create_model_setup(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
         lags=lags,
         prediction_window=prediction_window)
 
-
     # Zet de fitting window
     max_date = last_train_date
     min_date = y_mod_lags.index.min() + datetime.timedelta(days=7*lags) # Adjust for lags
@@ -212,6 +211,7 @@ def create_model_setup(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
         cn.Y_M_UNDIF: y_m_ltd,
         cn.Y_NM_UNDIF: y_nm_ltd,
     }
+
 
     return model_fitting, model_prediction
 

@@ -57,10 +57,10 @@ def bootstrap(prediction: pd.DataFrame,
 
     # Bepaal bandbreedtes; staat nu op min en max
     boundaries = pd.DataFrame([])
-    # boundaries["lower_boundary"] = all_predictions.quantile(q=0.025)
-    # boundaries["upper_boundary"] = all_predictions.quantile(q=0.975)
-    boundaries["lower_boundary"] = all_predictions.min()
-    boundaries["upper_boundary"] = all_predictions.max()
+    boundaries["lower_boundary"] = all_predictions.quantile(q=0.10)
+    boundaries["upper_boundary"] = all_predictions.quantile(q=0.90)
+    # boundaries["lower_boundary"] = all_predictions.min()
+    # boundaries["upper_boundary"] = all_predictions.max()
 
     boundaries.drop(cn.BOOTSTRAP_ITER, axis=0, inplace=True)
 

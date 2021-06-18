@@ -35,9 +35,12 @@ def moving_average(active_products: pd.DataFrame, prediction_date: str, periods:
     Y_org = pd.concat([products_model, products_no_model], axis=1)
     Y_ma_p = Y_org[(Y_org.index > ma_end) & (Y_org.index <= ma_start)]
     Y_ma_p.reset_index(inplace=True, drop=True)
+    Y_ma_now = Y_org[Y_org.index == ma_start].reset_index(inplace=False, drop=True)
 
     # Bepaalde moving average
     Y_ma_r = pd.DataFrame(index=[prediction_date], columns=Y_org.columns)
+    Y_ma_n = pd.DataFrame(index=[prediction_date], columns=Y_org.columns)
     Y_ma_r.loc[prediction_date, :] = Y_ma_p.mean(axis=0, skipna=True)
+    Y_ma_n.loc[prediction_date, :] = Y_ma_now.mean(axis=0, skipna=True)
 
-    return Y_ma_r
+    return Y_ma_r, Y_ma_n
