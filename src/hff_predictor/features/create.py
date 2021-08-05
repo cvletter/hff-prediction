@@ -46,7 +46,7 @@ def prep_all_features(
     all_features['campaigns'] = campaigns.prep_campaign_features(campaign_data=campaign_data_su)
     all_features['covid'] = covid.prep_covid_features()
     all_features['breaks'] = structural_breaks.prep_level_shifts()
-    all_features['superunie_pct'], all_features['superunie_n'] = superunie.prep_su_features(
+    __, all_features['superunie_n'] = superunie.prep_su_features(
         input_order_data=order_data_su,
         prediction_date=prediction_date,
         train_obs=train_obs,
