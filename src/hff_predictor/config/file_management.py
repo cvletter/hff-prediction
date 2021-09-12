@@ -7,6 +7,9 @@ ORDER_DATA_FOLDER = BASE_FOLDER + "\Input\Bestellingen"
 PRODUCT_STATUS_FOLDER = BASE_FOLDER + "\Input\Productstatus"
 CAMPAIGN_DATA_FOLDER = BASE_FOLDER + "\Input\Campagnes"
 
+# Input SU leden
+ORDER_DATA_FOLDER_HP = BASE_FOLDER + "\Input\Bestellingen Hollander"
+
 # Processed folders
 WEATHER_DATA_PPR_FOLDER = BASE_FOLDER + "\Processed\Weer\Preprocessed"
 WEATHER_DATA_PR_FOLDER = BASE_FOLDER + "\Processed\Weer\Processed"

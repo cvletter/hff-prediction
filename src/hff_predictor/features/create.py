@@ -3,7 +3,7 @@ import hff_predictor.generic.files
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 from hff_predictor.features.feature_types import weather, campaigns, covid, \
-    seasonal, superunie, structural_breaks
+    seasonal, superunie, structural_breaks, sales
 
 import logging
 LOGGER = logging.getLogger(__name__)
@@ -46,6 +46,7 @@ def prep_all_features(
     all_features['campaigns'] = campaigns.prep_campaign_features(campaign_data=campaign_data_su)
     all_features['covid'] = covid.prep_covid_features()
     all_features['breaks'] = structural_breaks.prep_level_shifts()
+    all_features['plus_sales'] = sales.plus_sales()
     __, all_features['superunie_n'] = superunie.prep_su_features(
         input_order_data=order_data_su,
         prediction_date=prediction_date,
