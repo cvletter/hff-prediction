@@ -22,7 +22,7 @@ LOGGER = logging.getLogger(__name__)
 def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
                              train_obs: int, difference: bool, lags: int, weather_forecast: bool,
                              model_type: str, feature_threshold: list = None, bootstrap_iter: int = None,
-                             reload_data: bool = False, save_predictions: bool = False):
+                             reload_data: bool = False, su_member: str = None, save_predictions: bool = False):
     """
     Deze functie brengt alles bij elkaar, van data inladen tot maken van voorspellingen
 
@@ -93,7 +93,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
     start_prep = time.time()
     active_products, inactive_products, weather_data_processed, order_data_su, campaign_data_pr = data_prep_wrapper(
         prediction_date=date_to_predict, prediction_window=prediction_window, reload_data=reload_data,
-        agg_weekly=True, exclude_su=True, save_to_csv=True)
+        agg_weekly=True, exclude_su=True, su_member=su_member, save_to_csv=True)
 
     elapsed_prep = round((time.time() - start_prep), 2)
 
@@ -202,6 +202,8 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
     if save_predictions:
         pred_out = add_product_number(data=prediction_output)
         save_name = "predictions_p{}_d{}".format(prediction_window, date_to_predict)
+        if su_member is not None:
+            save_name = "{}_{}".format(save_name, su_member.lower())
         fl.save_to_csv(data=pred_out, file_name=save_name, folder=fm.PREDICTIONS_FOLDER)
 
     elapsed = round((time.time() - start_total), 2)
@@ -210,7 +212,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
     return all_output
 
 
-def init_predict(date, window, reload):
+def init_predict(date, window, reload, su_member):
 
     # Bepaalt hier de week waar een voorspelling voor moet worden gemaakt o.b.v. automatische detectie
     if date == cn.DEFAULT_PRED_DATE:
@@ -229,5 +231,6 @@ def init_predict(date, window, reload):
         feature_threshold=ps.FEATURE_OPT,
         bootstrap_iter=ps.BOOTSTRAP_ITER,
         reload_data=reload,
+        su_member=su_member,
         save_predictions=True
     )

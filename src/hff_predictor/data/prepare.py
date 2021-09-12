@@ -461,6 +461,7 @@ def find_active_products(
 def process_data(
         agg_weekly=True,
         exclude_su=True,
+        su_member=None,
         save_to_csv=False,
 ) -> [pd.DataFrame, pd.DataFrame]:
     """
@@ -469,6 +470,7 @@ def process_data(
     beschikbaar moet zijn
     :param agg_weekly: Wekelijks aggregeren
     :param exclude_su: Aggrgeren over SU of niet
+    :param su_member: Selecteert alleen de bestellingen voor een specifiek SU-LID
     :param save_to_csv: Opslaan van de resultaten
     :return:
     """
@@ -500,6 +502,12 @@ def process_data(
 
     # Filteren van besteldata
     order_data_filtered = data_filtering(order_data)
+
+    # Selectie van specifiek SU lid
+
+    if su_member is not None:
+        order_data_filtered = order_data_filtered[order_data_filtered[cn.ORGANISATIE] == su_member]
+        LOGGER.debug("Selected only data for SU member: {}".format(su_member))
 
     # Aggregeren van data naar wekelijks niveau en halffabrikaat
     order_data_wk = data_aggregation(
@@ -552,6 +560,7 @@ def data_prep_wrapper(
         prediction_window: int,
         reload_data=False,
         agg_weekly=True,
+        su_member=None,
         exclude_su=True,
         save_to_csv=False,
 ) -> [pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -581,6 +590,7 @@ def data_prep_wrapper(
         ) = process_data(
             agg_weekly=agg_weekly,
             exclude_su=exclude_su,
+            su_member=su_member,
             save_to_csv=True
         )
 

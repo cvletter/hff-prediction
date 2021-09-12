@@ -20,7 +20,8 @@ model_settings = {
     "ar_lags": ps.N_LAGS,
     "fit_model": ps.MODEL_TYPE,
     "feature_threshold": ps.FEATURE_OPT,
-    "bootstraps": ps.BOOTSTRAP_ITER,
+    "bootstraps": 1,
+    "su_member": "Hollander Plus",
     "weather_forecast": ps.WEATHER_FORECAST
 }
 
@@ -42,6 +43,7 @@ def batch_prediction_bs(prediction_date: str):
     feature_threshold = model_settings["feature_threshold"]
     bootstrap_iterations = model_settings["bootstraps"]
     weather_forecast = model_settings["weather_forecast"]
+    su_member = model_settings["su_member"]
 
     # Maakt voorspelling
     LOGGER.info("Maak voorspelling voor datum: {}".format(prediction_date))
@@ -55,6 +57,7 @@ def batch_prediction_bs(prediction_date: str):
         lags=ar_lags,
         model_type=fit_model,
         feature_threshold=[feature_threshold[0], feature_threshold[1]],
+        su_member=su_member,
         bootstrap_iter=bootstrap_iterations,
     )
 

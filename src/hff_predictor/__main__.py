@@ -65,6 +65,13 @@ def main():
     )
 
     parser.add_argument(
+        "--su_member",
+        "-f",
+        type=str,
+        default=None
+    )
+
+    parser.add_argument(
         "--summary",
         "-s",
         type=str,
@@ -82,7 +89,7 @@ def main():
 
     for method in mode_methods[arguments.mode]:
         if arguments.mode in ["predict"]:
-            method(arguments.date, arguments.window, arguments.reload)
+            method(arguments.date, arguments.window, arguments.reload, arguments.su_member)
         elif arguments.mode in ["test"]:
             method(arguments.date, arguments.periods)
         elif arguments.mode in ["evaluate"]:
