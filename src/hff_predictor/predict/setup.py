@@ -96,8 +96,7 @@ def create_lagged_sets(y_mod_context, y_nmod_context, exogenous_features_context
     y_nmod_lags = dtr.create_lags(data=y_nmod_context, lag_range=lags)
 
     # Subset van variabelen die alleen kunnen terugkijken: Superunie factoren (o.b.v. bestellingen) en weer
-    exog_features_lookback = exogenous_features_context['superunie_n']
-        # .join(exogenous_features_context['plus_sales'], how='left')
+    exog_features_lookback = exogenous_features_context['superunie_n'].join(exogenous_features_context['plus_sales'], how='left')
 
     exog_features_lookback_lags = dtr.create_lags(data=exog_features_lookback, lag_range=lags)
 

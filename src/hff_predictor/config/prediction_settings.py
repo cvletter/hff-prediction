@@ -1,5 +1,5 @@
 # Settings waar voorspelling mee wordt gemaakt, zowel voor test als make
-TRAIN_OBS = 65                   # Aantal observasties waar modellen mee worden getraind
+TRAIN_OBS = 70                   # Aantal observasties waar modellen mee worden getraind
 PREDICTION_WINDOW = 2            # Voorspelwindow
 HOLIDAY_FORWARD = 2
 N_LAGS = 4                       # Aantal weken dat wordt teruggekeken

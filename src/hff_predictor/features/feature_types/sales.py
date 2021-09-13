@@ -2,6 +2,9 @@ import pandas as pd
 import hff_predictor.config.column_names as cn
 import hff_predictor.generic.dates as gf
 
+import logging
+LOGGER = logging.getLogger(__name__)
+
 
 def plus_sales():
 
@@ -9,7 +12,7 @@ def plus_sales():
     raw_data = "hollander_bestellingen.xlsx"
     ean_data = "hollander_ean.xlsx"
 
-    order_data = pd.read_excel(file_loc + "\\" + raw_data)
+    order_data = pd.read_excel(io=file_loc + "\\" + raw_data, sheet_name='661B100')
     ean_data = pd.read_excel(file_loc + "\\" + ean_data)
 
     order_data[cn.WEEK_NUMBER] = order_data["WeekQV"].astype(str) + "-" + order_data["Jaar"].astype(str)
@@ -25,6 +28,8 @@ def plus_sales():
             index=cn.FIRST_DOW, columns='Artikel omschrijving', values='TOT'
         )
     )
+
+    LOGGER.critical("The last available week of data for sales data is {}.".format(pivoted_data.index.max()))
 
     pivoted_data['total'] = pivoted_data.sum(axis=1)
     pivoted_data.sort_index(ascending=False, inplace=True)
