@@ -25,19 +25,32 @@ def plus_sales():
     ean_1b_join = pd.merge(ean_data_1b, artikelen, how="left", left_on="ArtikelNummer", right_on="Artikelen")
 
     ean_1b_hp = pd.merge(ean_1b_join, ean_data_hp, how="inner", left_on="Artikel EAN CE", right_on="CEAN")
+    ean_1b_hp = ean_1b_hp[ean_1b_hp["Plant"] == "Katwijk"]
+
+    selected_columns = ['ArtikelNummer', 'Artikel Naam', 'aantal_pp',
+                        'InkoopRecept', 'InkoopRecept Omschrijving', 'Artikel code omschrijving']
+
+    selected_data = ean_1b_hp[selected_columns]
+    selected_data['Artikel code'] = selected_data['Artikel code omschrijving'].str.split(" ").str[0].astype(int)
+    join_table = selected_data[['InkoopRecept', 'InkoopRecept Omschrijving', 'aantal_pp', 'Artikel code']]
+
+    join_table.drop_duplicates(inplace=True, keep='first')
+
+    order_data_join = pd.merge(order_data, join_table, how="left", left_on="Artikel code", right_on="Artikel code")
 
     # TODO Juiste kolommen toevoegen voor vertaling naar inkoop recept naam
     # Vertaling maken van HE naar CE
     # Voorraad uitrekenen
     # Koppelen op productniveau
-    order_data_tot = order_data[[cn.FIRST_DOW, 'TOT', 'Artikel omschrijving']]
+    order_data_tot = order_data_join[[cn.FIRST_DOW, 'TOT', 'Artikel omschrijving', 'InkoopRecept', 'InkoopRecept Omschrijving', 'aantal_pp']]
+    order_data_tot["sales_ce"] = order_data_tot["TOT"] * order_data_tot["aantal_pp"]
 
-    order_data_agg = order_data_tot.groupby(['Artikel omschrijving', cn.FIRST_DOW], as_index=False).agg({'TOT': "sum"})
+    order_data_agg = order_data_tot.groupby(['InkoopRecept Omschrijving', cn.FIRST_DOW], as_index=False).agg({'sales_ce': "sum"})
 
     # Hier wordt de pivot uitgevoerd
     pivoted_data = pd.DataFrame(
         order_data_agg.pivot(
-            index=cn.FIRST_DOW, columns='Artikel omschrijving', values='TOT'
+            index=cn.FIRST_DOW, columns='InkoopRecept Omschrijving', values='sales_ce'
         )
     )
 
