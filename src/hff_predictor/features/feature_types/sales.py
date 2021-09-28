@@ -1,6 +1,8 @@
 import pandas as pd
 import hff_predictor.config.column_names as cn
 import hff_predictor.generic.dates as gf
+import hff_predictor.generic.files
+import hff_predictor.config.file_management as fm
 
 import logging
 LOGGER = logging.getLogger(__name__)
@@ -61,5 +63,22 @@ def plus_sales():
 
     final_data = pivoted_data.fillna(value=0)
 
+    new_col_names = []
+    for i in final_data.columns:
+        col_name = "{}_sales".format(i)
+        new_col_names.append(col_name)
+
+    final_data.columns = new_col_names
+
     return final_data
 
+
+"""order_data = hff_predictor.generic.files.import_temp_file(
+    data_loc=fm.ORDER_DATA_ACT_PR_FOLDER,
+    set_index=True
+)
+
+shared_cols = list(set(final_data.columns).intersection(order_data.columns))
+
+final_data_act = final_data[shared_cols]
+order_data_act = order_data[shared_cols]"""

@@ -168,6 +168,13 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
             ar_baseline = ar_baseline.join(X_weather_baseline, how='left')
 
         # Schat het baseline model, nog zonder exogene factoren
+
+        sales_name = "{}_sales_last0w".format(y_name)
+        if sales_name in X_exog_rf.columns:
+            ar_baseline[sales_name] = X_exog_rf[sales_name]
+            X_exog_rf.drop(sales_name, axis=1, inplace=True)
+            print("Found Plus sales column forr {}, added to baseline.".format(y_name))
+
         baseline_fit = fit_model(y=y, X=ar_baseline, model=model)
 
         # Collectie van alle mogelijke factoren
