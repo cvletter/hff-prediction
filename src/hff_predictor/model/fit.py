@@ -169,11 +169,17 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
 
         # Schat het baseline model, nog zonder exogene factoren
 
-        sales_name = "{}_sales_last0w".format(y_name)
-        if sales_name in X_exog_rf.columns:
-            ar_baseline[sales_name] = X_exog_rf[sales_name]
-            X_exog_rf.drop(sales_name, axis=1, inplace=True)
-            print("Found Plus sales column forr {}, added to baseline.".format(y_name))
+        sales_name = "{}_sales_last".format(y_name)
+
+        cols_check = [sales_name in x for x in X_exog_rf.columns]
+        sales_cols = X_exog_rf.iloc[:, cols_check].columns
+
+        if len(sales_cols):
+            sales_cols.sort_values()
+            sales_cols_select = sales_cols[:2]
+            ar_baseline[sales_cols_select] = X_exog_rf[sales_cols_select]
+            X_exog_rf.drop(sales_cols_select, axis=1, inplace=True)
+            LOGGER.debug("Found Plus sales column forr {}, added to baseline.".format(y_name))
 
         baseline_fit = fit_model(y=y, X=ar_baseline, model=model)
 
