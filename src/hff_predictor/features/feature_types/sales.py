@@ -10,16 +10,40 @@ LOGGER = logging.getLogger(__name__)
 
 def plus_sales():
 
+    # Location of all Plus data sales
     file_loc = "U:\Productie Voorspelmodel\Input\Bestellingen Hollander"
-    raw_data = "hollander_bestellingen.xlsx"
-    ean_hp = "hollander_ean.xlsx"
-    ean_1b = "1bite_ean.xlsx"
-    artikel_overzicht = "artikelen_overzicht.csv"
 
+    raw_data = "hollander_bestellingen.xlsx"  # Orders from the DC to local stores
+    raw_sales_data = "hollander_verkopen.xlsx"
+    ean_hp = "hollander_ean.xlsx"  # Overview of products and product numbers from Plus
+    ean_1b = "1bite_ean.xlsx"  # Overview of products and product numbers from 1BITE
+    artikel_overzicht = "artikelen_overzicht.csv" # Combination of both Plus and 1BITE product numbers
+
+    # Import data
     order_data = pd.read_excel(io=file_loc + "\\" + raw_data, sheet_name='661B100')
     ean_data_hp = pd.read_excel(file_loc + "\\" + ean_hp)
     ean_data_1b = pd.read_excel(file_loc + "\\" + ean_1b)
     artikelen = pd.read_csv(file_loc + "\\" + artikel_overzicht, sep=";")
+
+    # Process all sales data into one DataFrame
+    sub_files = ["2020 - 1-26", "2020 - 27-53", "2021 - 1-26", "2021 - 27-52"]
+    total_sales_data = pd.DataFrame([])
+
+    for sf in sub_files:
+        sf_year = sf[:4]
+        sales_data = pd.read_excel(io=file_loc + "\\" + raw_sales_data, sheet_name=sf)
+        sales_data.drop('Artikelomschrijving', axis=1, inplace=True)
+
+        sales_data.set_index('ArtnrCE', inplace=True)
+        sales_data_stacked = pd.DataFrame(sales_data.stack(dropna=False))
+        sales_data_stacked.reset_index(inplace=True)
+        sales_data_stacked.columns = ['ArtnrCE', cn.WEEK_NUMBER, "plus_sales"]
+
+        sales_data_stacked[cn.WEEK_NUMBER] = sales_data_stacked[cn.WEEK_NUMBER].astype(str) + "-" + sf_year
+        gf.add_first_day_week(add_to=sales_data_stacked)
+        total_sales_data = total_sales_data.append(sales_data_stacked)
+
+    total_sales_data["ArtnrCE"] += 1
 
     order_data[cn.WEEK_NUMBER] = order_data["WeekQV"].astype(str) + "-" + order_data["Jaar"].astype(str)
     gf.add_first_day_week(add_to=order_data)
@@ -29,16 +53,17 @@ def plus_sales():
     ean_1b_hp = pd.merge(ean_1b_join, ean_data_hp, how="inner", left_on="Artikel EAN CE", right_on="CEAN")
     ean_1b_hp = ean_1b_hp[ean_1b_hp["Plant"] == "Katwijk"]
 
-    selected_columns = ['ArtikelNummer', 'Artikel Naam', 'aantal_pp',
+    selected_columns = ['ArtikelNummer', 'Artikel Naam', 'aantal_pp', 'ArtikelnrPlus',
                         'InkoopRecept', 'InkoopRecept Omschrijving', 'Artikel code omschrijving']
 
     selected_data = ean_1b_hp[selected_columns]
     selected_data['Artikel code'] = selected_data['Artikel code omschrijving'].str.split(" ").str[0].astype(int)
-    join_table = selected_data[['InkoopRecept', 'InkoopRecept Omschrijving', 'aantal_pp', 'Artikel code']]
+    join_table = selected_data[['InkoopRecept', 'InkoopRecept Omschrijving',
+                                'ArtikelnrPlus', 'aantal_pp', 'Artikel code']]
 
     join_table.drop_duplicates(inplace=True, keep='first')
-
-    order_data_join = pd.merge(order_data, join_table, how="left", left_on="Artikel code", right_on="Artikel code")
+    sales_data_join = pd.merge(total_sales_data, join_table, how="inner", left_on="ArtnrCE", right_on="ArtikelnrPlus")
+    order_data_join = pd.merge(order_data, join_table, how="inner", left_on="Artikel code", right_on="Artikel code")
 
     # TODO Juiste kolommen toevoegen voor vertaling naar inkoop recept naam
     # Vertaling maken van HE naar CE
