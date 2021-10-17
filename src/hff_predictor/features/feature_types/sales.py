@@ -49,7 +49,6 @@ def plus_sales():
     gf.add_first_day_week(add_to=order_data)
 
     ean_1b_join = pd.merge(ean_data_1b, artikelen, how="left", left_on="ArtikelNummer", right_on="Artikelen")
-
     ean_1b_hp = pd.merge(ean_1b_join, ean_data_hp, how="inner", left_on="Artikel EAN CE", right_on="CEAN")
     ean_1b_hp = ean_1b_hp[ean_1b_hp["Plant"] == "Katwijk"]
 
@@ -62,48 +61,58 @@ def plus_sales():
                                 'ArtikelnrPlus', 'aantal_pp', 'Artikel code']]
 
     join_table.drop_duplicates(inplace=True, keep='first')
-    sales_data_join = pd.merge(total_sales_data, join_table, how="inner", left_on="ArtnrCE", right_on="ArtikelnrPlus")
-    order_data_join = pd.merge(order_data, join_table, how="inner", left_on="Artikel code", right_on="Artikel code")
+    sales_data_join = pd.merge(total_sales_data, join_table, how="left", left_on="ArtnrCE", right_on="ArtikelnrPlus")
+    order_data_join = pd.merge(order_data, join_table, how="left", left_on="Artikel code", right_on="Artikel code")
 
-    # TODO Juiste kolommen toevoegen voor vertaling naar inkoop recept naam
-    # Vertaling maken van HE naar CE
-    # Voorraad uitrekenen
-    # Koppelen op productniveau
-    order_data_tot = order_data_join[[cn.FIRST_DOW, 'TOT', 'Artikel omschrijving', 'InkoopRecept', 'InkoopRecept Omschrijving', 'aantal_pp']]
-    order_data_tot["sales_ce"] = order_data_tot["TOT"] * order_data_tot["aantal_pp"]
+    def prepare_data(input_data, orders=True):
+        if orders:
+            prep_data = input_data[[cn.FIRST_DOW, 'TOT', 'InkoopRecept', 'InkoopRecept Omschrijving', 'aantal_pp']]
+            prep_data["sales_ce"] = prep_data["TOT"] * prep_data["aantal_pp"]
+        else:
+            prep_data = input_data[[cn.FIRST_DOW, 'plus_sales', 'InkoopRecept', 'InkoopRecept Omschrijving', 'aantal_pp']]
+            prep_data["sales_ce"] = prep_data["plus_sales"]
 
-    order_data_agg = order_data_tot.groupby(['InkoopRecept Omschrijving', cn.FIRST_DOW], as_index=False).agg({'sales_ce': "sum"})
+        order_data_agg = prep_data.groupby(['InkoopRecept Omschrijving', cn.FIRST_DOW], as_index=False).agg({'sales_ce': "sum"})
 
-    # Hier wordt de pivot uitgevoerd
-    pivoted_data = pd.DataFrame(
-        order_data_agg.pivot(
-            index=cn.FIRST_DOW, columns='InkoopRecept Omschrijving', values='sales_ce'
+        # Hier wordt de pivot uitgevoerd
+        pivoted_data = pd.DataFrame(
+            order_data_agg.pivot(
+                index=cn.FIRST_DOW, columns='InkoopRecept Omschrijving', values='sales_ce'
+            )
         )
-    )
 
-    LOGGER.critical("The last available week of data for sales data is {}.".format(pivoted_data.index.max()))
+        LOGGER.critical("The last available week of data for sales data is {}.".format(pivoted_data.index.max()))
 
-    pivoted_data['total'] = pivoted_data.sum(axis=1)
-    pivoted_data.sort_index(ascending=False, inplace=True)
+        pivoted_data['total'] = pivoted_data.sum(axis=1)
+        pivoted_data.sort_index(ascending=False, inplace=True)
 
-    final_data = pivoted_data.fillna(value=0)
+        final_data = pivoted_data.fillna(value=0)
 
-    new_col_names = []
-    for i in final_data.columns:
-        col_name = "{}_sales".format(i)
-        new_col_names.append(col_name)
+        new_col_names = []
+        subscript = "sales" if orders else "sales_cons"
 
-    final_data.columns = new_col_names
+        for i in final_data.columns:
+            col_name = "{}_{}".format(i, subscript)
+            new_col_names.append(col_name)
 
-    return final_data
+        final_data.columns = new_col_names
+        # print(final_data.head())
 
+        return final_data
+
+    # sales_data = prepare_data(input_data=order_data_join, orders=True)
+    sales_cons_data = prepare_data(input_data=sales_data_join, orders=False)
+
+    return sales_cons_data
 
 """order_data = hff_predictor.generic.files.import_temp_file(
     data_loc=fm.ORDER_DATA_ACT_PR_FOLDER,
     set_index=True
 )
 
-shared_cols = list(set(final_data.columns).intersection(order_data.columns))
+data = plus_sales()
 
-final_data_act = final_data[shared_cols]
-order_data_act = order_data[shared_cols]"""
+order_data.to_csv("bestellingen.csv",sep=";", decimal=",")
+sales_data.to_csv("distributie.csv", sep=";", decimal=",")
+sales_cons_data.to_csv("verkopen.csv", sep=";", decimal=",")
+shared_cols = list(set(sales_cons_data.columns).intersection(order_data.columns))"""

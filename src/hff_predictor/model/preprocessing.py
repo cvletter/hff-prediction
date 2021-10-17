@@ -29,7 +29,8 @@ def fit_model(y: pd.Series, X: pd.DataFrame, model: str = "OLS"):
         return tree_based_types.tree_based_fit(y=y, X=X)
 
 
-def predictor(Xpred: pd.DataFrame, fitted_model, weather_scenario = None, model: str = "OLS"):
+def predictor(Xpred: pd.DataFrame, fitted_model, weather_scenario = None, model: str = "OLS",
+              prediction_window: int = 2):
     """
     Voorspel wrapping funcite omwille van verschillende model types
 
@@ -54,10 +55,12 @@ def predictor(Xpred: pd.DataFrame, fitted_model, weather_scenario = None, model:
 
         return pred
 
-    def replace_feature_values(X, factor):
+    def replace_feature_values(X, factor, prediction_window=prediction_window):
         X_new = X.copy(deep=True)
+        temperature = 'temperatuur_gem_next{}w'.format(prediction_window)
+        weather_cols = [temperature]
 
-        for c in cn.WEATHER_COLS:
+        for c in weather_cols:
             if c == 'neerslag_mm_next2w':
                 X_new.loc[:, c] = weather_scenario[c] * (1-factor)
             else:

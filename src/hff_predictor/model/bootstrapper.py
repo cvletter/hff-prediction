@@ -10,6 +10,7 @@ def bootstrap(prediction: pd.DataFrame,
               fit_dict: dict,
               predict_dict: dict,
               weather_forecast: bool,
+              prediction_window: int = 2,
               bootstrap_sample: bool = True,
               iterations: int = 2,
               model_type: str = "OLS",
@@ -20,6 +21,7 @@ def bootstrap(prediction: pd.DataFrame,
     :param prediction: Huidige voorspelling
     :param fit_dict: Fit dataset, gebruikt om modellen te schatten
     :param predict_dict: Predictie dataset, om voorspelling te maken
+    :param prediction_window:
     :param bootstrap_sample: Parameter om aan te geven of data moet worden ge-bootstrapped
     :param iterations: Aantal bootsrap iteraties
     :param model_type: Type voorspelmodel
@@ -40,6 +42,7 @@ def bootstrap(prediction: pd.DataFrame,
             predict_dict=predict_dict,
             bootstrap=bootstrap_sample,
             model_type=model_type,
+            prediction_window=prediction_window,
             feature_threshold=feature_threshold,
             weather_forecast=weather_forecast
         )
