@@ -176,18 +176,18 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
             ar_baseline = ar_baseline.join(X_weather_baseline, how='left')
 
         # Schat het baseline model, nog zonder exogene factoren
+        if cn.ADD_PLUS:
+            sales_name = "{}_sales_cons_last".format(y_name)
 
-        sales_name = "{}_sales_cons_last".format(y_name)
+            cols_check = [sales_name in x for x in X_exog_rf.columns]
+            sales_cols = X_exog_rf.iloc[:, cols_check].columns
 
-        cols_check = [sales_name in x for x in X_exog_rf.columns]
-        sales_cols = X_exog_rf.iloc[:, cols_check].columns
-
-        if len(sales_cols):
-            sales_cols.sort_values()
-            sales_cols_select = sales_cols[:2]
-            ar_baseline[sales_cols_select] = X_exog_rf[sales_cols_select]
-            X_exog_rf.drop(sales_cols_select, axis=1, inplace=True)
-            LOGGER.debug("Found Plus sales column for {}, added to baseline.".format(y_name))
+            if len(sales_cols):
+                sales_cols.sort_values()
+                sales_cols_select = sales_cols[:2]
+                ar_baseline[sales_cols_select] = X_exog_rf[sales_cols_select]
+                X_exog_rf.drop(sales_cols_select, axis=1, inplace=True)
+                # LOGGER.debug("Found Plus sales column for {}, added to baseline.".format(y_name))
 
         baseline_fit = fit_model(y=y, X=ar_baseline, model=model)
 
@@ -259,7 +259,7 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
     :param prep_input: Bereid input voor
     :param model_type: Type model
     :param prediction_window:
-    :param find_comparable_model: Vind een vergleijkbaar model voor niet voorspelbare modellen
+    :param find_comparable_model: Vind een vergelijkbaar model voor niet voorspelbare modellen
     :return: Voorspelling per producten
     """
 
@@ -306,6 +306,7 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
 
         # Totale set met features
         Xp_tot = Xp_ar_m.join(Xp_arx_m, how="left")
+
 
         # Maak voorspelling aan de hand van predictor functie
         if weather_values is not None:

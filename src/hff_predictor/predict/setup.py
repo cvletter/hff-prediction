@@ -12,6 +12,16 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
+def na_filter(data, days, limit_missing):
+    total_cols = data.shape[1]
+    selection = data.iloc[:days, :]
+    filter1 = selection.isna().sum()
+    filter1 = filter1[filter1 <= limit_missing].index
+    dropped = total_cols - len(filter1)
+    LOGGER.debug("Dropped {} columns of total {} columns".format(dropped, total_cols))
+    return data[filter1]
+
+
 def split_products(active_products: pd.DataFrame, min_obs: int = cn.TRAIN_OBS,
                    prediction_date: str = cn.PREDICTION_DATE, prediction_window: int = cn.PREDICTION_WINDOW) -> tuple:
     """
@@ -98,7 +108,9 @@ def create_lagged_sets(y_mod_context, y_nmod_context, exogenous_features_context
 
     # Subset van variabelen die alleen kunnen terugkijken: Superunie factoren (o.b.v. bestellingen) en weer
     exog_features_lookback = exogenous_features_context['superunie_n']
-    #    .join( exogenous_features_context['plus_sales'], how='left')
+
+    if cn.ADD_PLUS:
+        exog_features_lookback = exog_features_lookback.join( exogenous_features_context['plus_sales'], how='left')
 
     exog_features_lookback_lags = dtr.create_lags(data=exog_features_lookback, lag_range=lags)
 
@@ -118,6 +130,8 @@ def create_lagged_sets(y_mod_context, y_nmod_context, exogenous_features_context
         exog_features_lookahead_lags, how="left").join(
         exog_features_no_adj, how="left"
     )
+
+    # Drop features with too little observastions
 
     return y_mod_lags, y_nmod_lags, exog_features_total
 
@@ -185,13 +199,19 @@ def create_model_setup(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
 
     # Maak de juiste fit sets: AR factoren, externe factoren en werkelijke waarden
     y_ar_m_fit = y_mod_lags.loc[max_date: min_date]
-    X_exog_fit = exog_features_total.loc[y_ar_m_fit.index]
     y_true_fit = y_modelable.loc[y_ar_m_fit.index]
+
+    obs = len(y_ar_m_fit)
+    lmt = int(0.05 * obs)
+
+    exog_features_filter = na_filter(data=exog_features_total, days=obs, limit_missing=lmt)
+
+    X_exog_fit = exog_features_filter.loc[y_ar_m_fit.index]
 
     # Isoleer de waarden die gaan worden gebruikt voor predictie
     yl_ar_m_prd = y_mod_lags.loc[prediction_date]
     yl_ar_nm_prd = y_nmod_lags.loc[prediction_date]
-    X_exog_prd = exog_features_total.loc[prediction_date]
+    X_exog_prd = exog_features_filter.loc[prediction_date]
 
     # Pas de index aan van de waarden die worden gebruikt voor de voorspelling
 
@@ -212,7 +232,6 @@ def create_model_setup(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
         cn.Y_M_UNDIF: y_m_ltd,
         cn.Y_NM_UNDIF: y_nm_ltd,
     }
-
 
     return model_fitting, model_prediction
 

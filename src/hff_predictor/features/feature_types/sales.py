@@ -32,12 +32,13 @@ def plus_sales():
     for sf in sub_files:
         sf_year = sf[:4]
         sales_data = pd.read_excel(io=file_loc + "\\" + raw_sales_data, sheet_name=sf)
-        sales_data.drop('Artikelomschrijving', axis=1, inplace=True)
 
-        sales_data.set_index('ArtnrCE', inplace=True)
+        sales_data.set_index(['ArtnrCE', 'Artikelomschrijving'], inplace=True)
         sales_data_stacked = pd.DataFrame(sales_data.stack(dropna=False))
+
         sales_data_stacked.reset_index(inplace=True)
-        sales_data_stacked.columns = ['ArtnrCE', cn.WEEK_NUMBER, "plus_sales"]
+
+        sales_data_stacked.columns = ['ArtnrCE', 'Artikelomschrijving', cn.WEEK_NUMBER, "plus_sales"]
 
         sales_data_stacked[cn.WEEK_NUMBER] = sales_data_stacked[cn.WEEK_NUMBER].astype(str) + "-" + sf_year
         gf.add_first_day_week(add_to=sales_data_stacked)
@@ -61,7 +62,16 @@ def plus_sales():
                                 'ArtikelnrPlus', 'aantal_pp', 'Artikel code']]
 
     join_table.drop_duplicates(inplace=True, keep='first')
-    sales_data_join = pd.merge(total_sales_data, join_table, how="left", left_on="ArtnrCE", right_on="ArtikelnrPlus")
+
+    sales_pre_join = pd.merge(total_sales_data, join_table["ArtikelnrPlus"], how="left", left_on="ArtnrCE", right_on="ArtikelnrPlus")
+    art_nrs = pd.DataFrame(sales_pre_join.groupby('Artikelomschrijving').agg({'ArtikelnrPlus': 'max'})).dropna(how='any')
+    art_nrs.reset_index(drop=False, inplace=True)
+    art_nrs.rename(columns={'ArtikelnrPlus': 'ArtikelnrPlusMatch'}, inplace=True)
+
+    total_sales_data = pd.merge(total_sales_data, art_nrs, how="left", left_on="Artikelomschrijving",
+                                right_on="Artikelomschrijving")
+
+    sales_data_join = pd.merge(total_sales_data, join_table, how="left", left_on="ArtikelnrPlusMatch", right_on="ArtikelnrPlus")
     order_data_join = pd.merge(order_data, join_table, how="left", left_on="Artikel code", right_on="Artikel code")
 
     def prepare_data(input_data, orders=True):
@@ -103,16 +113,21 @@ def plus_sales():
     # sales_data = prepare_data(input_data=order_data_join, orders=True)
     sales_cons_data = prepare_data(input_data=sales_data_join, orders=False)
 
-    return sales_cons_data
+    # Drop if too many missing values
+    sales_cons_data.sort_index(ascending=False, inplace=True)
 
-"""order_data = hff_predictor.generic.files.import_temp_file(
-    data_loc=fm.ORDER_DATA_ACT_PR_FOLDER,
-    set_index=True
-)
+    def zero_filter(data, days, limit_missing):
+        total_cols = data.shape[1]
+        selection = data.iloc[:days, :]
+        filter1 = selection[selection > 0].isna().sum()
+        filter1 = filter1[filter1 <= limit_missing].index
+        dropped = total_cols - len(filter1)
+        LOGGER.debug("Dropped {} columns of total {} columns".format(dropped, total_cols))
+        return data[filter1]
 
-data = plus_sales()
+    sales_cons_f1 = zero_filter(data=sales_cons_data, days=5, limit_missing=0)
+    sales_cons_f2 = zero_filter(data=sales_cons_f1, days=70, limit_missing=5)
 
-order_data.to_csv("bestellingen.csv",sep=";", decimal=",")
-sales_data.to_csv("distributie.csv", sep=";", decimal=",")
-sales_cons_data.to_csv("verkopen.csv", sep=";", decimal=",")
-shared_cols = list(set(sales_cons_data.columns).intersection(order_data.columns))"""
+    LOGGER.debug("Added Plus sales data to total feature set.")
+
+    return sales_cons_f2
