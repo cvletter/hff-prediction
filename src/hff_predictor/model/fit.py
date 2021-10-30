@@ -4,6 +4,7 @@ import numpy as np
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
 from hff_predictor.model.preprocessing import fit_model, predictor
+import hff_predictor.config.prediction_settings as ps
 
 import logging
 LOGGER = logging.getLogger(__name__)
@@ -176,7 +177,7 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
             ar_baseline = ar_baseline.join(X_weather_baseline, how='left')
 
         # Schat het baseline model, nog zonder exogene factoren
-        if cn.ADD_PLUS:
+        if ps.ADD_PLUS_SALES:
             sales_name = "{}_sales_cons_last".format(y_name)
 
             cols_check = [sales_name in x for x in X_exog_rf.columns]
@@ -187,7 +188,7 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
                 sales_cols_select = sales_cols[:2]
                 ar_baseline[sales_cols_select] = X_exog_rf[sales_cols_select]
                 X_exog_rf.drop(sales_cols_select, axis=1, inplace=True)
-                # LOGGER.debug("Found Plus sales column for {}, added to baseline.".format(y_name))
+                LOGGER.debug("Found Plus sales column for {}, added to baseline.".format(y_name))
 
         baseline_fit = fit_model(y=y, X=ar_baseline, model=model)
 

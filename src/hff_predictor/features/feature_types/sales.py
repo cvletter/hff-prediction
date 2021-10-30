@@ -12,6 +12,7 @@ def plus_sales():
 
     # Location of all Plus data sales
     file_loc = "U:\Productie Voorspelmodel\Input\Bestellingen Hollander"
+    raw_bestel_data = "bestellingen_totaal.csv"
 
     raw_data = "hollander_bestellingen.xlsx"  # Orders from the DC to local stores
     raw_sales_data = "hollander_verkopen.xlsx"
@@ -24,6 +25,19 @@ def plus_sales():
     ean_data_hp = pd.read_excel(file_loc + "\\" + ean_hp)
     ean_data_1b = pd.read_excel(file_loc + "\\" + ean_1b)
     artikelen = pd.read_csv(file_loc + "\\" + artikel_overzicht, sep=";")
+
+    # Stel lijst samen met unieke artikelen besteld vanuit Plus
+    bestellingen = pd.read_csv(file_loc + "\\" + raw_bestel_data, sep=",")
+
+    bestellingen_plus = bestellingen[(bestellingen["Organisatie"] == "Hollander Plus")]
+    bestellingen_plus = bestellingen_plus[bestellingen_plus["Weekjaar"] >= 2020]
+
+    plus_artikelen = bestellingen_plus[['InkoopRecept', 'InkoopRecept Omschrijving',
+                                   'Artikelen', 'Artikelomschrijving', 'Besteld #CE']].drop_duplicates(keep='first')
+
+    plus_art = pd.DataFrame(plus_artikelen.groupby(
+        ['InkoopRecept', 'InkoopRecept Omschrijving', 'Artikelen', 'Artikelomschrijving']).agg(
+        {'Besteld #CE': 'sum'})).reset_index()
 
     # Process all sales data into one DataFrame
     sub_files = ["2020 - 1-26", "2020 - 27-53", "2021 - 1-26", "2021 - 27-52"]
@@ -49,37 +63,52 @@ def plus_sales():
     order_data[cn.WEEK_NUMBER] = order_data["WeekQV"].astype(str) + "-" + order_data["Jaar"].astype(str)
     gf.add_first_day_week(add_to=order_data)
 
-    ean_1b_join = pd.merge(ean_data_1b, artikelen, how="left", left_on="ArtikelNummer", right_on="Artikelen")
-    ean_1b_hp = pd.merge(ean_1b_join, ean_data_hp, how="inner", left_on="Artikel EAN CE", right_on="CEAN")
-    ean_1b_hp = ean_1b_hp[ean_1b_hp["Plant"] == "Katwijk"]
+    # Article numbers with EAN
+    plus_art_ean = pd.merge(plus_art, ean_data_1b, how="left", left_on="Artikelen", right_on="ArtikelNummer")
+
+
+    # Find and match outdated product numbers and replace them with most recent
+    art_nrs = pd.DataFrame(plus_art_ean.groupby('InkoopRecept Omschrijving').agg({'Artikel EAN CE': 'max'}))
+    art_nrs.reset_index(drop=False, inplace=True)
+    art_nrs.rename(columns={'Artikel EAN CE': 'Artikel EAN CE_match'}, inplace=True)
+
+    plus_art_ean_2 = pd.merge(plus_art_ean, art_nrs, how="left", left_on="InkoopRecept Omschrijving",
+                                right_on="InkoopRecept Omschrijving")
+
+    ean_1b_hp = pd.merge(plus_art_ean_2, ean_data_hp, how="left", left_on="Artikel EAN CE_match", right_on="CEAN")
+    ean_1b_hp.drop_duplicates(keep='first', inplace=True)
 
     selected_columns = ['ArtikelNummer', 'Artikel Naam', 'aantal_pp', 'ArtikelnrPlus',
                         'InkoopRecept', 'InkoopRecept Omschrijving', 'Artikel code omschrijving']
 
     selected_data = ean_1b_hp[selected_columns]
+    selected_data.drop_duplicates(keep='first', inplace=True)
+    selected_data.dropna(subset=['Artikel code omschrijving'], inplace=True)
+
     selected_data['Artikel code'] = selected_data['Artikel code omschrijving'].str.split(" ").str[0].astype(int)
     join_table = selected_data[['InkoopRecept', 'InkoopRecept Omschrijving',
-                                'ArtikelnrPlus', 'aantal_pp', 'Artikel code']]
+                                'ArtikelnrPlus', 'Artikel code']]
 
     join_table.drop_duplicates(inplace=True, keep='first')
 
-    sales_pre_join = pd.merge(total_sales_data, join_table["ArtikelnrPlus"], how="left", left_on="ArtnrCE", right_on="ArtikelnrPlus")
-    art_nrs = pd.DataFrame(sales_pre_join.groupby('Artikelomschrijving').agg({'ArtikelnrPlus': 'max'})).dropna(how='any')
-    art_nrs.reset_index(drop=False, inplace=True)
-    art_nrs.rename(columns={'ArtikelnrPlus': 'ArtikelnrPlusMatch'}, inplace=True)
-
-    total_sales_data = pd.merge(total_sales_data, art_nrs, how="left", left_on="Artikelomschrijving",
-                                right_on="Artikelomschrijving")
-
-    sales_data_join = pd.merge(total_sales_data, join_table, how="left", left_on="ArtikelnrPlusMatch", right_on="ArtikelnrPlus")
+    sales_data_join = pd.merge(total_sales_data, join_table, how="left", left_on="ArtnrCE", right_on="ArtikelnrPlus")
     order_data_join = pd.merge(order_data, join_table, how="left", left_on="Artikel code", right_on="Artikel code")
+
+    matched = sales_data_join[~sales_data_join["InkoopRecept Omschrijving"].isnull()]
+    matched = matched[["Artikelomschrijving", "InkoopRecept", "InkoopRecept Omschrijving"]].drop_duplicates(keep='first')
+    sales_data_join.rename(columns={"InkoopRecept Omschrijving": "InkoopRecept Omschrijving_oud",
+                                    "InkoopRecept": "InkoopRecept_oud"}, inplace=True)
+
+    sales_data_enriched = pd.merge(sales_data_join,
+                                   matched[["Artikelomschrijving", "InkoopRecept", "InkoopRecept Omschrijving"]],
+                                   how="left", left_on="Artikelomschrijving",
+                                   right_on="Artikelomschrijving")
 
     def prepare_data(input_data, orders=True):
         if orders:
-            prep_data = input_data[[cn.FIRST_DOW, 'TOT', 'InkoopRecept', 'InkoopRecept Omschrijving', 'aantal_pp']]
-            prep_data["sales_ce"] = prep_data["TOT"] * prep_data["aantal_pp"]
+            prep_data = input_data[[cn.FIRST_DOW, 'TOT', 'InkoopRecept', 'InkoopRecept Omschrijving']]
         else:
-            prep_data = input_data[[cn.FIRST_DOW, 'plus_sales', 'InkoopRecept', 'InkoopRecept Omschrijving', 'aantal_pp']]
+            prep_data = input_data[[cn.FIRST_DOW, 'plus_sales', 'InkoopRecept', 'InkoopRecept Omschrijving']]
             prep_data["sales_ce"] = prep_data["plus_sales"]
 
         order_data_agg = prep_data.groupby(['InkoopRecept Omschrijving', cn.FIRST_DOW], as_index=False).agg({'sales_ce': "sum"})
@@ -93,7 +122,7 @@ def plus_sales():
 
         LOGGER.critical("The last available week of data for sales data is {}.".format(pivoted_data.index.max()))
 
-        pivoted_data['total'] = pivoted_data.sum(axis=1)
+        pivoted_data[cn.MOD_PROD_SUM] = pivoted_data.sum(axis=1)
         pivoted_data.sort_index(ascending=False, inplace=True)
 
         final_data = pivoted_data.fillna(value=0)
@@ -111,8 +140,8 @@ def plus_sales():
         return final_data
 
     # sales_data = prepare_data(input_data=order_data_join, orders=True)
-    sales_cons_data = prepare_data(input_data=sales_data_join, orders=False)
-
+    sales_cons_data = prepare_data(input_data=sales_data_enriched, orders=False)
+    sales_cons_data.to_csv("sales_cons.csv", sep=";", decimal=".")
     # Drop if too many missing values
     sales_cons_data.sort_index(ascending=False, inplace=True)
 

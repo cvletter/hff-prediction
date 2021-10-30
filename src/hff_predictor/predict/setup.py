@@ -3,6 +3,7 @@ import hff_predictor.generic.files
 import pandas as pd
 from typing import Union
 import hff_predictor.config.column_names as cn
+import hff_predictor.config.prediction_settings as ps
 import hff_predictor.config.file_management as fm
 import hff_predictor.data.transformations as dtr
 from hff_predictor.generic.files import import_temp_file
@@ -109,7 +110,7 @@ def create_lagged_sets(y_mod_context, y_nmod_context, exogenous_features_context
     # Subset van variabelen die alleen kunnen terugkijken: Superunie factoren (o.b.v. bestellingen) en weer
     exog_features_lookback = exogenous_features_context['superunie_n']
 
-    if cn.ADD_PLUS:
+    if ps.ADD_PLUS_SALES:
         exog_features_lookback = exog_features_lookback.join( exogenous_features_context['plus_sales'], how='left')
 
     exog_features_lookback_lags = dtr.create_lags(data=exog_features_lookback, lag_range=lags)

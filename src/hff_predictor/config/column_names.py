@@ -116,5 +116,3 @@ STRUC_BREAKS = "breaks"
 CAMPAIGNS = "campaigns"
 SUPERUNIE_PCT = "superunie_pct"
 SUPERUNIE_N = "superunie_n"
-
-ADD_PLUS = True

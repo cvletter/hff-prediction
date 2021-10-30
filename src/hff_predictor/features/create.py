@@ -2,6 +2,7 @@ import pandas as pd
 import hff_predictor.generic.files
 import hff_predictor.config.column_names as cn
 import hff_predictor.config.file_management as fm
+import hff_predictor.config.prediction_settings as ps
 from hff_predictor.features.feature_types import weather, campaigns, covid, \
     seasonal, superunie, structural_breaks, sales
 
@@ -48,7 +49,7 @@ def prep_all_features(
     all_features['breaks'] = structural_breaks.prep_level_shifts()
 
     # Temp fix for ignoring plus data
-    if cn.ADD_PLUS:
+    if ps.ADD_PLUS_SALES:
         all_features['plus_sales'] = sales.plus_sales()
 
     __, all_features['superunie_n'] = superunie.prep_su_features(
