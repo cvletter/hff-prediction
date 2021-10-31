@@ -236,3 +236,18 @@ def init_predict(date, window, reload, su_member):
         su_member=su_member,
         save_predictions=True
     )
+
+"""
+    date_to_predict = "2021-09-13"
+    prediction_window = 2
+    train_obs = ps.TRAIN_OBS
+    weather_forecast = ps.WEATHER_FORECAST
+    difference = ps.DIFFERENCING
+    lags = ps.N_LAGS
+    model_type = ps.MODEL_TYPE
+    feature_threshold = ps.FEATURE_OPT
+    bootstrap_iter = ps.BOOTSTRAP_ITER
+    reload_data = False
+    su_member = "Hollander Plus"
+    save_predictions = False
+"""

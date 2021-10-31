@@ -428,6 +428,24 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
     Yar_org = fit_dict[cn.Y_AR]
     X_org = fit_dict[cn.X_EXOG]
 
+    """
+    Yp_ar = pd.DataFrame(predict_dict[cn.Y_AR_M])
+    Yp_arm = pd.DataFrame(predict_dict[cn.Y_AR_NM])
+    Xp = pd.DataFrame(predict_dict[cn.X_EXOG])
+
+    Y_ar = pd.concat([Yp_ar.T, Yar_org], axis=0)
+    X_tot = pd.concat([Xp.T, X_org], axis=0)
+
+    Y_ar_st = (Y_ar - Y_ar.mean()) / Y_ar.std()
+    X_st = (X_tot - X_tot.mean()) / X_tot.std()
+
+    Y_mean = Y_org.mean()
+    Y_std = Y_org.std()
+
+    Y_org_st = (Y_org - Y_mean) / Y_std
+    predict_index = Y_ar.index[0]
+    """
+
     # Data wordt tot een bootstrap sample gemaakt, wat in feite een random sample is van het origineel
     if bootstrap:
         Y_fit = Y_org.sample(n=Y_org.shape[0], replace=True)
