@@ -30,7 +30,7 @@ def fit_model(y: pd.Series, X: pd.DataFrame, model: str = "OLS"):
 
 
 def predictor(Xpred: pd.DataFrame, fitted_model, weather_scenario = None, model: str = "OLS",
-              prediction_window: int = 2):
+              prediction_window: int = 2, positive_ints=True):
     """
     Voorspel wrapping funcite omwille van verschillende model types
 
@@ -78,12 +78,13 @@ def predictor(Xpred: pd.DataFrame, fitted_model, weather_scenario = None, model:
 
 
         prediction_bw = make_prediction(Xpred=Xpred_bw)
-        prediction_bw = np.round(prediction_bw, 0)
-        prediction_bw[prediction_bw < 0] = 0
-
         prediction_ww = make_prediction(Xpred=Xpred_ww)
-        prediction_ww = np.round(prediction_ww, 0)
-        prediction_ww[prediction_ww < 0] = 0
+
+        if positive_ints:
+            prediction_bw = np.round(prediction_bw, 0)
+            prediction_bw[prediction_bw < 0] = 0
+            prediction_ww = np.round(prediction_ww, 0)
+            prediction_ww[prediction_ww < 0] = 0
 
         return prediction_bw, prediction_ww
 
@@ -91,8 +92,9 @@ def predictor(Xpred: pd.DataFrame, fitted_model, weather_scenario = None, model:
         prediction = make_prediction(Xpred=Xpred)
 
         # Voorspelling afronden en negatieve waarden veranderen naar nul
-        prediction = np.round(prediction, 0)
-        prediction[prediction < 0] = 0
+        if positive_ints:
+            prediction = np.round(prediction, 0)
+            prediction[prediction < 0] = 0
 
         return prediction
 

@@ -244,7 +244,8 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
 
 def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog: pd.DataFrame,
                           fitted_models: list, Yf_ar_opt: pd.DataFrame, Yf_exog_opt: pd.DataFrame,
-                          weather_forecast: bool, add_constant: bool = True, prep_input: bool = True,
+                          weather_forecast: bool, comparable_products: dict, positive_ints: bool = True,
+                          add_constant: bool = True, prep_input: bool = True,
                           model_type: str = "OLS", prediction_window: int = 2, weather_values: dict = None,
                           find_comparable_model: bool = True):
     """
@@ -308,21 +309,20 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
         # Totale set met features
         Xp_tot = Xp_ar_m.join(Xp_arx_m, how="left")
 
-
         # Maak voorspelling aan de hand van predictor functie
         if weather_values is not None:
             fit_params_wf[y_name_m] = fitted_models[y_name_m].params
 
             Y_pred_bw[y_name_m], Y_pred_ww[y_name_m] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[y_name_m],
                                                                  model=model_type, weather_scenario=weather_values,
-                                                                 prediction_window=prediction_window)
+                                                                 prediction_window=prediction_window,
+                                                                 positive_ints=positive_ints)
         else:
-
 
             fit_params_reg[y_name_m] = fitted_models[y_name_m].params
             Y_pred[y_name_m] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[y_name_m],
                                          model=model_type, weather_scenario=weather_values,
-                                         prediction_window=prediction_window)
+                                         prediction_window=prediction_window, positive_ints=positive_ints)
 
 
 
@@ -337,19 +337,7 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
 
         # Zoek naar een vergelijkbaar product om toch een voorspelling te maken
         if find_comparable_model:
-            # Find product which has similar magnitude absolute sales
-            lag_val = "_last0w"
-
-            # Haal de laatst beschikbare waarde op van te voorspellen pnroduct
-            _y_nm_val = Yp_ar_nm["{}{}".format(y_name_nm, lag_val)][0]
-
-            # Haal de waarden op over dezelfde periode van modelleerbare producten
-            lag1_index = [lag_val in x for x in Yp_ar_m.columns]
-            _Y_m_vals = Yp_ar_m.iloc[:, lag1_index]
-
-            # Selecteer meest vergelijkbare product als product die er abosluut gezien het dichtst bij zit
-            _closest_prod = (abs(_Y_m_vals - _y_nm_val) / _y_nm_val).T
-            closest_product_name = _closest_prod.idxmin()[0][:-7]
+            closest_product_name = comparable_products[y_name_nm]
 
         else:
             # Alternatief model is simpelweg de som van modelleerbare producten
@@ -376,12 +364,13 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
             Y_pred_bw[y_name_nm], Y_pred_ww[y_name_nm] = predictor(Xpred=Xp_tot,
                                                                    fitted_model=fitted_models[closest_product_name],
                                                                    model=model_type, weather_scenario=weather_values,
-                                                                   prediction_window=prediction_window)
+                                                                   prediction_window=prediction_window,
+                                                                   positive_ints=positive_ints)
 
         else:
             Y_pred[y_name_nm] = predictor(Xpred=Xp_tot, fitted_model=fitted_models[closest_product_name],
                                           model=model_type, weather_scenario=weather_values,
-                                          prediction_window=prediction_window)
+                                          prediction_window=prediction_window, positive_ints=positive_ints)
 
     if weather_values is not None:
         Y_pred_bw = Y_pred_bw.T
@@ -395,8 +384,36 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
     return Y_pred
 
 
+def find_closest_product(Y_m, Y_nm):
+    closest_product = {}
+
+    Y_mt = pd.DataFrame(Y_m).transpose()
+    Y_nmt = pd.DataFrame(Y_nm).transpose()
+
+    Ynm_products = list(set([x[:-7] for x in Y_nmt.columns]))
+
+    for y_name_nm in Ynm_products:
+        # Find product which has similar magnitude absolute sales
+        lag_val = "_last0w"
+
+        # Haal de laatst beschikbare waarde op van te voorspellen pnroduct
+        _y_nm_val = Y_nmt["{}{}".format(y_name_nm, lag_val)][0]
+
+        # Haal de waarden op over dezelfde periode van modelleerbare producten
+        lag1_index = [lag_val in x for x in Y_mt.columns]
+        _Y_m_vals = Y_mt.iloc[:, lag1_index]
+
+        # Selecteer meest vergelijkbare product als product die er abosluut gezien het dichtst bij zit
+        _closest_prod = (abs(_Y_m_vals - _y_nm_val) / _y_nm_val).T
+        closest_product_name = _closest_prod.idxmin()[0][:-7]
+        closest_product[y_name_nm] = closest_product_name
+
+    return closest_product
+
+
 def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, model_type: str = "OLS",
-                    bootstrap: bool = False, feature_threshold: list = None, prediction_window: int = 2) -> tuple:
+                    bootstrap: bool = False, feature_threshold: list = None, prediction_window: int = 2,
+                    standardize: bool = False) -> tuple:
     """
     Combinatie functie van schatten van het model en het maken van de voorspelling
 
@@ -424,27 +441,64 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
         feature_threshold = [0.2, 15]
 
     # Input variabelen, om eventueel bootstrap samples van te maken
+
+
+    # Te standaardiseren
     Y_org = fit_dict[cn.Y_TRUE]
     Yar_org = fit_dict[cn.Y_AR]
     X_org = fit_dict[cn.X_EXOG]
 
-    """
-    Yp_ar = pd.DataFrame(predict_dict[cn.Y_AR_M])
-    Yp_arm = pd.DataFrame(predict_dict[cn.Y_AR_NM])
+    Yp_ar_m = pd.DataFrame(predict_dict[cn.Y_AR_M])
+    Yp_ar_nm = pd.DataFrame(predict_dict[cn.Y_AR_NM])
     Xp = pd.DataFrame(predict_dict[cn.X_EXOG])
 
-    Y_ar = pd.concat([Yp_ar.T, Yar_org], axis=0)
-    X_tot = pd.concat([Xp.T, X_org], axis=0)
+    closest_prod = find_closest_product(Y_m=Yp_ar_m, Y_nm=Yp_ar_nm)
 
-    Y_ar_st = (Y_ar - Y_ar.mean()) / Y_ar.std()
-    X_st = (X_tot - X_tot.mean()) / X_tot.std()
+    if standardize:
+        # Y_fit
+        Y_org_mean = Y_org.mean()
+        Y_org_std = Y_org.std()
 
-    Y_mean = Y_org.mean()
-    Y_std = Y_org.std()
+        Y_org_st = (Y_org - Y_org_mean) / Y_org_std
 
-    Y_org_st = (Y_org - Y_mean) / Y_std
-    predict_index = Y_ar.index[0]
-    """
+        # Y_ar fit & predict
+        Y_ar = pd.concat([Yp_ar_m.T, Yar_org], axis=0)
+
+        # X
+        X_tot_r = pd.concat([Xp.T, X_org], axis=0)
+        X_tot = X_tot_r[X_tot_r.columns[X_tot_r.std() != 0.0]]
+
+        X_tot_mean = X_tot.mean()
+        X_tot_std = X_tot.std()
+        X_tot_st = (X_tot - X_tot_mean) / X_tot_std
+        Xp_st, X_org_st = X_tot_st.iloc[0, :], X_tot_st.iloc[1:, :]
+
+        # X_exog fit & predic
+        Y_ar_mean = Y_ar.mean()
+        Y_ar_std = Y_ar.std()
+
+        Y_ar_st = (Y_ar - Y_ar_mean) / Y_ar_std
+        Yp_ar_m_st, Yar_org_st = Y_ar_st.iloc[0, :], Y_ar_st.iloc[1:, :]
+
+        # Y_ar_nm predict
+        Yp_ar_nm_st = Yp_ar_nm
+        for x in Yp_ar_nm.index:
+            x = x[:-7]
+            cp = closest_prod[x]
+            lags = len(Yp_ar_nm[[x in y for y in Yp_ar_nm.index]])
+
+            for l in range(0, lags):
+                x_name = "{}_last{}w".format(x, l)
+                cp_name = "{}_last{}w".format(cp, l)
+                Yp_ar_nm_st.loc[x_name] = (Yp_ar_nm_st.loc[x_name] - Y_ar_mean[cp_name]) / Y_ar_std[cp_name]
+
+        Y_org = Y_org_st
+        Yar_org = Yar_org_st
+        X_org = X_org_st
+
+        Yp_ar_m = Yp_ar_m_st
+        Yp_ar_nm = Yp_ar_nm_st
+        Xp = Xp_st
 
     # Data wordt tot een bootstrap sample gemaakt, wat in feite een random sample is van het origineel
     if bootstrap:
@@ -474,11 +528,13 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
         prediction_window=prediction_window
     )
 
+    positive_integers = not standardize
+
     # Maak standaard voorspellingen
-    Yos_pred= batch_make_prediction(
-        Yp_ar_m=predict_dict[cn.Y_AR_M],
-        Yp_ar_nm=predict_dict[cn.Y_AR_NM],
-        Xp_exog=predict_dict[cn.X_EXOG],
+    Yos_pred = batch_make_prediction(
+        Yp_ar_m=Yp_ar_m,
+        Yp_ar_nm=Yp_ar_nm,
+        Xp_exog=Xp,
         fitted_models=model_fits,
         Yf_ar_opt=Yar_opt,
         Yf_exog_opt=X_opt,
@@ -486,7 +542,9 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
         model_type=model_type,
         find_comparable_model=True,
         prediction_window=prediction_window,
-        weather_forecast=weather_forecast
+        weather_forecast=weather_forecast,
+        positive_ints=positive_integers,
+        comparable_products=closest_prod
     )
     # Fit weersvoorspelling model
 
@@ -514,9 +572,9 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
                           rain: np.mean(X_fit[rain][0:1])}
 
         wYos_pred = batch_make_prediction(
-            Yp_ar_m=predict_dict[cn.Y_AR_M],
-            Yp_ar_nm=predict_dict[cn.Y_AR_NM],
-            Xp_exog=predict_dict[cn.X_EXOG],
+            Yp_ar_m=Yp_ar_m,
+            Yp_ar_nm=Yp_ar_nm,
+            Xp_exog=Xp,
             fitted_models=wmodel_fits,
             Yf_ar_opt=wYar_opt,
             Yf_exog_opt=wX_opt,
@@ -525,10 +583,31 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
             find_comparable_model=True,
             prediction_window=prediction_window,
             weather_forecast=True,
-            weather_values=weather_values
+            weather_values=weather_values,
+            positive_ints=positive_integers,
+            comparable_products=closest_prod
         )
 
-        return Yis_fit, Yos_pred, all_pars, wYos_pred
+        if standardize:
+            Yos_pred_ds = Yos_pred.copy(deep=True)
+            for j in Yos_pred.columns:
+                if j in closest_prod.keys():
+                    Yos_pred_ds[j] = Yos_pred[j] * Y_org_std[closest_prod[j]] + Y_org_mean[closest_prod[j]]
+                else:
+                    Yos_pred_ds[j] = Yos_pred[j] * Y_org_std[j] + Y_org_mean[j]
+
+            wYos_pred_ds = wYos_pred.copy(deep=True)
+            for j in wYos_pred.index:
+                if j in closest_prod.keys():
+                    wYos_pred_ds.loc[j] = wYos_pred.loc[j] * Y_org_std[closest_prod[j]] + Y_org_mean[closest_prod[j]]
+                else:
+                    wYos_pred_ds.loc[j] = wYos_pred.loc[j] * Y_org_std[j] + Y_org_mean[j]
+
+
+            return Yis_fit, Yos_pred_ds, all_pars, wYos_pred_ds
+
+        else:
+            return Yis_fit, Yos_pred, all_pars, wYos_pred
 
 
 

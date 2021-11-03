@@ -145,6 +145,8 @@ def plus_sales():
     # Drop if too many missing values
     sales_cons_data.sort_index(ascending=False, inplace=True)
 
+
+
     def zero_filter(data, days, limit_missing):
         total_cols = data.shape[1]
         selection = data.iloc[:days, :]

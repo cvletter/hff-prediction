@@ -133,7 +133,8 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
         prediction_window=prediction_window,
         feature_threshold=[feature_threshold[0],
                            feature_threshold[1]],
-        weather_forecast=weather_forecast)
+        weather_forecast=weather_forecast,
+        standardize=ps.STANDARDIZE)
 
     # Maak de moving average voorspellingen
     ma_predictions, ma_now = moving_average(active_products=active_products, prediction_window=prediction_window,
@@ -237,7 +238,7 @@ def init_predict(date, window, reload, su_member):
         save_predictions=True
     )
 
-"""
+
     date_to_predict = "2021-09-13"
     prediction_window = 2
     train_obs = ps.TRAIN_OBS
@@ -250,4 +251,4 @@ def init_predict(date, window, reload, su_member):
     reload_data = False
     su_member = "Hollander Plus"
     save_predictions = False
-"""
+
