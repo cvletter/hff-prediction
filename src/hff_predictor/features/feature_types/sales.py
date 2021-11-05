@@ -66,7 +66,6 @@ def plus_sales():
     # Article numbers with EAN
     plus_art_ean = pd.merge(plus_art, ean_data_1b, how="left", left_on="Artikelen", right_on="ArtikelNummer")
 
-
     # Find and match outdated product numbers and replace them with most recent
     art_nrs = pd.DataFrame(plus_art_ean.groupby('InkoopRecept Omschrijving').agg({'Artikel EAN CE': 'max'}))
     art_nrs.reset_index(drop=False, inplace=True)
@@ -128,7 +127,7 @@ def plus_sales():
         final_data = pivoted_data.fillna(value=0)
 
         new_col_names = []
-        subscript = "sales" if orders else "sales_cons"
+        subscript = "orders" if orders else "sales"
 
         for i in final_data.columns:
             col_name = "{}_{}".format(i, subscript)
@@ -145,8 +144,6 @@ def plus_sales():
     # Drop if too many missing values
     sales_cons_data.sort_index(ascending=False, inplace=True)
 
-
-
     def zero_filter(data, days, limit_missing):
         total_cols = data.shape[1]
         selection = data.iloc[:days, :]
@@ -159,6 +156,36 @@ def plus_sales():
     sales_cons_f1 = zero_filter(data=sales_cons_data, days=5, limit_missing=0)
     sales_cons_f2 = zero_filter(data=sales_cons_f1, days=70, limit_missing=5)
 
+    # Additional feature types
+
+    sales_plus_all = {}
+    sales_plus_all["plus_sales"] = sales_cons_f2
+
+    def change_col_names(input_data, subscript):
+        new_col_names = []
+        for i in input_data.columns:
+            col_name = "{}_{}".format(i, subscript)
+            new_col_names.append(col_name)
+        input_data.columns = new_col_names
+        return input_data
+
+    sales_plus = sales_cons_f2.sort_index(ascending=True)
+    sales_plus_d1 = (sales_plus.diff(1) / sales_plus.shift(1)).sort_index(ascending=False, inplace=False)
+    sales_plus_d2 = (sales_plus.diff(2) / sales_plus.shift(2)).sort_index(ascending=False, inplace=False)
+    sales_plus_3w = (sales_plus.rolling(3).sum()).sort_index(ascending=False, inplace=False)
+    sales_plus_5w = (sales_plus.rolling(5).sum()).sort_index(ascending=False, inplace=False)
+
+    sales_plus_all['plus_sales_1d'] = change_col_names(sales_plus_d1, subscript="d1")
+    sales_plus_all['plus_sales_2d'] = change_col_names(sales_plus_d2, subscript="d2")
+    sales_plus_all['plus_sales_3ma'] = change_col_names(sales_plus_3w, subscript="ma3")
+    sales_plus_all['plus_sales_5ma'] = change_col_names(sales_plus_5w, subscript="ma5")
+
+    sales_plus_final = sales_plus_all["plus_sales"].join(
+        sales_plus_all['plus_sales_1d']).join(
+        sales_plus_all['plus_sales_2d']).join(
+        sales_plus_all['plus_sales_3ma']).join(
+        sales_plus_all['plus_sales_5ma'])
+
     LOGGER.debug("Added Plus sales data to total feature set.")
 
-    return sales_cons_f2
+    return sales_plus_final

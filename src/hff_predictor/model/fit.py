@@ -177,8 +177,9 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
             ar_baseline = ar_baseline.join(X_weather_baseline, how='left')
 
         # Schat het baseline model, nog zonder exogene factoren
+
         if ps.ADD_PLUS_SALES:
-            sales_name = "{}_sales_cons_last".format(y_name)
+            sales_name = "{}_{}_last".format(y_name, cn.SALES_NAME)
 
             cols_check = [sales_name in x for x in X_exog_rf.columns]
             sales_cols = X_exog_rf.iloc[:, cols_check].columns
