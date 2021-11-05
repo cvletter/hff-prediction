@@ -113,6 +113,10 @@ def performance_quality(predictions, benchmark, true_values,
             "benchmark",
             "bmrk_error_avg",
             "bmrk_error_sum",
+            "prediction_80p",
+            "true_value_80p",
+            "pred_err80p",
+            "pred_err80p_avg"
         ],
     )
 
@@ -126,6 +130,10 @@ def performance_quality(predictions, benchmark, true_values,
             "benchmark",
             "bmrk_error_avg",
             "bmrk_error_sum",
+            "prediction_80p",
+            "true_value_80p",
+            "pred_err80p",
+            "pred_err80p_avg"
         ],
     )
 
@@ -139,6 +147,10 @@ def performance_quality(predictions, benchmark, true_values,
             "benchmark",
             "bmrk_error_avg",
             "bmrk_error_sum",
+            "prediction_80p",
+            "true_value_80p",
+            "pred_err80p",
+            "pred_err80p_avg"
         ],
     )
 
@@ -235,6 +247,25 @@ def performance_quality(predictions, benchmark, true_values,
         true_values_mod.loc[d, _mod] = _truev_mod
         true_values_nmod.loc[d, _nmod] = _truev_nmod
 
+        # Top 80%
+        top_pct = 0.8
+        _pred_mod_top = _pred_mod[_pred_mod.sort_values(ascending=False).cumsum() / _pred_mod.sum() <= top_pct]
+        _truev_mod_top = _truev_mod[_pred_mod.sort_values(ascending=False).cumsum() / _pred_mod.sum() <= top_pct]
+        _perr_mod_top = np.round(abs(_pred_mod_top.sum() - _truev_mod_top.sum()) / _truev_mod_top.sum(), 3)
+        _perr_mod_top_avg = np.round((abs(_pred_mod_top - _truev_mod_top) / _truev_mod_top).mean(), 3)
+
+        _pred_nmod_top = _pred_nmod[_pred_nmod.sort_values(ascending=False).cumsum() / _pred_nmod.sum() <= top_pct]
+        _truev_nmod_top = _truev_nmod[_pred_nmod.sort_values(ascending=False).cumsum() / _pred_nmod.sum() <= top_pct]
+        _perr_nmod_top = np.round(abs(_pred_nmod_top.sum() - _truev_nmod_top.sum()) / _truev_nmod_top.sum(), 3)
+        _perr_nmod_top_avg = np.round((abs(_pred_nmod_top - _truev_nmod_top) / _truev_nmod_top).mean(), 3)
+
+        _pred_tot_top = _pred_mod_top.sum() + _pred_nmod_top.sum()
+        _truev_tot_top = _truev_mod_top.sum() + _truev_nmod_top.sum()
+        _perr_tot_top = np.round(abs(_pred_tot_top - _truev_tot_top) / _truev_tot_top, 3)
+        _perr_tot_top_avg = np.round(np.mean(list(abs(_pred_mod_top - _truev_mod_top) / _truev_mod_top) +
+                                             list(abs(_pred_nmod_top - _truev_nmod_top) / _truev_nmod_top)), 3)
+
+        # Collect
         predictions_mod_total.loc[d, "prediction"] = _pred_mod_sum
         predictions_mod_total.loc[d, "prediction_tot"] = _pred_mod_tot
         predictions_mod_total.loc[d, "true_value"] = _truev_mod_sum
@@ -244,6 +275,10 @@ def performance_quality(predictions, benchmark, true_values,
         predictions_mod_total.loc[d, "benchmark"] = _bmrk_mod_sum
         predictions_mod_total.loc[d, "bmrk_error_avg"] = _bmrk_err_mod_avg
         predictions_mod_total.loc[d, "bmrk_error_sum"] = _bmrk_err_mod_sum
+        predictions_mod_total.loc[d, "prediction_80p"] = _pred_mod_top.sum()
+        predictions_mod_total.loc[d, "true_value_80p"] = _truev_mod_top.sum()
+        predictions_mod_total.loc[d, "pred_err80p"] = _perr_mod_top
+        predictions_mod_total.loc[d, "pred_err80p_avg"] = _perr_mod_top_avg
 
         predictions_nmod_total.loc[d, "prediction"] = _pred_nmod_sum
         predictions_nmod_total.loc[d, "true_value"] = _truev_nmod_sum
@@ -252,6 +287,10 @@ def performance_quality(predictions, benchmark, true_values,
         predictions_nmod_total.loc[d, "benchmark"] = _bmrk_nmod_sum
         predictions_nmod_total.loc[d, "bmrk_error_avg"] = _bmrk_err_nmod_avg
         predictions_nmod_total.loc[d, "bmrk_error_sum"] = _bmrk_err_nmod_sum
+        predictions_nmod_total.loc[d, "prediction_80p"] = _pred_nmod_top.sum()
+        predictions_nmod_total.loc[d, "true_value_80p"] = _truev_nmod_top.sum()
+        predictions_nmod_total.loc[d, "pred_err80p"] = _perr_nmod_top
+        predictions_nmod_total.loc[d, "pred_err80p_avg"] = _perr_nmod_top_avg
 
         predictions_tot.loc[d, "prediction"] = _pred_tot_sum
         predictions_tot.loc[d, "true_value"] = _truev_tot
@@ -267,6 +306,10 @@ def performance_quality(predictions, benchmark, true_values,
         predictions_tot.loc[d, "bmrk_error_avg"] = _bmrk_err_tot_avg
         predictions_tot.loc[d, "bmrk_error_sum"] = _bmrk_err_tot_sum
         predictions_tot.loc[d, "bmrk_error_rol"] = _bmrk_err_tot_rol
+        predictions_tot.loc[d, "prediction_80p"] = _pred_tot_top
+        predictions_tot.loc[d, "true_value_80p"] = _truev_tot_top
+        predictions_tot.loc[d, "pred_err80p"] = _perr_tot_top
+        predictions_tot.loc[d, "pred_err80p_avg"] = _perr_tot_top_avg
 
     return (
         predictions_tot.astype(float),
@@ -274,6 +317,8 @@ def performance_quality(predictions, benchmark, true_values,
         predictions_nmod_total.astype(float),
         predictions_mod.astype(float),
         true_values_mod.astype(float),
+        predictions_nmod.astype(float),
+        true_values_nmod.astype(float),
     )
 
 
@@ -318,11 +363,20 @@ def init_evaluate(summary):
     product_cat = hff_predictor.generic.files.import_temp_file(
         data_loc=fm.ORDER_DATA_CG_PR_FOLDER, set_index=False)
 
-    pred_tot, pred_mod_tot, pred_nmod_tot, pred_mod, true_valuesmod = performance_quality(predictions=predictions,
-                                                                                          true_values=true_values,
-                                                                                          benchmark=benchmark,
-                                                                                          modelable_prod=modelable_prod,
-                                                                                          non_modelable_prod=non_modelable_prod)
+    pred_tot, pred_mod_tot, pred_nmod_tot, pred_mod, true_valuesmod, pred_nmod, true_valuesnmod = performance_quality(
+        predictions=predictions,
+        true_values=true_values,
+        benchmark=benchmark,
+        modelable_prod=modelable_prod,
+        non_modelable_prod=non_modelable_prod)
+
+    save_predictions = True
+    if save_predictions:
+        save_to_csv(pred_mod, file_name="raw_predictions_mod", folder=fm.TEST_PREDICTIONS_FOLDER)
+        save_to_csv(predictions, file_name="raw_predictions_total", folder=fm.TEST_PREDICTIONS_FOLDER)
+        save_to_csv(true_valuesmod, file_name="raw_actuals_mod", folder=fm.TEST_PREDICTIONS_FOLDER)
+        save_to_csv(true_values, file_name="raw_actuals_total", folder=fm.TEST_PREDICTIONS_FOLDER)
+
 
     save_to_csv(pred_mod_tot, file_name="test_voorspellingen_mod", folder=fm.TEST_PREDICTIONS_FOLDER)
     save_to_csv(pred_tot, file_name="test_voorspellingen_tot", folder=fm.TEST_PREDICTIONS_FOLDER)
