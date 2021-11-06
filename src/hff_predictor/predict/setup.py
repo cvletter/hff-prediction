@@ -13,9 +13,9 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
-def na_filter(data, days, limit_missing):
+def na_filter(data, limit_missing):
     total_cols = data.shape[1]
-    selection = data.iloc[:days, :]
+    selection = data.copy(deep=True)
     filter1 = selection.isna().sum()
     filter1 = filter1[filter1 <= limit_missing].index
     dropped = total_cols - len(filter1)
@@ -37,7 +37,7 @@ def split_products(active_products: pd.DataFrame, min_obs: int = cn.TRAIN_OBS,
 
     # Bepaal hier het window waartussen de benodigde observaties beschikbaar moeten zijn
     last_train_date = prediction_date - datetime.timedelta(weeks=prediction_window)
-    first_train_date = last_train_date - datetime.timedelta(weeks=min_obs)
+    first_train_date = last_train_date - datetime.timedelta(weeks=min_obs+ps.N_LAGS+prediction_window)
     fitting_window = active_products.loc[last_train_date:first_train_date]
 
     active_products = active_products.loc[last_train_date:first_train_date]
@@ -111,7 +111,7 @@ def create_lagged_sets(y_mod_context, y_nmod_context, exogenous_features_context
     exog_features_lookback = exogenous_features_context['superunie_n']
 
     if ps.ADD_PLUS_SALES:
-        exog_features_lookback = exog_features_lookback.join( exogenous_features_context['plus_sales'], how='left')
+        exog_features_lookback = exog_features_lookback.join(exogenous_features_context['plus_sales'], how='left')
 
     exog_features_lookback_lags = dtr.create_lags(data=exog_features_lookback, lag_range=lags)
 
@@ -196,17 +196,14 @@ def create_model_setup(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
 
     # Zet de fitting window
     max_date = last_train_date
-    min_date = y_mod_lags.index.min() + datetime.timedelta(days=7*lags) # Adjust for lags
+    min_date = y_mod_lags.index.min() + datetime.timedelta(days=7*(lags+prediction_window)) # Adjust for lags
 
     # Maak de juiste fit sets: AR factoren, externe factoren en werkelijke waarden
     y_ar_m_fit = y_mod_lags.loc[max_date: min_date]
     y_true_fit = y_modelable.loc[y_ar_m_fit.index]
 
-    obs = len(y_ar_m_fit)
-    lmt = int(0.05 * obs)
-
-    exog_features_filter = na_filter(data=exog_features_total, days=obs, limit_missing=lmt)
-
+    exog_features_total = exog_features_total.loc[prediction_date:min_date, :]
+    exog_features_filter = na_filter(data=exog_features_total, limit_missing=2)
     X_exog_fit = exog_features_filter.loc[y_ar_m_fit.index]
 
     # Isoleer de waarden die gaan worden gebruikt voor predictie

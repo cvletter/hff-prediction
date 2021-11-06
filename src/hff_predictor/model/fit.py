@@ -21,10 +21,16 @@ def get_top_correlations(y: pd.DataFrame, y_lags: pd.DataFrame, top_correl: int 
     """
 
     # Onderstaande operaties bepalen zoveel mogelijk o.b.v. lineaire algebra de correlaties voor heel veel variabelen
+    width_y = y.shape[1]
+    all_data = pd.concat([y, y_lags], axis=1)
+    all_data.dropna(how='any', inplace=True)
+
+    y_cl = all_data.iloc[:, :width_y]
+    y_cl_lags = all_data.iloc[:, width_y:]
 
     # Correlatie formule deel 1
-    A_mA = y - y.mean()
-    B_mB = y_lags - y_lags.mean()
+    A_mA = y_cl - y_cl.mean()
+    B_mB = y_cl_lags - y_cl_lags.mean()
 
     # Correlatie formule deel 2
     ssA = (A_mA ** 2).sum()
@@ -40,7 +46,7 @@ def get_top_correlations(y: pd.DataFrame, y_lags: pd.DataFrame, top_correl: int 
     )
 
     # Correlaties opgeslagen als dataframe, met goede kolommen en index
-    corrs = pd.DataFrame(correls, index=y.columns, columns=y_lags.columns)
+    corrs = pd.DataFrame(correls, index=y_cl.columns, columns=y_cl_lags.columns)
 
     # Negeert correlaties met zichzelf, die worden apart behandeld in AR optimalisatie
     for i in corrs.index:
@@ -52,7 +58,7 @@ def get_top_correlations(y: pd.DataFrame, y_lags: pd.DataFrame, top_correl: int 
     top_correlations = {}
 
     # Als alleen de meest correlerende feature eruit moet worden gehaald
-    if (len(y.columns) == 1 & top_correl == 1):
+    if (len(y.columns) == 1 and top_correl == 1):
         top_name = corrs.T.idxmax()[0]
         top_value = round(corrs[top_name].values[0], 3)
         return top_name, top_value
@@ -184,18 +190,14 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
             cols_check = [sales_name in x for x in X_exog_rf.columns]
             sales_cols = X_exog_rf.iloc[:, cols_check].columns
             sales_data = X_exog_rf[sales_cols]
-            sales_data.dropna(how='any', inplace=True)
-            y = y.loc[sales_data.index]
-
-            #TODO Continue here, top 3 correlations not outputting, only 1
-            top_c, corrs = get_top_correlations(y=pd.DataFrame(y), y_lags=sales_data, top_correl=3)
 
             if len(sales_cols):
-                sales_cols.sort_values()
-                sales_cols_select = sales_cols[:2]
+                top_c, corrs = get_top_correlations(y=pd.DataFrame(y), y_lags=sales_data, top_correl=3)
+                sales_cols_select = top_c[y_name]
                 ar_baseline[sales_cols_select] = X_exog_rf[sales_cols_select]
                 X_exog_rf.drop(sales_cols_select, axis=1, inplace=True)
-                LOGGER.debug("Found Plus sales column for {}, added to baseline.".format(y_name))
+                LOGGER.debug("Selected {} columns for product {}".format(sales_cols_select, y_name))
+                # LOGGER.debug("Found Plus sales column for {}, added to baseline.".format(y_name))
 
         baseline_fit = fit_model(y=y, X=ar_baseline, model=model)
 

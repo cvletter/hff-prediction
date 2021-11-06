@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import hff_predictor.config.column_names as cn
 import hff_predictor.generic.dates as gf
 import hff_predictor.generic.files
@@ -217,6 +218,9 @@ def plus_sales():
         sales_plus_all['plus_sales_2diff']).join(
         sales_plus_all['plus_sales_3diff']
     )
+
+    sales_plus_final = sales_plus_final.iloc[:-4, :]
+    sales_plus_final.replace([np.inf, -np.inf], np.nan, inplace=True)
 
     LOGGER.debug("Added Plus sales data to total feature set.")
 
