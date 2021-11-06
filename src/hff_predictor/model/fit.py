@@ -52,7 +52,7 @@ def get_top_correlations(y: pd.DataFrame, y_lags: pd.DataFrame, top_correl: int 
     top_correlations = {}
 
     # Als alleen de meest correlerende feature eruit moet worden gehaald
-    if len(y.columns) == 1 & top_correl == 1:
+    if (len(y.columns) == 1 & top_correl == 1):
         top_name = corrs.T.idxmax()[0]
         top_value = round(corrs[top_name].values[0], 3)
         return top_name, top_value
@@ -179,10 +179,16 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
         # Schat het baseline model, nog zonder exogene factoren
 
         if ps.ADD_PLUS_SALES:
-            sales_name = "{}_{}_last".format(y_name, cn.SALES_NAME)
+            sales_name = "{}_{}".format(y_name, cn.SALES_NAME)
 
             cols_check = [sales_name in x for x in X_exog_rf.columns]
             sales_cols = X_exog_rf.iloc[:, cols_check].columns
+            sales_data = X_exog_rf[sales_cols]
+            sales_data.dropna(how='any', inplace=True)
+            y = y.loc[sales_data.index]
+
+            #TODO Continue here, top 3 correlations not outputting, only 1
+            top_c, corrs = get_top_correlations(y=pd.DataFrame(y), y_lags=sales_data, top_correl=3)
 
             if len(sales_cols):
                 sales_cols.sort_values()

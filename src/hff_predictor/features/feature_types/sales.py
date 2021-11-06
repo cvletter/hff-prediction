@@ -39,6 +39,20 @@ def plus_sales():
         ['InkoopRecept', 'InkoopRecept Omschrijving', 'Artikelen', 'Artikelomschrijving']).agg(
         {'Besteld #CE': 'sum'})).reset_index()
 
+    bestellingen_plus[cn.WEEK_NUMBER] = bestellingen_plus["Week"].astype(str) + "-" + bestellingen_plus["Weekjaar"].astype(str)
+    gf.add_first_day_week(add_to=bestellingen_plus)
+
+    plus_bestellingen = pd.DataFrame(bestellingen_plus.groupby(
+        ['InkoopRecept Omschrijving', cn.FIRST_DOW]).agg(
+        {'Besteld #CE': 'sum'})).reset_index()
+
+    plus_bestellingen = pd.DataFrame(
+        plus_bestellingen.pivot(
+            index=cn.FIRST_DOW, columns='InkoopRecept Omschrijving', values="Besteld #CE"
+        )
+    )
+    plus_bestellingen[cn.MOD_PROD_SUM] = plus_bestellingen.sum(axis=1)
+
     # Process all sales data into one DataFrame
     sub_files = ["2020 - 1-26", "2020 - 27-53", "2021 - 1-26", "2021 - 27-52"]
     total_sales_data = pd.DataFrame([])
@@ -172,19 +186,37 @@ def plus_sales():
     sales_plus = sales_cons_f2.sort_index(ascending=True)
     sales_plus_d1 = (sales_plus.diff(1) / sales_plus.shift(1)).sort_index(ascending=False, inplace=False)
     sales_plus_d2 = (sales_plus.diff(2) / sales_plus.shift(2)).sort_index(ascending=False, inplace=False)
+    sales_plus_2w = (sales_plus.rolling(2).sum()).sort_index(ascending=False, inplace=False)
     sales_plus_3w = (sales_plus.rolling(3).sum()).sort_index(ascending=False, inplace=False)
     sales_plus_5w = (sales_plus.rolling(5).sum()).sort_index(ascending=False, inplace=False)
+
+
+    sales_columns = list(set([x[:-6] for x in sales_plus.columns]))
+    sales_columns.sort()
+    plus_bestellingen_match = plus_bestellingen.loc[sales_plus.index, sales_columns]
+    plus_bestellingen_match.columns = sales_plus.columns
+
+    plus_bestellingen_3w = (plus_bestellingen_match.rolling(3).sum()).sort_index(ascending=False, inplace=False)
+    plus_bestellingen_2w = (plus_bestellingen_match.rolling(2).sum()).sort_index(ascending=False, inplace=False)
+    plus_diff_2w = plus_bestellingen_2w.subtract(sales_plus_2w)
+    plus_diff_3w = plus_bestellingen_3w.subtract(sales_plus_3w)
+
 
     sales_plus_all['plus_sales_1d'] = change_col_names(sales_plus_d1, subscript="d1")
     sales_plus_all['plus_sales_2d'] = change_col_names(sales_plus_d2, subscript="d2")
     sales_plus_all['plus_sales_3ma'] = change_col_names(sales_plus_3w, subscript="ma3")
     sales_plus_all['plus_sales_5ma'] = change_col_names(sales_plus_5w, subscript="ma5")
+    sales_plus_all['plus_sales_2diff'] = change_col_names(plus_diff_2w, subscript="diff2")
+    sales_plus_all['plus_sales_3diff'] = change_col_names(plus_diff_3w, subscript="diff3")
 
     sales_plus_final = sales_plus_all["plus_sales"].join(
         sales_plus_all['plus_sales_1d']).join(
         sales_plus_all['plus_sales_2d']).join(
         sales_plus_all['plus_sales_3ma']).join(
-        sales_plus_all['plus_sales_5ma'])
+        sales_plus_all['plus_sales_5ma']).join(
+        sales_plus_all['plus_sales_2diff']).join(
+        sales_plus_all['plus_sales_3diff']
+    )
 
     LOGGER.debug("Added Plus sales data to total feature set.")
 
