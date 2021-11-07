@@ -136,6 +136,20 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
         weather_forecast=weather_forecast,
         standardize=ps.STANDARDIZE)
 
+    # Make distributed prediction
+    all_products_m = predict_data['y_ar_m'][['last0w' in x for x in predict_data['y_ar_m'].index]]
+    all_products_nm = predict_data['y_ar_nm'][['last0w' in x for x in predict_data['y_ar_nm'].index]]
+    all_products = pd.DataFrame(pd.concat([all_products_m, all_products_nm]))
+    all_products = all_products.T
+    all_products.columns = [x[:-7] for x in all_products.columns]
+    #TODO Properly delete aggregatred prections,set them to zero or NaN
+    products_tosum = all_products.drop(['model_products_sum', 'all_products_sum', 'all_rol_products_sum'],
+                                       axis=1, inplace=False)
+
+    product_distribution = all_products.div(products_tosum.sum(axis=1), axis=0)
+    total_prediction = all_predictions['all_products_sum']
+    prediction_distributed = product_distribution.mul(total_prediction, axis=0).astype(int)
+
     # Maak de moving average voorspellingen
     ma_predictions, ma_now = moving_average(active_products=active_products, prediction_window=prediction_window,
                                     prediction_date=date_to_predict)
@@ -158,6 +172,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
     # Verzamel de MA voorspelling
     all_output[date_to_predict][cn.MA_BENCHMARK] = ma_predictions.astype(int)
     all_output[date_to_predict]["last_week"] = ma_now.astype(int)
+    all_output[date_to_predict]["distributed_prediction"] = prediction_distributed
 
     # Maak een apart object aan voor de voorspellingen, ter voorbereiding op eventuele bootstrap
 
@@ -179,9 +194,12 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
             weather_forecast=weather_forecast
         )
 
-        pred_out = pd.concat([ma_now, all_predictions, boundaries.T, ma_predictions, all_wpredictions.T]).T
+        pred_out = pd.concat([ma_now, all_predictions , boundaries.T, ma_predictions, all_wpredictions.T]).T
 
         nan_values = pred_out.isna().sum().sum()
+
+        pred_out = pd.concat(
+            [ma_now, all_predictions, prediction_distributed, boundaries.T, ma_predictions, all_wpredictions.T]).T
 
         try:
             prediction_output = pred_out.astype(int)
@@ -194,7 +212,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
         prediction_output['modelleerbaar'] = "Ja"
         prediction_output.loc[fit_data[cn.NON_MOD_PROD], 'modelleerbaar'] = "Nee"
 
-        prediction_output.columns = ["afgelopen_week", "voorspelling", "ondergrens", "bovengrens",
+        prediction_output.columns = ["afgelopen_week", "voorspelling", "voorspelling_verdeeld", "ondergrens", "bovengrens",
                                      "5weeks_gemiddelde", "beter_weer", "slechter_weer", "modelleerbaar"]
 
         elapsed_bootstrap = round((time.time() - start_bootstrap), 2)
@@ -238,7 +256,7 @@ def init_predict(date, window, reload, su_member):
         save_predictions=True
     )
 
-
+"""
     date_to_predict = "2021-09-13"
     prediction_window = 2
     train_obs = ps.TRAIN_OBS
@@ -251,4 +269,5 @@ def init_predict(date, window, reload, su_member):
     reload_data = False
     su_member = "Hollander Plus"
     save_predictions = False
+"""
 

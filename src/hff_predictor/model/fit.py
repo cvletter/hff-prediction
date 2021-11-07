@@ -192,8 +192,8 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
             sales_data = X_exog_rf[sales_cols]
 
             if len(sales_cols):
-                top_c, corrs = get_top_correlations(y=pd.DataFrame(y), y_lags=sales_data, top_correl=3)
-                sales_cols_select = top_c[y_name]
+                top_c, corrs = get_top_correlations(y=pd.DataFrame(y), y_lags=sales_data, top_correl=1)
+                sales_cols_select = top_c #top_c[y_name]
                 ar_baseline[sales_cols_select] = X_exog_rf[sales_cols_select]
                 X_exog_rf.drop(sales_cols_select, axis=1, inplace=True)
                 LOGGER.debug("Selected {} columns for product {}".format(sales_cols_select, y_name))

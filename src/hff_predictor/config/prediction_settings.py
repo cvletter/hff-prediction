@@ -8,10 +8,11 @@ DIFFERENCING = False             # Eerste verschillen nemen voor voorspelling
 BOOTSTRAP_ITER = 1               # Aantal bootstraps voor grenswaarden voorspelling
 MODEL_TYPE = "OLS"               # Voorspelalgoritme: OLS, Poisson, XGBoost, etc
 MAX_FEATURES = 20                # Maximaal te selecteren features in optimalisatie
-MIN_CORRELATION = 0.4            # Minimum correlatie die een feature moet hebben
+MIN_CORRELATION = 0.3            # Minimum correlatie die een feature moet hebben
 FEATURE_OPT = [MIN_CORRELATION,  # Combinatie van bovenstaande parameters
                MAX_FEATURES]
 FEATURE_PERIOD_LENGTH = 2500     # Number of days to generate for features
 WEATHER_FORECAST = False         # Weersfactoren worden ook als voorspelling meegenomen
-ADD_PLUS_SALES = True
+ADD_PLUS_SALES = False
+
 STANDARDIZE = False

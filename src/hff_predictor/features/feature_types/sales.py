@@ -1,15 +1,20 @@
 import pandas as pd
+import datetime
 import numpy as np
 import hff_predictor.config.column_names as cn
 import hff_predictor.generic.dates as gf
 import hff_predictor.generic.files
 import hff_predictor.config.file_management as fm
+import hff_predictor.config.prediction_settings as ps
 
 import logging
 LOGGER = logging.getLogger(__name__)
 
 
-def plus_sales():
+def plus_sales(prediction_date: str):
+
+    if type(prediction_date) == str:
+        prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
 
     # Location of all Plus data sales
     file_loc = "U:\Productie Voorspelmodel\Input\Bestellingen Hollander"
@@ -154,10 +159,15 @@ def plus_sales():
         return final_data
 
     # sales_data = prepare_data(input_data=order_data_join, orders=True)
-    sales_cons_data = prepare_data(input_data=sales_data_enriched, orders=False)
-    sales_cons_data.to_csv("sales_cons.csv", sep=";", decimal=".")
+    sales_cons_data_temp = prepare_data(input_data=sales_data_enriched, orders=False)
+    # sales_cons_data.to_csv("sales_cons.csv", sep=";", decimal=".")
     # Drop if too many missing values
-    sales_cons_data.sort_index(ascending=False, inplace=True)
+    sales_cons_data_temp.sort_index(ascending=False, inplace=True)
+
+    first_train_date = prediction_date - datetime.timedelta(weeks=ps.TRAIN_OBS + ps.N_LAGS)
+    sales_cons_data = sales_cons_data_temp.loc[prediction_date:first_train_date]
+
+    print("first {}; last {}".format(sales_cons_data.index.min(), sales_cons_data.index.max()))
 
     def zero_filter(data, days, limit_missing):
         total_cols = data.shape[1]
@@ -169,7 +179,7 @@ def plus_sales():
         return data[filter1]
 
     sales_cons_f1 = zero_filter(data=sales_cons_data, days=5, limit_missing=0)
-    sales_cons_f2 = zero_filter(data=sales_cons_f1, days=70, limit_missing=5)
+    sales_cons_f2 = zero_filter(data=sales_cons_f1, days=ps.TRAIN_OBS, limit_missing=5)
 
     # Additional feature types
 

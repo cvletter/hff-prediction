@@ -50,7 +50,7 @@ def prep_all_features(
 
     # Temp fix for ignoring plus data
     if ps.ADD_PLUS_SALES:
-        all_features['plus_sales'] = sales.plus_sales()
+        all_features['plus_sales'] = sales.plus_sales(prediction_date=prediction_date)
 
     __, all_features['superunie_n'] = superunie.prep_su_features(
         input_order_data=order_data_su,
