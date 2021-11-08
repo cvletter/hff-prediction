@@ -384,7 +384,7 @@ def init_evaluate(summary):
         modelable_prod=modelable_prod,
         non_modelable_prod=non_modelable_prod)
 
-    save_predictions = True
+    save_predictions = False
     if save_predictions:
         save_to_csv(pred_mod, file_name="raw_predictions_mod", folder=fm.TEST_PREDICTIONS_FOLDER)
         save_to_csv(predictions, file_name="raw_predictions_total", folder=fm.TEST_PREDICTIONS_FOLDER)

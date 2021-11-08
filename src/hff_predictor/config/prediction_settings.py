@@ -14,5 +14,6 @@ FEATURE_OPT = [MIN_CORRELATION,  # Combinatie van bovenstaande parameters
 FEATURE_PERIOD_LENGTH = 2500     # Number of days to generate for features
 WEATHER_FORECAST = False         # Weersfactoren worden ook als voorspelling meegenomen
 ADD_PLUS_SALES = False
-
-STANDARDIZE = False
+TOP_DOWN = False
+STANDARDIZE = True
+SU_MEMBER = "Hollander Plus"

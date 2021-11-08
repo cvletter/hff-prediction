@@ -142,13 +142,16 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
     all_products = pd.DataFrame(pd.concat([all_products_m, all_products_nm]))
     all_products = all_products.T
     all_products.columns = [x[:-7] for x in all_products.columns]
+
     #TODO Properly delete aggregatred prections,set them to zero or NaN
-    products_tosum = all_products.drop(['model_products_sum', 'all_products_sum', 'all_rol_products_sum'],
-                                       axis=1, inplace=False)
+    aggregated_cols = [cn.MOD_PROD_SUM, cn.ALL_PROD_SUM, cn.ALL_ROL_SUM]
+    products_tosum = all_products.drop(aggregated_cols, axis=1, inplace=False)
 
     product_distribution = all_products.div(products_tosum.sum(axis=1), axis=0)
-    total_prediction = all_predictions['all_products_sum']
+    total_prediction = all_predictions[cn.ALL_PROD_SUM]
     prediction_distributed = product_distribution.mul(total_prediction, axis=0).astype(int)
+    for i in aggregated_cols:
+        prediction_distributed[i] = all_predictions[i]
 
     # Maak de moving average voorspellingen
     ma_predictions, ma_now = moving_average(active_products=active_products, prediction_window=prediction_window,
@@ -194,7 +197,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
             weather_forecast=weather_forecast
         )
 
-        pred_out = pd.concat([ma_now, all_predictions , boundaries.T, ma_predictions, all_wpredictions.T]).T
+        pred_out = pd.concat([ma_now, all_predictions, boundaries.T, ma_predictions, all_wpredictions.T]).T
 
         nan_values = pred_out.isna().sum().sum()
 
@@ -218,7 +221,10 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
         elapsed_bootstrap = round((time.time() - start_bootstrap), 2)
         LOGGER.debug("Bootstrap voorspellingen zijn gemaakt, dit duurde {} seconden".format(elapsed_bootstrap))
 
-    all_output[date_to_predict][cn.PREDICTION_OS] = all_predictions.astype(int)
+    if ps.TOP_DOWN:
+        all_output[date_to_predict][cn.PREDICTION_OS] = prediction_distributed.astype(int)
+    else:
+        all_output[date_to_predict][cn.PREDICTION_OS] = all_predictions.astype(int)
 
     if save_predictions:
         pred_out = add_product_number(data=prediction_output)

@@ -21,7 +21,7 @@ model_settings = {
     "fit_model": ps.MODEL_TYPE,
     "feature_threshold": ps.FEATURE_OPT,
     "bootstraps": 1,
-    "su_member": "Hollander Plus",
+    "su_member": ps.SU_MEMBER,
     "weather_forecast": ps.WEATHER_FORECAST
 }
 
