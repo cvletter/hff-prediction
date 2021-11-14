@@ -70,7 +70,7 @@ def prep_level_shifts() -> pd.DataFrame:
     return level_shifts.groupby(cn.FIRST_DOW, as_index=True).max()
 
 
-def turning_points_analysis(prediction_date: str):
+def turning_points_analysis(prediction_date: str, active_products: pd.DataFrame):
 
     # Vertaal voorspeldatum naar datetime object
     if type(prediction_date) == str:
@@ -78,12 +78,7 @@ def turning_points_analysis(prediction_date: str):
 
     last_train_date = prediction_date - datetime.timedelta(weeks=(ps.TRAIN_OBS+ps.PREDICTION_WINDOW))
 
-    order_data = hff_predictor.generic.files.import_temp_file(
-        data_loc=fm.ORDER_DATA_ACT_PR_FOLDER,
-        set_index=True
-    )
-
-    fitting_window = order_data.loc[prediction_date:last_train_date]
+    fitting_window = active_products.loc[prediction_date:last_train_date]
 
     d1 = dtr.change_col_names((fitting_window / fitting_window.shift(-1)) - 1, subscript='d1')
     d2 = dtr.change_col_names((fitting_window / fitting_window.shift(-2)) - 1, subscript='d2')

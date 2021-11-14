@@ -107,8 +107,8 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
     # Features voorbereiden
     start_features = time.time()
     exogenous_features = prep_all_features(weather_data_processed=weather_data_processed, order_data_su=order_data_su,
-                                           campaign_data_su=campaign_data_pr, prediction_date=date_to_predict,
-                                           train_obs=train_obs, save_file=False)
+                                           active_products=active_products, campaign_data_su=campaign_data_pr,
+                                           prediction_date=date_to_predict, train_obs=train_obs, save_file=False)
 
     elapsed_features = round((time.time() - start_features), 2)
 
