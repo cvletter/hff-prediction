@@ -3,6 +3,10 @@ import hff_predictor.config.column_names as cn
 import hff_predictor.generic.files as fl
 import hff_predictor.config.file_management as fm
 
+import logging
+LOGGER = logging.getLogger(__name__)
+
+
 
 def first_difference_data(undifferenced_data: pd.DataFrame, delta: int = 1, scale: bool = True) -> pd.DataFrame:
     """
@@ -115,3 +119,13 @@ def change_col_names(input_data, subscript):
         new_col_names.append(col_name)
     input_data.columns = new_col_names
     return input_data
+
+
+def na_filter(data, limit_missing):
+    total_cols = data.shape[1]
+    selection = data.copy(deep=True)
+    filter1 = selection.isna().sum()
+    filter1 = filter1[filter1 <= limit_missing].index
+    dropped = total_cols - len(filter1)
+    LOGGER.debug("Dropped {} columns of total {} columns".format(dropped, total_cols))
+    return data[filter1]

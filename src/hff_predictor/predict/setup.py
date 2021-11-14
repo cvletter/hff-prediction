@@ -13,16 +13,6 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
-def na_filter(data, limit_missing):
-    total_cols = data.shape[1]
-    selection = data.copy(deep=True)
-    filter1 = selection.isna().sum()
-    filter1 = filter1[filter1 <= limit_missing].index
-    dropped = total_cols - len(filter1)
-    LOGGER.debug("Dropped {} columns of total {} columns".format(dropped, total_cols))
-    return data[filter1]
-
-
 def split_products(active_products: pd.DataFrame, min_obs: int = cn.TRAIN_OBS,
                    prediction_date: str = cn.PREDICTION_DATE, prediction_window: int = cn.PREDICTION_WINDOW) -> tuple:
     """
@@ -117,10 +107,10 @@ def create_lagged_sets(y_mod_context, y_nmod_context, exogenous_features_context
     exog_features_lookback_lags = dtr.create_lags(data=exog_features_lookback, lag_range=lags)
 
     # Subset van variabelen die ook vooruit kunnen kijken, zoals feestdagen, campagnes en COVID features
-    exog_features_lookahead = exogenous_features_context['weather'].join(
-        exogenous_features_context['covid'], how='left').join(
+    exog_features_lookahead = exogenous_features_context['covid'].join(
         exogenous_features_context['holidays'], how='left').join(
-        exogenous_features_context['campaigns'], how='left')
+        exogenous_features_context['campaigns'], how='left').join(
+        exogenous_features_context['weather'], how='left')
 
     lookahead_range = list(reversed(range(-lags, prediction_window + 1)))
     exog_features_lookahead_lags = dtr.create_lags(data=exog_features_lookahead, lag_range=lookahead_range)
@@ -205,7 +195,7 @@ def create_model_setup(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
 
     # Sta op dit punt geen missende waarden meer toe, verwijder variabele in dat geval
     exog_features_total = exog_features_total.loc[prediction_date:min_date, :]
-    exog_features_filter = na_filter(data=exog_features_total, limit_missing=0)
+    exog_features_filter = dtr.na_filter(data=exog_features_total, limit_missing=2)
     X_exog_fit = exog_features_filter.loc[y_ar_m_fit.index]
 
     # Isoleer de waarden die gaan worden gebruikt voor predictie

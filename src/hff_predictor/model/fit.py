@@ -152,10 +152,11 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
 
     # X_exog_nw = X_exog.drop(cn.WEATHER_PRED_COLS, inplace=False, axis=1, errors='ignore')
 
-    if prediction_window == 2:
-        X_weather_baseline = X_exog[cn.TEMP_GEM_N2W]
-    else:
-        X_weather_baseline = X_exog[cn.TEMP_GEM_N1W]
+    if weather_forecast:
+        if prediction_window == 2:
+            X_weather_baseline = X_exog[cn.TEMP_GEM_N2W]
+        else:
+            X_weather_baseline = X_exog[cn.TEMP_GEM_N1W]
 
     all_weather_cols = cn.WEATHER_PRED_COLS
     all_weather_cols.extend([cn.TEMP_GEM_N1W, cn.TEMP_GEM_N2W])

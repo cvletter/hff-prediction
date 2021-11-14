@@ -106,4 +106,6 @@ def turning_points_analysis(prediction_date: str):
         d1_neg_change
     )
 
-    return turning_points
+    turning_points_final = dtr.na_filter(data=turning_points, limit_missing=0)
+
+    return turning_points_final
