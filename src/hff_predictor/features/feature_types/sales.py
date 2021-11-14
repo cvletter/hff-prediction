@@ -226,7 +226,8 @@ def plus_sales(prediction_date: str):
         sales_plus_all['plus_sales_3ma']).join(
         sales_plus_all['plus_sales_5ma']).join(
         sales_plus_all['plus_sales_2diff']).join(
-        sales_plus_all['plus_sales_3diff']
+        sales_plus_all['plus_sales_3diff'].join(
+        )
     )
 
     sales_plus_final = sales_plus_final.iloc[:-4, :]

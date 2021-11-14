@@ -162,6 +162,7 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
     X_exog_nw = X_exog.drop(all_weather_cols, inplace=False, axis=1, errors='ignore')
 
     # Schat en optimaliseer model per product
+    n_sales = 0
     for product in Y.columns:
         y_name = product
         y = Y[y_name]
@@ -197,6 +198,7 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
                 ar_baseline[sales_cols_select] = X_exog_rf[sales_cols_select]
                 X_exog_rf.drop(sales_cols_select, axis=1, inplace=True)
                 LOGGER.debug("Selected {} columns for product {}".format(sales_cols_select, y_name))
+                n_sales += 1
                 # LOGGER.debug("Found Plus sales column for {}, added to baseline.".format(y_name))
 
         baseline_fit = fit_model(y=y, X=ar_baseline, model=model)
@@ -247,6 +249,8 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
         all_params[y_name] = selected_features.columns
         optimized_ar_features[y_name] = ar_features.columns
         optimized_exog_features[y_name] = exog_features.columns
+
+    LOGGER.debug("There are {} products using sales data".format(n_sales))
 
     return Y_pred, fitted_models, all_params, optimized_ar_features, optimized_exog_features,
 
@@ -316,6 +320,7 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
             Xp_ar_m.insert(0, "constant", 1)
 
         # Totale set met features
+
         Xp_tot = Xp_ar_m.join(Xp_arx_m, how="left")
 
         # Maak voorspelling aan de hand van predictor functie
@@ -359,8 +364,18 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
         Xp_ar_nm = Xp_ar_nm.iloc[:, : Xf_ar_cp.shape[0]]
 
         Xp_all_features = Yp_ar_m.join(Xp_exog, how="left")
-
         Xf_exog_cp = Yf_exog_opt[closest_product_name].drop("constant")
+
+        if not ps.STANDARDIZE and ps.ADD_PLUS_SALES:
+            lag_name = '{}_last0w'.format(y_name_nm)
+            lag_name_cp = '{}_last0w'.format(closest_product_name)
+            correction_factor = Xp_ar_nm[lag_name] / Yp_ar_m[lag_name_cp]
+
+            sales_name = "{}_{}".format(closest_product_name, cn.SALES_NAME)
+            cols_check = Xf_exog_cp[[sales_name in x for x in Xf_exog_cp]]
+            sales_data = Xp_all_features[cols_check]
+            sales_data_adj = sales_data * correction_factor[0]
+            Xp_all_features[cols_check] = sales_data_adj[cols_check]
 
         Xp_arx_cp = Xp_all_features[Xf_exog_cp]
 
