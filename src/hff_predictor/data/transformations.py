@@ -87,6 +87,14 @@ def find_rol_products(data: pd.DataFrame, consumentgroep_nrs: pd.DataFrame) -> l
 
 
 def add_product_number(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Manier om productnummers toe te voegen aan een overzicht met enkel productnamen, dit is voor de output van het
+    voorspelmodel
+    :param data: Resulaten zonder productnummers
+    :return:
+    """
+
+    # Import bestaande file met alle productnummers
     product_nrs = fl.import_temp_file(data_loc=fm.ORDER_DATA_CG_PR_FOLDER, set_index=False)
     product_nrs = product_nrs[[cn.INKOOP_RECEPT_NM, cn.INKOOP_RECEPT_NR]]
     product_nrs = product_nrs.drop_duplicates(cn.INKOOP_RECEPT_NM, keep='first')
@@ -98,3 +106,12 @@ def add_product_number(data: pd.DataFrame) -> pd.DataFrame:
     data_with_prod_nr.rename(columns={'index': cn.INKOOP_RECEPT_NM}, inplace=True)
 
     return data_with_prod_nr.sort_index(ascending=True)
+
+
+def change_col_names(input_data, subscript):
+    new_col_names = []
+    for i in input_data.columns:
+        col_name = "{}_{}".format(i, subscript)
+        new_col_names.append(col_name)
+    input_data.columns = new_col_names
+    return input_data

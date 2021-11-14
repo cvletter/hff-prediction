@@ -161,8 +161,9 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
     all_weather_cols.extend([cn.TEMP_GEM_N1W, cn.TEMP_GEM_N2W])
     X_exog_nw = X_exog.drop(all_weather_cols, inplace=False, axis=1, errors='ignore')
 
+    n_sales = 0  # Teller om te bepalen voor hoeveel producten Plus verkoopdata is gevonden
+
     # Schat en optimaliseer model per product
-    n_sales = 0
     for product in Y.columns:
         y_name = product
         y = Y[y_name]
@@ -183,23 +184,27 @@ def batch_fit_model(Y: pd.DataFrame, Y_ar: pd.DataFrame, X_exog: pd.DataFrame, w
         if weather_forecast:
             ar_baseline = ar_baseline.join(X_weather_baseline, how='left')
 
-        # Schat het baseline model, nog zonder exogene factoren
-
+        # Het toevoegen van de Plus verkoop data als dit wort toegestaan
         if ps.ADD_PLUS_SALES:
-            sales_name = "{}_{}".format(y_name, cn.SALES_NAME)
 
+            # Zoek verkoopdata op o.b.v. naam te voorspellen product
+            sales_name = "{}_{}".format(y_name, cn.SALES_NAME)
             cols_check = [sales_name in x for x in X_exog_rf.columns]
             sales_cols = X_exog_rf.iloc[:, cols_check].columns
             sales_data = X_exog_rf[sales_cols]
 
+            # Als dit groter is dan nul, betekent het dat er match is in de verkoopdata
             if len(sales_cols):
+
+                # Vind de 3 best correlerende features in de verkoopdata
                 top_c, corrs = get_top_correlations(y=pd.DataFrame(y), y_lags=sales_data, top_correl=3)
                 sales_cols_select = top_c[y_name]
+
+                # Voeg deze features toe aan de baseline
                 ar_baseline[sales_cols_select] = X_exog_rf[sales_cols_select]
                 X_exog_rf.drop(sales_cols_select, axis=1, inplace=True)
-                LOGGER.debug("Selected {} columns for product {}".format(sales_cols_select, y_name))
                 n_sales += 1
-                # LOGGER.debug("Found Plus sales column for {}, added to baseline.".format(y_name))
+                LOGGER.debug("Found Plus sales column for {}, added to baseline.".format(y_name))
 
         baseline_fit = fit_model(y=y, X=ar_baseline, model=model)
 
@@ -338,10 +343,6 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
                                          model=model_type, weather_scenario=weather_values,
                                          prediction_window=prediction_window, positive_ints=positive_ints)
 
-
-
-    # pd.DataFrame(fit_params_reg).to_csv("params_reg.csv", sep=";", decimal=",")
-
     # Selecteer hier de producten die niet-modelleerbaar zijn
     Ynm_products = list(set([x[:-7] for x in Yp_ar_nm.columns]))
     for y_name_nm in Ynm_products:
@@ -366,14 +367,21 @@ def batch_make_prediction(Yp_ar_m: pd.DataFrame, Yp_ar_nm: pd.DataFrame, Xp_exog
         Xp_all_features = Yp_ar_m.join(Xp_exog, how="left")
         Xf_exog_cp = Yf_exog_opt[closest_product_name].drop("constant")
 
+        # Als Plus verkoopdata wordt toegevoegd, maar niet is gestandaardiseerd, moeten de 'comparable' verkoopfeatures
+        # worden gestandaardiseerd, anders kan het absolute aantal teveel afwijken.
         if not ps.STANDARDIZE and ps.ADD_PLUS_SALES:
+
+            # Bepaal correctiefactor op basis van verkopen afgelopen week
             lag_name = '{}_last0w'.format(y_name_nm)
             lag_name_cp = '{}_last0w'.format(closest_product_name)
             correction_factor = Xp_ar_nm[lag_name] / Yp_ar_m[lag_name_cp]
 
+            # Vind de Plus verkoopdata voor het meest vergelijkbare product
             sales_name = "{}_{}".format(closest_product_name, cn.SALES_NAME)
             cols_check = Xf_exog_cp[[sales_name in x for x in Xf_exog_cp]]
             sales_data = Xp_all_features[cols_check]
+
+            # Pas correctie toe
             sales_data_adj = sales_data * correction_factor[0]
             Xp_all_features[cols_check] = sales_data_adj[cols_check]
 
@@ -464,31 +472,30 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
     if feature_threshold is None:
         feature_threshold = [0.2, 15]
 
-    # Input variabelen, om eventueel bootstrap samples van te maken
-
-
-    # Te standaardiseren
+    # Basis set met voorspeldata
     Y_org = fit_dict[cn.Y_TRUE]
     Yar_org = fit_dict[cn.Y_AR]
     X_org = fit_dict[cn.X_EXOG]
 
+    # Ter controle transformeren naar DataFrames
     Yp_ar_m = pd.DataFrame(predict_dict[cn.Y_AR_M])
     Yp_ar_nm = pd.DataFrame(predict_dict[cn.Y_AR_NM])
     Xp = pd.DataFrame(predict_dict[cn.X_EXOG])
 
+    # Haal alle matches op van niet modelleerbare producten en hun vergelijkbare modelleerbare producten
     closest_prod = find_closest_product(Y_m=Yp_ar_m, Y_nm=Yp_ar_nm)
 
+    # Standaardisatie functie, wat een transformatie uitvoer zodat elke feature gem. 0 heeft en std. 1
     if standardize:
-        # Y_fit
+        # Y_fit, de originele Y
         Y_org_mean = Y_org.mean()
         Y_org_std = Y_org.std()
-
         Y_org_st = (Y_org - Y_org_mean) / Y_org_std
 
-        # Y_ar fit & predict
+        # Y_ar fit & predict, alle autoregressieve factoren
         Y_ar = pd.concat([Yp_ar_m.T, Yar_org], axis=0)
 
-        # X
+        # Alle exogene variabelen
         X_tot_r = pd.concat([Xp.T, X_org], axis=0)
         X_tot = X_tot_r[X_tot_r.columns[X_tot_r.std() != 0.0]]
 
@@ -504,7 +511,8 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
         Y_ar_st = (Y_ar - Y_ar_mean) / Y_ar_std
         Yp_ar_m_st, Yar_org_st = Y_ar_st.iloc[0, :], Y_ar_st.iloc[1:, :]
 
-        # Y_ar_nm predict
+        # Aanname dat meest vergelijkbare product zich vergelijkbaar gedraagt, daarom standaardiseren met dat product
+        # Geen alternatief, want niet-modelleerbaar product heeft te weinig data voor standaardistatie
         Yp_ar_nm_st = Yp_ar_nm
         for x in Yp_ar_nm.index:
             x = x[:-7]
@@ -516,6 +524,7 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
                 cp_name = "{}_last{}w".format(cp, l)
                 Yp_ar_nm_st.loc[x_name] = (Yp_ar_nm_st.loc[x_name] - Y_ar_mean[cp_name]) / Y_ar_std[cp_name]
 
+        # Als standaardisatie wordt toegepast, worden hier de originele input variabelen overschreven
         Y_org = Y_org_st
         Yar_org = Yar_org_st
         X_org = X_org_st
@@ -552,6 +561,7 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
         prediction_window=prediction_window
     )
 
+    # Als wordt gestandaardiseerd, moeten de voorspellingen niet worden afgerond
     positive_integers = not standardize
 
     # Maak standaard voorspellingen
@@ -612,10 +622,11 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
             comparable_products=closest_prod
         )
 
+        # De standaardisatie moet worden teruggedraaid om tot normale voorspellingen te komen
         if standardize:
-            Yos_pred_ds = Yos_pred.copy(deep=True)
+            Yos_pred_ds = Yos_pred.copy(deep=True)  # ds = de-standardized
             for j in Yos_pred.columns:
-                if j in closest_prod.keys():
+                if j in closest_prod.keys():  # Als in deze keys, betekent dat het product niet-modelleebaar is
                     Yos_pred_ds[j] = Yos_pred[j] * Y_org_std[closest_prod[j]] + Y_org_mean[closest_prod[j]]
                 else:
                     Yos_pred_ds[j] = Yos_pred[j] * Y_org_std[j] + Y_org_mean[j]
@@ -627,14 +638,10 @@ def fit_and_predict(fit_dict: dict, predict_dict: dict, weather_forecast: bool, 
                 else:
                     wYos_pred_ds.loc[j] = wYos_pred.loc[j] * Y_org_std[j] + Y_org_mean[j]
 
-
             return Yis_fit, Yos_pred_ds, all_pars, wYos_pred_ds
 
-        else:
+        else:  # destandaardisatie hoeft niet worden uitgevoerd als niet is toegepast
             return Yis_fit, Yos_pred, all_pars, wYos_pred
-
-
-
 
 def init_train():
     fit_dict = hff_predictor.generic.files.read_pkl(
@@ -660,8 +667,4 @@ def init_train():
         Yf_exog_opt=exog_f,
         fitted_models=model_fits,
         find_comparable_model=True,
-    )
-
-    yisfit, yosfit, pars = fit_and_predict(
-        fit_dict=fit_dict, predict_dict=predict_dict, feature_threshold=[0.2, 25]
     )

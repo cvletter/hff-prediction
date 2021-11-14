@@ -470,7 +470,7 @@ def process_data(
     beschikbaar moet zijn
     :param agg_weekly: Wekelijks aggregeren
     :param exclude_su: Aggrgeren over SU of niet
-    :param su_member: Selecteert alleen de bestellingen voor een specifiek SU-LID
+    :param su_member: Selecteert alleen de bestellingen voor een specifiek lid van de SuperUnie
     :param save_to_csv: Opslaan van de resultaten
     :return:
     """
@@ -504,7 +504,6 @@ def process_data(
     order_data_filtered = data_filtering(order_data)
 
     # Selectie van specifiek SU lid
-
     if su_member is not None:
         order_data_filtered = order_data_filtered[order_data_filtered[cn.ORGANISATIE] == su_member]
         LOGGER.debug("Selected only data for SU member: {}".format(su_member))
@@ -566,12 +565,13 @@ def data_prep_wrapper(
 ) -> [pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
 
-    :param prediction_date:
-    :param prediction_window:
-    :param reload_data:
-    :param agg_weekly:
-    :param exclude_su:
-    :param save_to_csv:
+    :param prediction_date: Datum voor wanneer voorspelling wordt gemaakt
+    :param prediction_window: Aantal weken dat wordt vooruit voorspeld
+    :param reload_data: Optie om data opnieuw in te laden
+    :param agg_weekly: Wekelijkse aggregatie of dagelijks
+    :param exclude_su: Het wel of niet uitvoeren van data aggregatie op SU niveau
+    :param save_to_csv: Resultaat opslaan
+    :param su_member: Uitvoeren voor een specifiek lid van de Superunie
     :return:
     """
     if type(prediction_date) == str:
@@ -651,13 +651,6 @@ def data_prep_wrapper(
 
 
 def init_prepare_data():
-
-    """order_data, weer_data, order_data_su, campaigns = process_data(
-        agg_weekly=True,
-        exclude_su=True,
-        save_to_csv=False,
-    )"""
-
 
     order_data_wk_a, order_data_wk_ia, weather_data, order_data_wk_su_a, campaign_data = data_prep_wrapper(
         prediction_date="2021-04-12",

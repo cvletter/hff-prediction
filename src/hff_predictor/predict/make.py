@@ -136,19 +136,22 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
         weather_forecast=weather_forecast,
         standardize=ps.STANDARDIZE)
 
-    # Make distributed prediction
+    # Maak hier de voorspellingen op basis van top-down predictie
     all_products_m = predict_data['y_ar_m'][['last0w' in x for x in predict_data['y_ar_m'].index]]
     all_products_nm = predict_data['y_ar_nm'][['last0w' in x for x in predict_data['y_ar_nm'].index]]
     all_products = pd.DataFrame(pd.concat([all_products_m, all_products_nm]))
     all_products = all_products.T
     all_products.columns = [x[:-7] for x in all_products.columns]
 
-    #TODO Properly delete aggregatred prections,set them to zero or NaN
+    # Verwijder de geaggregeerde kolommen
     aggregated_cols = [cn.MOD_PROD_SUM, cn.ALL_PROD_SUM, cn.ALL_ROL_SUM]
     products_tosum = all_products.drop(aggregated_cols, axis=1, inplace=False)
 
+    # Bepaalde verdeelsleutel
     product_distribution = all_products.div(products_tosum.sum(axis=1), axis=0)
     total_prediction = all_predictions[cn.ALL_PROD_SUM]
+
+    # Maak de verdeelde voorspellingen
     prediction_distributed = product_distribution.mul(total_prediction, axis=0).astype(int)
     for i in aggregated_cols:
         prediction_distributed[i] = all_predictions[i]
@@ -167,6 +170,7 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
 
     # Verzamnel de geselecteerde features
     all_output[date_to_predict][cn.SELECTED_FEATURES] = all_pars
+
     # Verzamel de fit errors
     avg_fit_err, avg_pct_err = in_sample_error(all_fits=in_sample_fits, all_true_values=fit_data[cn.Y_TRUE])
     all_output[date_to_predict][cn.FIT_ERROR_ABS] = avg_fit_err.astype(float)
@@ -201,8 +205,11 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
 
         nan_values = pred_out.isna().sum().sum()
 
+        # Onderstaande code aanzetten als ook de top-down voorspellingen moeten worden meegenomen
+        """
         pred_out = pd.concat(
             [ma_now, all_predictions, prediction_distributed, boundaries.T, ma_predictions, all_wpredictions.T]).T
+        """
 
         try:
             prediction_output = pred_out.astype(int)
@@ -215,12 +222,15 @@ def run_prediction_bootstrap(date_to_predict: str, prediction_window: int,
         prediction_output['modelleerbaar'] = "Ja"
         prediction_output.loc[fit_data[cn.NON_MOD_PROD], 'modelleerbaar'] = "Nee"
 
-        prediction_output.columns = ["afgelopen_week", "voorspelling", "voorspelling_verdeeld", "ondergrens", "bovengrens",
+        prediction_output.columns = ["afgelopen_week", "voorspelling", "ondergrens", "bovengrens",
                                      "5weeks_gemiddelde", "beter_weer", "slechter_weer", "modelleerbaar"]
+
+        # "voorspelling_verdeeld" toevoegen als top-down moet worden meegenomen
 
         elapsed_bootstrap = round((time.time() - start_bootstrap), 2)
         LOGGER.debug("Bootstrap voorspellingen zijn gemaakt, dit duurde {} seconden".format(elapsed_bootstrap))
 
+    # Als de voorspelling top-down is, sla deze dan op ipv de bottom-up voorspellingen
     if ps.TOP_DOWN:
         all_output[date_to_predict][cn.PREDICTION_OS] = prediction_distributed.astype(int)
     else:

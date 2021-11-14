@@ -47,8 +47,9 @@ def prep_all_features(
     all_features['campaigns'] = campaigns.prep_campaign_features(campaign_data=campaign_data_su)
     all_features['covid'] = covid.prep_covid_features()
     all_features['breaks'] = structural_breaks.prep_level_shifts()
+    all_features['turning_points'] = structural_breaks.turning_points_analysis(prediction_date=prediction_date)
 
-    # Temp fix for ignoring plus data
+    # Manier om als optie Plus verkoopdata toe te voegen aan de feature set
     if ps.ADD_PLUS_SALES:
         all_features['plus_sales'] = sales.plus_sales(prediction_date=prediction_date)
 

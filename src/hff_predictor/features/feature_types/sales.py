@@ -3,8 +3,6 @@ import datetime
 import numpy as np
 import hff_predictor.config.column_names as cn
 import hff_predictor.generic.dates as gf
-import hff_predictor.generic.files
-import hff_predictor.config.file_management as fm
 import hff_predictor.config.prediction_settings as ps
 
 import logging
@@ -12,6 +10,12 @@ LOGGER = logging.getLogger(__name__)
 
 
 def plus_sales(prediction_date: str):
+    """
+    Inefficiente totaalfunctie om Plus data toe te voegen als features. Deze feature is net verder geoptimaliseerd omdat
+    deze data nu niet in gebruik is in het voorspelmodel
+    :param prediction_date: Datum van voorspellen
+    :return:
+    """
 
     if type(prediction_date) == str:
         prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
@@ -123,6 +127,8 @@ def plus_sales(prediction_date: str):
                                    how="left", left_on="Artikelomschrijving",
                                    right_on="Artikelomschrijving")
 
+    # Subfunctie om data te preparen, met name aggreagtie
+
     def prepare_data(input_data, orders=True):
         if orders:
             prep_data = input_data[[cn.FIRST_DOW, 'TOT', 'InkoopRecept', 'InkoopRecept Omschrijving']]
@@ -169,6 +175,8 @@ def plus_sales(prediction_date: str):
 
     print("first {}; last {}".format(sales_cons_data.index.min(), sales_cons_data.index.max()))
 
+    # Subfunctie om teveel nullen (geen verkopen) te verwijderen
+
     def zero_filter(data, days, limit_missing):
         total_cols = data.shape[1]
         selection = data.iloc[:days, :]
@@ -200,7 +208,6 @@ def plus_sales(prediction_date: str):
     sales_plus_2w = (sales_plus.rolling(2).sum()).sort_index(ascending=False, inplace=False)
     sales_plus_3w = (sales_plus.rolling(3).sum()).sort_index(ascending=False, inplace=False)
     sales_plus_5w = (sales_plus.rolling(5).sum()).sort_index(ascending=False, inplace=False)
-
 
     sales_columns = list(set([x[:-6] for x in sales_plus.columns]))
     sales_columns.sort()

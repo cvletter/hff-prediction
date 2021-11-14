@@ -108,7 +108,8 @@ def create_lagged_sets(y_mod_context, y_nmod_context, exogenous_features_context
     y_nmod_lags = dtr.create_lags(data=y_nmod_context, lag_range=lags)
 
     # Subset van variabelen die alleen kunnen terugkijken: Superunie factoren (o.b.v. bestellingen) en weer
-    exog_features_lookback = exogenous_features_context['superunie_n']
+    exog_features_lookback = exogenous_features_context['superunie_n'].join(
+        exogenous_features_context['turning_points'])
 
     if ps.ADD_PLUS_SALES:
         exog_features_lookback = exog_features_lookback.join(exogenous_features_context['plus_sales'], how='left')
@@ -202,8 +203,9 @@ def create_model_setup(y_modelable: pd.DataFrame, y_nonmodelable: pd.DataFrame, 
     y_ar_m_fit = y_mod_lags.loc[max_date: min_date]
     y_true_fit = y_modelable.loc[y_ar_m_fit.index]
 
+    # Sta op dit punt geen missende waarden meer toe, verwijder variabele in dat geval
     exog_features_total = exog_features_total.loc[prediction_date:min_date, :]
-    exog_features_filter = na_filter(data=exog_features_total, limit_missing=2)
+    exog_features_filter = na_filter(data=exog_features_total, limit_missing=0)
     X_exog_fit = exog_features_filter.loc[y_ar_m_fit.index]
 
     # Isoleer de waarden die gaan worden gebruikt voor predictie
