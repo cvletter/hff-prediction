@@ -141,7 +141,7 @@ def process_weather_data(weekly=True) -> pd.DataFrame:
     zfile.close()
 
     weer_data_zip = zf.ZipFile(temp_weather_name)  # having First.csv zipped file.
-    data_download = pd.read_csv(weer_data_zip.open('etmgeg_260.txt'), skiprows=47, delimiter=",", low_memory=False)
+    data_download = pd.read_csv(weer_data_zip.open('etmgeg_260.txt'), skiprows=51, delimiter=",", low_memory=False)
     weer_data_zip.close()
 
     data_download[cn.W_DATE] = pd.to_datetime(data_download['YYYYMMDD'], format='%Y%m%d')
