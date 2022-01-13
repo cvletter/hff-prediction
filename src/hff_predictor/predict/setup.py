@@ -109,8 +109,9 @@ def create_lagged_sets(y_mod_context, y_nmod_context, exogenous_features_context
     # Subset van variabelen die ook vooruit kunnen kijken, zoals feestdagen, campagnes en COVID features
     exog_features_lookahead = exogenous_features_context['covid'].join(
         exogenous_features_context['holidays'], how='left').join(
-        exogenous_features_context['campaigns'], how='left').join(
         exogenous_features_context['weather'], how='left')
+        #.join(exogenous_features_context['campaigns'], how='left')
+
 
     lookahead_range = list(reversed(range(-lags, prediction_window + 1)))
     exog_features_lookahead_lags = dtr.create_lags(data=exog_features_lookahead, lag_range=lookahead_range)
